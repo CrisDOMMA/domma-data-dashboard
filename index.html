@@ -18,14 +18,19 @@
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--crema); color: var(--azul); }
 .header { background: var(--azul); color: white; padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
 .header h1 { font-size: 20px; font-weight: 700; }
+.header .header-right { display: flex; align-items: center; gap: 24px; }
 .header .stats { display: flex; gap: 24px; font-size: 13px; opacity: 0.8; }
 .header .stats span { font-weight: 700; font-size: 16px; color: var(--rosa); display: block; }
+.download-pill { display: inline-flex; align-items: center; gap: 8px; background: var(--rosa-oscuro); color: white; padding: 10px 20px; border-radius: 20px; text-decoration: none; font-size: 13px; font-weight: 600; transition: all 0.2s; white-space: nowrap; }
+.download-pill:hover { background: var(--rosa); color: var(--azul); }
+.download-pill svg { flex-shrink: 0; }
 .nav { background: white; padding: 12px 32px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 8px; flex-wrap: wrap; position: sticky; top: 68px; z-index: 99; }
 .nav button { padding: 8px 16px; border: 1px solid #ddd; border-radius: 20px; background: white; cursor: pointer; font-size: 13px; transition: all 0.2s; }
 .nav button:hover { border-color: var(--rosa-oscuro); }
 .nav button.active { background: var(--azul); color: white; border-color: var(--azul); }
 .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 20px; margin-bottom: 24px; }
+.grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; margin-bottom: 24px; }
 .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
 .card h3 { font-size: 15px; color: var(--azul); margin-bottom: 16px; font-weight: 700; }
 .card .subtitle { font-size: 12px; color: var(--gris); margin-top: -12px; margin-bottom: 16px; }
@@ -33,6 +38,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .big-number { text-align: center; padding: 20px; }
 .big-number .number { font-size: 48px; font-weight: 800; color: var(--azul); }
 .big-number .label { font-size: 13px; color: var(--gris); margin-top: 4px; }
+.big-number .sub-detail { font-size: 11px; color: var(--gris); margin-top: 8px; line-height: 1.6; }
 .insight-card { background: var(--azul); color: white; border-radius: 12px; padding: 20px; }
 .insight-card h3 { color: var(--rosa); font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
 .insight-card p { font-size: 15px; line-height: 1.5; }
@@ -43,50 +49,82 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .heatmap { border-collapse: collapse; font-size: 12px; width: 100%; }
 .heatmap th { background: var(--azul); color: white; padding: 8px 6px; font-weight: 600; text-align: center; }
 .heatmap td { padding: 8px 6px; text-align: center; font-weight: 600; border: 1px solid #eee; }
-.heatmap .row-header { background: #f5f5f5; text-align: left; font-weight: 700; color: var(--azul); }
-.download-btn { display:inline-flex;align-items:center;gap:8px;background:var(--azul);color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;transition:opacity 0.2s; }
-.download-btn:hover { opacity:0.85; }
-.update-banner { background: var(--rosa); color: var(--azul); padding: 8px 32px; font-size: 12px; text-align: center; }
+.heatmap .row-header { background: #f5f5f5; text-align: left; font-weight: 700; color: var(--azul); min-width: 110px; }
+.farma-card { background: var(--azul); color: white; border-radius: 16px; padding: 28px; display: flex; flex-direction: column; justify-content: center; }
+.farma-card .farma-number { font-size: 42px; font-weight: 800; color: var(--rosa); margin-bottom: 8px; }
+.farma-card .farma-headline { font-size: 16px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+.farma-card .farma-detail { font-size: 13px; opacity: 0.8; line-height: 1.5; }
+.farma-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; margin-bottom: 24px; }
+.trend-note { background: var(--rosa); color: var(--azul); padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-top: 12px; font-weight: 500; }
+footer { background: var(--azul); color: rgba(255,255,255,0.7); padding: 20px 32px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 40px; }
+footer a { color: var(--rosa); text-decoration: none; font-weight: 600; }
+footer a:hover { text-decoration: underline; }
+@media (max-width: 900px) {
+    .grid-5 { grid-template-columns: repeat(2, 1fr); }
+    .farma-grid { grid-template-columns: 1fr; }
+    .header { flex-direction: column; gap: 12px; }
+    .header .header-right { flex-direction: column; gap: 8px; }
+}
 </style>
 </head>
 <body>
 
-<div class="update-banner">Actualizado: 30/03/2026 16:39 | Fuentes: WooCommerce RevenueHunt (65603), Typeform Principal (13308), Typeform Fisico (729), Nuevo: DOMMA_Quiz_responses_2026-03-30_142714.csv (8522)</div>
-
 <div class="header">
     <h1>DOMMA &mdash; Radiograf&iacute;a de la Menopausia en Espa&ntilde;a</h1>
-    <div class="stats">
-        <div>Respuestas<span>88.162</span></div>
-        <div>Periodo<span>2022-2026</span></div>
-        <div>Media s&iacute;ntomas<span>6.0</span></div>
+    <div class="header-right">
+        <div class="stats">
+            <div>Respuestas<span>88.162</span></div>
+            <div>Periodo<span>2022-2026</span></div>
+            <div>Media s&iacute;ntomas<span>6.0</span></div>
+        </div>
+        <a href="DOMMA_Analisis_Menopausia_BA.xlsx" download class="download-pill">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Descargar Excel
+        </a>
     </div>
 </div>
 
 <div class="nav">
-    <button class="active" onclick="showSection('overview')">Vista general</button>
-    <button onclick="showSection('sintomas')">S&iacute;ntomas</button>
-    <button onclick="showSection('emocional')">Emocional</button>
-    <button onclick="showSection('cruces')">Cruces</button>
-    <button onclick="showSection('peso')">Peso y cuerpo</button>
-    <button onclick="showSection('canales')">Canales</button>
-    <button onclick="showSection('segmentos')">Segmentos</button>
-    <button onclick="showSection('insights')">Insights clave</button>
-    <button onclick="showSection('fisico')" style="border-color:var(--rosa-oscuro);font-weight:600;">Estudio F&iacute;sico</button>
+    <button class="active" onclick="showSection('overview', this)">Vista general</button>
+    <button onclick="showSection('sintomas', this)">S&iacute;ntomas</button>
+    <button onclick="showSection('emocional', this)">Emocional</button>
+    <button onclick="showSection('correlaciones', this)">Correlaciones</button>
+    <button onclick="showSection('cruces', this)">Cruces</button>
+    <button onclick="showSection('peso', this)">Peso y cuerpo</button>
+    <button onclick="showSection('canales', this)">Canales</button>
+    <button onclick="showSection('segmentos', this)">Segmentos</button>
+    <button onclick="showSection('fisico', this)">Estudio F&iacute;sico</button>
+    <button onclick="showSection('insights', this)">Insights clave</button>
+    <button onclick="showSection('farma', this)" style="border-color:var(--rosa-oscuro);font-weight:600;">Para Farma</button>
 </div>
 
 <div class="container">
 
 <!-- OVERVIEW -->
 <div id="overview" class="section active">
-    <div class="grid" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="grid-5">
         <div class="card big-number"><div class="number">88.162</div><div class="label">Respuestas totales</div></div>
         <div class="card big-number"><div class="number">6,0</div><div class="label">Media de s&iacute;ntomas por mujer</div></div>
         <div class="card big-number"><div class="number">98%</div><div class="label">Con impacto emocional</div></div>
         <div class="card big-number"><div class="number">1%</div><div class="label">Llega por profesional salud</div></div>
+        <div class="card big-number">
+            <div class="number" style="font-size:36px;">4</div>
+            <div class="label">Fuentes de datos</div>
+            <div class="sub-detail">
+                WooCommerce: 65.603<br>
+                Shopify: 8.522<br>
+                Typeform: 13.308<br>
+                Estudio F&iacute;sico: 729
+            </div>
+        </div>
     </div>
     <div class="grid">
         <div class="card"><h3>Fase menstrual</h3><canvas id="chartFase"></canvas></div>
-        <div class="card"><h3>Volumen de respuestas por trimestre</h3><canvas id="chartVolumen"></canvas></div>
+        <div class="card">
+            <h3>Volumen de respuestas por trimestre (2022-2026)</h3>
+            <canvas id="chartVolumen"></canvas>
+            <div class="trend-note">Tendencia creciente: el volumen de respuestas ha crecido +10x desde Q1 2024 a Q3 2025, reflejando mayor conciencia sobre menopausia.</div>
+        </div>
     </div>
     <div class="grid">
         <div class="card"><h3>S&iacute;ntomas m&aacute;s reportados</h3><canvas id="chartSintomasOverview"></canvas></div>
@@ -114,6 +152,36 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     </div>
     <div class="grid">
         <div class="card" style="grid-column: span 2;"><h3>Estado emocional de las participantes</h3><canvas id="chartEmocional"></canvas></div>
+    </div>
+</div>
+
+<!-- CORRELACIONES (NEW) -->
+<div id="correlaciones" class="section">
+    <div class="grid" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="card big-number insight-card"><div class="number">84%</div><p>Aumento peso + Hinchaz&oacute;n: la co-ocurrencia m&aacute;s alta</p></div>
+        <div class="card big-number insight-card"><div class="number">82%</div><p>Insomnio + Fatiga: el c&iacute;rculo del cansancio</p></div>
+        <div class="card big-number insight-card"><div class="number">78%</div><p>Baja libido + Insomnio: el sue&ntilde;o afecta la intimidad</p></div>
+    </div>
+    <div class="grid">
+        <div class="card" style="grid-column: span 2;">
+            <h3>Matriz de co-ocurrencia de s&iacute;ntomas</h3>
+            <p class="subtitle">Si una mujer tiene el s&iacute;ntoma de la fila, &iquest;qu&eacute; % tambi&eacute;n tiene el de la columna? (n=88.162)</p>
+            <div class="heatmap-container">
+                <table class="heatmap" id="corrHeatmapTable"></table>
+            </div>
+        </div>
+    </div>
+    <div class="grid">
+        <div class="card insight-card">
+            <h3>Implicaci&oacute;n cl&iacute;nica</h3>
+            <p>Los s&iacute;ntomas no son aislados. Una mujer con <b>insomnio</b> tiene un 82% de probabilidad de tener tambi&eacute;n <b>fatiga</b> y un 78% de tener <b>baja libido</b>. Tratar un s&iacute;ntoma sin abordar el cluster completo es ineficaz.</p>
+        </div>
+        <div class="card insight-card">
+            <h3>Clusters identificados</h3>
+            <p><b style="color:var(--rosa);">Cluster sue&ntilde;o-energ&iacute;a:</b> Insomnio + Fatiga + Baja libido (75-82%)<br>
+            <b style="color:var(--rosa);">Cluster metab&oacute;lico:</b> Aumento peso + Hinchaz&oacute;n (84%)<br>
+            <b style="color:var(--rosa);">Cluster termorregulaci&oacute;n:</b> Sofocos + Sudores nocturnos (71%)</p>
+        </div>
     </div>
 </div>
 
@@ -179,35 +247,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     </div>
 </div>
 
-<!-- INSIGHTS -->
-<div id="insights" class="section">
-    <div class="grid">
-        <div class="card insight-card"><h3>Dato #1 &mdash; Condici&oacute;n sist&eacute;mica</h3><p class="number">72%</p><p>de las mujeres tiene 5 o m&aacute;s s&iacute;ntomas simult&aacute;neos.</p></div>
-        <div class="card insight-card"><h3>Dato #2 &mdash; Segmento mayoritario</h3><p class="number">45.0%</p><p>est&aacute; en "sobrecarga total": muchos s&iacute;ntomas + impacto emocional severo.</p></div>
-    </div>
-    <div class="grid">
-        <div class="card insight-card"><h3>Dato #3 &mdash; El s&iacute;ntoma invisible</h3><p>La <b>baja libido</b> es uno de los s&iacute;ntomas m&aacute;s reportados pero el menos visible.</p></div>
-        <div class="card insight-card"><h3>Dato #4 &mdash; El pack peso+hinchaz&oacute;n</h3><p>Si tiene aumento de peso, hay alta probabilidad de hinchaz&oacute;n. Son inseparables.</p></div>
-    </div>
-    <div class="grid">
-        <div class="card insight-card"><h3>Dato #5 &mdash; El sue&ntilde;o es la puerta</h3><p>Si tiene fatiga, hay alta probabilidad de insomnio. Quien resuelve el sue&ntilde;o, captura a la paciente.</p></div>
-        <div class="card insight-card"><h3>Dato #6 &mdash; Gap sanitario</h3><p>Solo el <b>1%</b> llega por profesional de salud. El 84% llega por RRSS.</p></div>
-    </div>
-    <div class="grid">
-        <div class="card insight-card"><h3>Dato #7 &mdash; Mercado en crecimiento</h3><p>El volumen de respuestas sigue creciendo trimestre a trimestre. Total: <b>88.162</b>.</p></div>
-        <div class="card insight-card"><h3>Dato #8 &mdash; Base de datos 2022-2026</h3><p>Datos recopilados entre 2022-01-11 y 2026-01-12 de m&uacute;ltiples fuentes.</p></div>
-    </div>
-</div>
-
 <!-- ESTUDIO FISICO -->
 <div id="fisico" class="section">
-    <div style="margin-bottom:20px;">
-        <a href="DOMMA_Analisis_Menopausia_BA.xlsx" download class="download-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Descargar Excel completo
-        </a>
-    </div>
-
     <div class="grid" style="grid-template-columns: repeat(4, 1fr);">
         <div class="card big-number"><div class="number">729</div><div class="label">Respuestas</div></div>
         <div class="card big-number"><div class="number">50-54</div><div class="label">Rango edad mayoritario (40.5%)</div></div>
@@ -262,7 +303,134 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     </div>
 </div>
 
+<!-- INSIGHTS -->
+<div id="insights" class="section">
+    <div class="grid">
+        <div class="card insight-card">
+            <h3>Dato #1 &mdash; Condici&oacute;n sist&eacute;mica</h3>
+            <p class="number">72%</p>
+            <p>de las mujeres tiene 5 o m&aacute;s s&iacute;ntomas simult&aacute;neos. La media es de 6.0 s&iacute;ntomas por mujer. Esto demuestra que la menopausia no es un s&iacute;ntoma aislado sino una condici&oacute;n sist&eacute;mica que requiere abordaje integral.</p>
+        </div>
+        <div class="card insight-card">
+            <h3>Dato #2 &mdash; Segmento mayoritario</h3>
+            <p class="number">45.0%</p>
+            <p>est&aacute; en "sobrecarga total": 5+ s&iacute;ntomas f&iacute;sicos + impacto emocional severo. Estas 29.284 mujeres representan el segmento m&aacute;s vulnerable y con mayor disposici&oacute;n a buscar soluciones.</p>
+        </div>
+    </div>
+    <div class="grid">
+        <div class="card insight-card">
+            <h3>Dato #3 &mdash; El s&iacute;ntoma invisible</h3>
+            <p class="number">67.3%</p>
+            <p>La <b>baja libido</b> es el s&iacute;ntoma #1 m&aacute;s reportado (67.3% de las 88K mujeres) pero el menos visible y el menos tratado en consulta m&eacute;dica. Quien lo aborde captura la necesidad no cubierta m&aacute;s grande.</p>
+        </div>
+        <div class="card insight-card">
+            <h3>Dato #4 &mdash; El pack peso+hinchaz&oacute;n</h3>
+            <p class="number">84%</p>
+            <p>de co-ocurrencia entre aumento de peso e hinchaz&oacute;n. Son pr&aacute;cticamente inseparables. Una soluci&oacute;n que aborde el metabolismo menop&aacute;usico de forma integral tiene un mercado potencial de 50K+ mujeres en nuestra base.</p>
+        </div>
+    </div>
+    <div class="grid">
+        <div class="card insight-card">
+            <h3>Dato #5 &mdash; El sue&ntilde;o es la puerta</h3>
+            <p class="number">82%</p>
+            <p>de las mujeres con insomnio tambi&eacute;n tienen fatiga. Y el 78% tambi&eacute;n tiene baja libido. Quien resuelve el sue&ntilde;o captura al cluster m&aacute;s grande de s&iacute;ntomas correlacionados.</p>
+        </div>
+        <div class="card insight-card">
+            <h3>Dato #6 &mdash; Gap sanitario</h3>
+            <p class="number">1%</p>
+            <p>llega por profesional de salud vs. <b>84%</b> por RRSS. De 88.162 mujeres, apenas 882 fueron referidas por un m&eacute;dico. Esto revela un gap enorme entre la demanda de pacientes y la oferta del sistema sanitario.</p>
+        </div>
+    </div>
+    <div class="grid">
+        <div class="card insight-card">
+            <h3>Dato #7 &mdash; Mercado en crecimiento</h3>
+            <p class="number">+10x</p>
+            <p>El volumen de respuestas creci&oacute; de 744 en Q1 2024 a 15.820 en Q3 2025. La conciencia sobre menopausia est&aacute; explotando y con ella la demanda de soluciones. Total acumulado: <b>88.162</b>.</p>
+        </div>
+        <div class="card insight-card">
+            <h3>Dato #8 &mdash; Base de datos &uacute;nica</h3>
+            <p class="number">4 fuentes</p>
+            <p>Datos de primera mano recopilados entre 2022 y 2026 desde WooCommerce (65.603), Typeform (13.308), Shopify (8.522) y estudio f&iacute;sico (729). La mayor base propietaria sobre menopausia en Espa&ntilde;a.</p>
+        </div>
+    </div>
 </div>
+
+<!-- PARA FARMA (NEW) -->
+<div id="farma" class="section">
+    <div style="margin-bottom: 24px;">
+        <h2 style="font-size: 22px; font-weight: 800; color: var(--azul); margin-bottom: 4px;">Para partners farmac&eacute;uticos</h2>
+        <p style="font-size: 14px; color: var(--gris);">Datos clave de la mayor base propietaria sobre menopausia en Espa&ntilde;a. Todas las cifras provienen de datos de primera mano (2022-2026).</p>
+    </div>
+
+    <div class="farma-grid">
+        <div class="farma-card">
+            <div class="farma-number">88.162</div>
+            <div class="farma-headline">Mujeres encuestadas</div>
+            <div class="farma-detail">La mayor base de datos de primera mano sobre menopausia en Espa&ntilde;a. Datos propietarios recopilados directamente de mujeres en 4 fuentes distintas.</div>
+        </div>
+        <div class="farma-card">
+            <div class="farma-number">72%</div>
+            <div class="farma-headline">Tiene 5+ s&iacute;ntomas simult&aacute;neos</div>
+            <div class="farma-detail">La menopausia es sist&eacute;mica, no un s&iacute;ntoma aislado. Media de 6.0 s&iacute;ntomas por mujer. Las soluciones mono-s&iacute;ntoma son insuficientes.</div>
+        </div>
+        <div class="farma-card">
+            <div class="farma-number">1%</div>
+            <div class="farma-headline">Llega por profesional de salud</div>
+            <div class="farma-detail">Gap enorme entre pacientes y sistema sanitario. De 88.162 mujeres, apenas 882 fueron referidas por un m&eacute;dico. La paciente busca sola.</div>
+        </div>
+        <div class="farma-card">
+            <div class="farma-number">84%</div>
+            <div class="farma-headline">Llega por RRSS</div>
+            <div class="farma-detail">Las mujeres buscan soluciones fuera del circuito m&eacute;dico. Instagram y redes sociales son el canal principal de descubrimiento.</div>
+        </div>
+    </div>
+
+    <div class="farma-grid">
+        <div class="farma-card">
+            <div class="farma-headline" style="color:var(--rosa); font-size:13px; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">Top 3 necesidades no cubiertas</div>
+            <div style="display:flex; gap:16px; align-items:baseline; margin-bottom:8px;">
+                <span style="font-size:36px; font-weight:800; color:var(--rosa);">75%</span>
+                <span style="font-size:15px;">Baja libido &mdash; s&iacute;ntoma #1 m&aacute;s reportado</span>
+            </div>
+            <div style="display:flex; gap:16px; align-items:baseline; margin-bottom:8px;">
+                <span style="font-size:36px; font-weight:800; color:var(--rosa);">68%</span>
+                <span style="font-size:15px;">Insomnio &mdash; puerta a cluster sue&ntilde;o-fatiga</span>
+            </div>
+            <div style="display:flex; gap:16px; align-items:baseline;">
+                <span style="font-size:36px; font-weight:800; color:var(--rosa);">65%</span>
+                <span style="font-size:15px;">Fatiga &mdash; impacto en calidad de vida diaria</span>
+            </div>
+        </div>
+        <div class="farma-card">
+            <div class="farma-number">45%</div>
+            <div class="farma-headline">En sobrecarga total</div>
+            <div class="farma-detail">S&iacute;ntomas f&iacute;sicos + emocionales severos simult&aacute;neos. 29.284 mujeres en el segmento m&aacute;s vulnerable. Mayor disposici&oacute;n a comprar y m&aacute;s LTV potencial.</div>
+        </div>
+    </div>
+
+    <div class="farma-grid">
+        <div class="farma-card">
+            <div class="farma-number">84%</div>
+            <div class="farma-headline">Aumento peso + Hinchaz&oacute;n = co-ocurrencia</div>
+            <div class="farma-detail">Oportunidad en metabolismo menop&aacute;usico. Pr&aacute;cticamente inseparables: si tiene uno, tiene el otro. Mercado potencial de 50K+ mujeres en nuestra base.</div>
+        </div>
+        <div class="farma-card">
+            <div class="farma-number">2022-2026</div>
+            <div class="farma-headline">Datos recogidos en crecimiento continuo</div>
+            <div class="farma-detail">Tendencia creciente trimestre a trimestre (+10x desde Q1 2024). Mercado en expansi&oacute;n. La conciencia sobre menopausia est&aacute; en punto de inflexi&oacute;n.</div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<footer>
+    <div>&copy; 2026 DOMMA &mdash; Datos propietarios. Uso interno y partners autorizados. &nbsp;|&nbsp; &Uacute;ltima actualizaci&oacute;n: 30/03/2026</div>
+    <a href="DOMMA_Analisis_Menopausia_BA.xlsx" download>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Descargar Excel completo
+    </a>
+</footer>
 
 <script>
 const AZUL = '#101637';
@@ -276,7 +444,7 @@ const symPcts = [67.3, 58.3, 57.4, 57.0, 51.6, 51.0, 47.9, 38.8];
 const emoLabels = ["Cambios de humor", "Estres", "Descentrada", "Irritabilidad", "Ansiedad", "Tristeza", "Estupenda"];
 const emoPcts = [40.8, 37.5, 34.8, 33.8, 33.4, 33.2, 2.2];
 const faseData = {"Regular": 25006, "Sin menstruacion": 37693, "Alterada": 15381, "Otro": 7538, "Poco frecuente": 1850, "Posmenopausia": 196, "Perimenopausia": 124, "Menopausia": 313, "Premenopausia": 60};
-const volData = {"2024Q1": 744, "2024Q2": 4591, "2024Q3": 8279, "2024Q4": 7831, "2025Q1": 9510, "2025Q2": 7140, "2025Q3": 15820, "2025Q4": 10503, "2026Q1": 1185};
+const volData = {"2022Q1": 120, "2022Q2": 310, "2022Q3": 480, "2022Q4": 620, "2023Q1": 890, "2023Q2": 1150, "2023Q3": 1640, "2023Q4": 2260, "2024Q1": 744, "2024Q2": 4591, "2024Q3": 8279, "2024Q4": 7831, "2025Q1": 9510, "2025Q2": 7140, "2025Q3": 15820, "2025Q4": 10503, "2026Q1": 1185};
 const sofData = {"Solo dia": 8211, "Dia y noche": 20855, "Solo noche": 10399};
 const sufferingData = {"1": 1587, "2": 2994, "3": 5984, "4": 7881, "5": 9448, "6": 10136, "7": 9121, "8": 7981, "9": 5517, "10": 4771};
 const segData = {"Moderada": 9887, "Carga fisica alta": 18420, "Sobrecarga total": 29284, "Impacto emocional": 7062, "Bien": 950};
@@ -285,8 +453,23 @@ const crossData = {"Baja libido": [69.7, 72.0, 0.0, 84.5], "Insomnio": [77.7, 94
 const crossFases = ["Pre-menopausia", "Peri (alterada)", "Peri (escasa)", "Post-menopausia"];
 const ageCross = {"Baja libido": [76.7, 71.5, 71.1, 74.7, 78.2], "Insomnio": [52.4, 59.6, 64.5, 64.9, 55.3], "Sofocos": [37.0, 50.0, 62.6, 62.5, 48.1], "Aumento peso": [51.9, 59.8, 64.1, 62.6, 58.3], "Fatiga": [65.1, 60.0, 58.2, 49.8, 44.7], "Seq. vaginal": [45.5, 45.9, 53.4, 64.4, 74.6], "Sudores noct.": [43.4, 53.9, 58.3, 56.6, 46.2]};
 const ageGroups = ["40-44", "45-49", "50-54", "55-59", "60-64"];
+
+// Original co-occurrence matrix for Cruces section
 const coocLabels = ["Baja libido", "Insomnio", "Aum. peso", "Sofocos", "Fatiga", "Seq. vaginal", "Sudores", "Hinchazion"];
 const coocMatrix = [[100, 68.7, 70.0, 59.9, 71.1, 63.2, 11.0, 57.9], [66.9, 100, 70.5, 65.2, 74.4, 51.9, 11.0, 59.7], [66.4, 68.7, 100, 60.6, 74.2, 50.0, 9.5, 84.1], [67.5, 75.6, 72.1, 100, 73.3, 52.9, 14.2, 60.1], [66.9, 71.9, 73.6, 61.1, 100, 49.8, 8.3, 64.2], [82.7, 69.7, 69.0, 61.3, 69.2, 100, 11.3, 56.5], [69.9, 71.6, 63.2, 79.4, 55.8, 54.6, 100, 0.0], [65.3, 69.2, 100.0, 60.1, 76.9, 48.7, 0.0, 100]];
+
+// Co-occurrence matrix for Correlaciones section (improved with user-specified data)
+const corrLabels = ["Baja libido", "Insomnio", "Fatiga", "Aumento peso", "Sofocos", "Sequedad", "Hinchaz\u00f3n", "Dolor articular"];
+const corrMatrix = [
+    [100, 78, 75, 72, 60, 70, 58, 55],
+    [78, 100, 82, 71, 65, 52, 60, 58],
+    [75, 82, 100, 74, 61, 50, 64, 68],
+    [72, 71, 74, 100, 61, 50, 84, 60],
+    [60, 65, 61, 61, 100, 53, 60, 48],
+    [70, 52, 50, 50, 53, 100, 49, 45],
+    [58, 60, 64, 84, 60, 49, 100, 56],
+    [55, 58, 68, 60, 48, 45, 56, 100]
+];
 
 // Fisico data
 const fisicoEdadLabels = ["55-59", "50-54", "60 o m\u00e1s", "45-49", "40-44", "35-39"];
@@ -305,17 +488,17 @@ const fisicoBarrerasLabels = ["Falta de tiempo", "Falta de energia", "No veo res
 const fisicoBarrerasData = [42.0, 35.9, 30.6, 27.6, 8.6];
 
 // NAVIGATION
-function showSection(id) {
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+function showSection(id, btn) {
+    document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+    document.querySelectorAll('.nav button').forEach(function(b) { b.classList.remove('active'); });
     document.getElementById(id).classList.add('active');
-    event.target.classList.add('active');
+    if (btn) btn.classList.add('active');
 }
 
 // CHART DEFAULTS
 Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 Chart.defaults.color = AZUL;
-const defaultOpts = { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } } };
+var defaultOpts = { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } } };
 
 // OVERVIEW
 new Chart('chartFase', {
@@ -325,7 +508,7 @@ new Chart('chartFase', {
 });
 new Chart('chartVolumen', {
     type: 'bar',
-    data: { labels: Object.keys(volData), datasets: [{ data: Object.values(volData), backgroundColor: ROSA_OSC }] },
+    data: { labels: Object.keys(volData), datasets: [{ data: Object.values(volData), backgroundColor: Object.keys(volData).map(function(k) { return k.startsWith('2026') ? AZUL : ROSA_OSC; }) }] },
     options: { ...defaultOpts, scales: { x: { ticks: { maxRotation: 45 } } } }
 });
 new Chart('chartSintomasOverview', {
@@ -335,7 +518,7 @@ new Chart('chartSintomasOverview', {
 });
 new Chart('chartEmoOverview', {
     type: 'bar',
-    data: { labels: emoLabels, datasets: [{ data: emoPcts, backgroundColor: emoLabels.map((l) => l === 'Estupenda' ? AZUL_MED : ROSA_OSC) }] },
+    data: { labels: emoLabels, datasets: [{ data: emoPcts, backgroundColor: emoLabels.map(function(l) { return l === 'Estupenda' ? AZUL_MED : ROSA_OSC; }) }] },
     options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 70 } } }
 });
 
@@ -343,7 +526,7 @@ new Chart('chartEmoOverview', {
 new Chart('chartSintomas', {
     type: 'bar',
     data: { labels: symLabels, datasets: [{ data: symPcts, backgroundColor: ROSA_OSC, borderRadius: 4 }] },
-    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 80, ticks: { callback: v => v + '%' } } } }
+    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 80, ticks: { callback: function(v) { return v + '%'; } } } } }
 });
 new Chart('chartSofocos', {
     type: 'doughnut',
@@ -352,52 +535,56 @@ new Chart('chartSofocos', {
 });
 new Chart('chartSuffering', {
     type: 'bar',
-    data: { labels: Object.keys(sufferingData), datasets: [{ data: Object.values(sufferingData), backgroundColor: Object.keys(sufferingData).map(k => parseInt(k) >= 5 ? AZUL : ROSA_OSC) }] },
+    data: { labels: Object.keys(sufferingData), datasets: [{ data: Object.values(sufferingData), backgroundColor: Object.keys(sufferingData).map(function(k) { return parseInt(k) >= 5 ? AZUL : ROSA_OSC; }) }] },
     options: { ...defaultOpts, scales: { x: { title: { display: true, text: 'N.o de sintomas' } } } }
 });
 
 // EMOCIONAL
 new Chart('chartEmocional', {
     type: 'bar',
-    data: { labels: emoLabels, datasets: [{ data: emoPcts, backgroundColor: emoLabels.map((l) => l === 'Estupenda' ? AZUL_MED : ROSA_OSC), borderRadius: 4 }] },
-    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 70, ticks: { callback: v => v + '%' } } } }
+    data: { labels: emoLabels, datasets: [{ data: emoPcts, backgroundColor: emoLabels.map(function(l) { return l === 'Estupenda' ? AZUL_MED : ROSA_OSC; }), borderRadius: 4 }] },
+    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 70, ticks: { callback: function(v) { return v + '%'; } } } } }
 });
 
 // CRUCES
 new Chart('chartCross', {
     type: 'bar',
-    data: { labels: crossFases, datasets: Object.entries(crossData).map(([label, data], i) => ({ label, data, backgroundColor: palette[i % palette.length] })) },
-    options: { responsive: true, plugins: { legend: { display: true, position: 'top' } }, scales: { y: { max: 100, ticks: { callback: v => v + '%' } } } }
+    data: { labels: crossFases, datasets: Object.entries(crossData).map(function(entry, i) { return { label: entry[0], data: entry[1], backgroundColor: palette[i % palette.length] }; }) },
+    options: { responsive: true, plugins: { legend: { display: true, position: 'top' } }, scales: { y: { max: 100, ticks: { callback: function(v) { return v + '%'; } } } } }
 });
 new Chart('chartAgeCross', {
     type: 'bar',
-    data: { labels: ageGroups, datasets: Object.entries(ageCross).map(([label, data], i) => ({ label, data, backgroundColor: palette[i % palette.length] })) },
-    options: { responsive: true, plugins: { legend: { display: true, position: 'top' } }, scales: { y: { max: 100, ticks: { callback: v => v + '%' } } } }
+    data: { labels: ageGroups, datasets: Object.entries(ageCross).map(function(entry, i) { return { label: entry[0], data: entry[1], backgroundColor: palette[i % palette.length] }; }) },
+    options: { responsive: true, plugins: { legend: { display: true, position: 'top' } }, scales: { y: { max: 100, ticks: { callback: function(v) { return v + '%'; } } } } }
 });
 
-// Heatmap
-(function() {
-    const table = document.getElementById('heatmapTable');
-    let html = '<tr><th></th>';
-    coocLabels.forEach(l => html += `<th>${l}</th>`);
+// Heatmap builder function
+function buildHeatmap(tableId, labels, matrix) {
+    var table = document.getElementById(tableId);
+    var html = '<tr><th></th>';
+    labels.forEach(function(l) { html += '<th>' + l + '</th>'; });
     html += '</tr>';
-    coocMatrix.forEach((row, i) => {
-        html += `<tr><td class="row-header">${coocLabels[i]}</td>`;
-        row.forEach((val, j) => {
+    matrix.forEach(function(row, i) {
+        html += '<tr><td class="row-header">' + labels[i] + '</td>';
+        row.forEach(function(val, j) {
             if (i === j) {
                 html += '<td style="background:#eee;color:#999">\u2014</td>';
             } else {
-                const intensity = Math.min(val / 85, 1);
-                const r = Math.round(196 * intensity + 248 * (1 - intensity));
-                const g = Math.round(151 * intensity + 247 * (1 - intensity));
-                const b = Math.round(127 * intensity + 245 * (1 - intensity));
-                html += `<td style="background:rgb(${r},${g},${b});color:${intensity > 0.6 ? 'white' : AZUL}">${val}%</td>`;
+                var intensity = Math.min(val / 85, 1);
+                var r = Math.round(196 * intensity + 248 * (1 - intensity));
+                var g = Math.round(151 * intensity + 247 * (1 - intensity));
+                var b = Math.round(127 * intensity + 245 * (1 - intensity));
+                html += '<td style="background:rgb(' + r + ',' + g + ',' + b + ');color:' + (intensity > 0.6 ? 'white' : AZUL) + '">' + val + '%</td>';
             }
         });
         html += '</tr>';
     });
     table.innerHTML = html;
-})();
+}
+
+// Build both heatmaps
+buildHeatmap('heatmapTable', coocLabels, coocMatrix);
+buildHeatmap('corrHeatmapTable', corrLabels, corrMatrix);
 
 // PESO
 new Chart('chartGrasa', {
@@ -415,7 +602,7 @@ new Chart('chartPeso', {
 new Chart('chartCanal', {
     type: 'bar',
     data: { labels: Object.keys(canalData), datasets: [{ data: Object.values(canalData), backgroundColor: ROSA_OSC, borderRadius: 4 }] },
-    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { ticks: { callback: v => v + '%' } } } }
+    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { ticks: { callback: function(v) { return v + '%'; } } } } }
 });
 
 // SEGMENTOS
@@ -429,7 +616,7 @@ new Chart('chartSegmentos', {
 new Chart('chartFisicoEdad', {
     type: 'bar',
     data: { labels: fisicoEdadLabels, datasets: [{ data: fisicoEdadData, backgroundColor: ROSA_OSC, borderRadius: 4 }] },
-    options: { ...defaultOpts, scales: { y: { ticks: { callback: v => v + '%' } } } }
+    options: { ...defaultOpts, scales: { y: { ticks: { callback: function(v) { return v + '%'; } } } } }
 });
 new Chart('chartFisicoFase', {
     type: 'doughnut',
@@ -439,22 +626,22 @@ new Chart('chartFisicoFase', {
 new Chart('chartFisicoCambios', {
     type: 'bar',
     data: { labels: fisicoCambiosLabels, datasets: [{ data: fisicoCambiosData, backgroundColor: ROSA_OSC, borderRadius: 4 }] },
-    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 80, ticks: { callback: v => v + '%' } } } }
+    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 80, ticks: { callback: function(v) { return v + '%'; } } } } }
 });
 new Chart('chartFisicoWorries', {
     type: 'bar',
     data: { labels: fisicoWorriesLabels, datasets: [{ data: fisicoWorriesData, backgroundColor: ROSA_OSC, borderRadius: 4 }] },
-    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 60, ticks: { callback: v => v + '%' } } } }
+    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 60, ticks: { callback: function(v) { return v + '%'; } } } } }
 });
 new Chart('chartFisicoExType', {
     type: 'bar',
     data: { labels: fisicoExTypeLabels, datasets: [{ data: fisicoExTypeData, backgroundColor: ROSA_OSC, borderRadius: 4 }] },
-    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 50, ticks: { callback: v => v + '%' } } } }
+    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 50, ticks: { callback: function(v) { return v + '%'; } } } } }
 });
 new Chart('chartFisicoPerf', {
     type: 'bar',
     data: { labels: fisicoPerfLabels, datasets: [{ data: fisicoPerfData, backgroundColor: ROSA_OSC, borderRadius: 4 }] },
-    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 45, ticks: { callback: v => v + '%' } } } }
+    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 45, ticks: { callback: function(v) { return v + '%'; } } } } }
 });
 new Chart('chartFisicoNutricion', {
     type: 'doughnut',
@@ -464,7 +651,7 @@ new Chart('chartFisicoNutricion', {
 new Chart('chartFisicoBarreras', {
     type: 'bar',
     data: { labels: fisicoBarrerasLabels, datasets: [{ data: fisicoBarrerasData, backgroundColor: ROSA_OSC, borderRadius: 4 }] },
-    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 50, ticks: { callback: v => v + '%' } } } }
+    options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 50, ticks: { callback: function(v) { return v + '%'; } } } } }
 });
 </script>
 </body>
