@@ -70,6 +70,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <button onclick="showSection('peso')">Peso y cuerpo</button>
     <button onclick="showSection('canales')">Canales</button>
     <button onclick="showSection('segmentos')">Segmentos</button>
+    <button onclick="showSection('arquetipos')" style="border-color:var(--azul);font-weight:600;">Arquetipos clínicos</button>
     <button onclick="showSection('insights')">Insights clave</button>
     <button onclick="showSection('fisico')" style="border-color:var(--rosa-oscuro);font-weight:600;">Estudio F&iacute;sico</button>
 </div>
@@ -175,6 +176,86 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
                 <p><b style="color:var(--rosa-oscuro)">Cuerpo s&iacute;, mente no</b> &mdash; S&iacute;ntomas f&iacute;sicos pero se sienten bien emocionalmente</p>
                 <p><b style="color:var(--rosa-oscuro)">Bien</b> &mdash; Pocas molestias en general</p>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ARQUETIPOS CLINICOS -->
+<div id="arquetipos" class="section">
+    <div class="grid" style="grid-template-columns: 1fr;">
+        <div class="card">
+            <h3>6 arquetipos clínicos derivados de la cohorte</h3>
+            <p class="subtitle">Clustering por reglas sobre los síntomas dominantes · n = 78,911 respuestas limpias · análisis abril 2026</p>
+            <canvas id="chartArquetipos" style="max-height:340px;"></canvas>
+        </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: repeat(3, 1fr); gap:16px; margin-top:20px;">
+
+        <div class="card insight-card" style="border-left:4px solid var(--azul);">
+            <h3>1 · Sobrecarga hormonal <span style="color:var(--rosa-oscuro);float:right;">28%</span></h3>
+            <p class="number" style="font-size:24px;">21.780 mujeres</p>
+            <p><b>Síntomas dominantes:</b><br>Sofocos 97% · Peso 95% · Insomnio 88% · Libido 86% · Hinchazón 85% · Fatiga 83%</p>
+            <p style="margin-top:8px;"><b>Emocional:</b> Estresada 63% · Descentrada 61%</p>
+            <p style="margin-top:8px;"><b>Fase:</b> 51% sin menstruación</p>
+            <p style="margin-top:10px;color:var(--rosa-oscuro);"><b>→ Plan completo:</b> Equilibrio + Descanso + Deseo + En Forma</p>
+        </div>
+
+        <div class="card insight-card" style="border-left:4px solid var(--azul);">
+            <h3>2 · Carga metabólica <span style="color:var(--rosa-oscuro);float:right;">22%</span></h3>
+            <p class="number" style="font-size:24px;">17.368 mujeres</p>
+            <p><b>Síntomas dominantes:</b><br>Peso 100% · Hinchazón 97% · Fatiga 91% · Insomnio 61% · Dolor articular 54%</p>
+            <p style="margin-top:8px;"><b>Emocional:</b> moderado (~25%)</p>
+            <p style="margin-top:8px;"><b>Fase:</b> 36% regular · 26% alterada</p>
+            <p style="margin-top:10px;color:var(--rosa-oscuro);"><b>→ Bundle:</b> En Forma + Equilibrio</p>
+        </div>
+
+        <div class="card insight-card" style="border-left:4px solid var(--azul);">
+            <h3>3 · Disrupción nocturna <span style="color:var(--rosa-oscuro);float:right;">14%</span></h3>
+            <p class="number" style="font-size:24px;">11.322 mujeres</p>
+            <p><b>Síntomas dominantes:</b><br>Insomnio 100% · Sofocos 70% · Fatiga 67% · Libido baja 66%</p>
+            <p style="margin-top:8px;"><b>Emocional:</b> Estresada 45% · Ansiosa 40%</p>
+            <p style="margin-top:8px;"><b>Fase:</b> 51% sin menstruación</p>
+            <p style="margin-top:10px;color:var(--rosa-oscuro);"><b>→ Bundle:</b> Descanso + Equilibrio + Calma</p>
+        </div>
+
+        <div class="card insight-card" style="border-left:4px solid var(--azul);">
+            <h3>4 · Transición temprana <span style="color:var(--rosa-oscuro);float:right;">14%</span></h3>
+            <p class="number" style="font-size:24px;">10.703 mujeres</p>
+            <p><b>Síntomas dominantes:</b><br>Fatiga 51% · Insomnio 40% · Peso 39% · Libido 36% (intensidad media)</p>
+            <p style="margin-top:8px;"><b>Emocional:</b> Estresada 30% · Cambios humor 26%</p>
+            <p style="margin-top:8px;"><b>Fase:</b> 100% regla regular (premenopausia)</p>
+            <p style="margin-top:10px;color:var(--rosa-oscuro);"><b>→ Bundle:</b> Equilibrio adaptado · seguimiento ligero</p>
+        </div>
+
+        <div class="card insight-card" style="border-left:4px solid var(--azul);">
+            <h3>5 · Cambio íntimo <span style="color:var(--rosa-oscuro);float:right;">12%</span></h3>
+            <p class="number" style="font-size:24px;">9.605 mujeres</p>
+            <p><b>Síntomas dominantes:</b><br>Libido baja 83% · Sequedad vaginal 69% · Peso 47% · Sofocos 34%</p>
+            <p style="margin-top:8px;"><b>Emocional:</b> ligero (~20%)</p>
+            <p style="margin-top:8px;"><b>Fase:</b> 59% sin menstruación</p>
+            <p style="margin-top:10px;color:var(--rosa-oscuro);"><b>→ Bundle:</b> Deseo + Bienestar Íntimo</p>
+        </div>
+
+        <div class="card insight-card" style="border-left:4px solid var(--azul);">
+            <h3>6 · Impacto emocional <span style="color:var(--rosa-oscuro);float:right;">7%</span></h3>
+            <p class="number" style="font-size:24px;">5.410 mujeres</p>
+            <p><b>Síntomas físicos:</b> pocos (Fatiga 22% · Insomnio 20%)</p>
+            <p style="margin-top:8px;"><b>Emocional:</b> Estresada 74% · Irritable 71% · Triste 71% · Descentrada 70%</p>
+            <p style="margin-top:8px;"><b>Fase:</b> 77% sin menstruación</p>
+            <p style="margin-top:10px;color:var(--rosa-oscuro);"><b>→ Bundle:</b> Calma + Equilibrio (foco emocional)</p>
+        </div>
+
+    </div>
+
+    <div class="grid" style="grid-template-columns: 1fr; margin-top:20px;">
+        <div class="card" style="background:#FDF6F0;">
+            <h3>Metodología</h3>
+            <p style="font-size:13px;line-height:1.6;">
+                <b>Asignación por reglas:</b> cada respondedora se clasifica en uno de 6 arquetipos (+ "low burden" extra) según el patrón de síntomas dominante, número total de síntomas físicos/emocionales y fase menstrual.<br><br>
+                <b>Validación:</b> los porcentajes son exactos sobre 78.911 respuestas limpias del dataset consolidado (WooCommerce + Shopify + Typeform).<br><br>
+                <b>Próximo paso:</b> validación clínica con el equipo médico para confirmar coherencia de bundles asignados a cada arquetipo. Cross-tab físico × emocional pendiente de calcular.
+            </p>
         </div>
     </div>
 </div>
@@ -423,6 +504,35 @@ new Chart('chartSegmentos', {
     type: 'doughnut',
     data: { labels: Object.keys(segData), datasets: [{ data: Object.values(segData), backgroundColor: [AZUL, ROSA_OSC, ROSA, '#D4B5A5', AZUL_MED, '#8B7355'] }] },
     options: { ...defaultOpts, plugins: { legend: { display: true, position: 'right' } } }
+});
+
+// ARQUETIPOS CLINICOS (n = 78,911 cleaned dataset, April 2026)
+const arquetipoLabels = [
+    'Sobrecarga hormonal (28%)',
+    'Carga metabólica (22%)',
+    'Disrupción nocturna (14%)',
+    'Transición temprana (14%)',
+    'Cambio íntimo (12%)',
+    'Impacto emocional (7%)',
+    'Low burden (3%)'
+];
+const arquetipoData = [21780, 17368, 11322, 10703, 9605, 5410, 2723];
+new Chart('chartArquetipos', {
+    type: 'bar',
+    data: {
+        labels: arquetipoLabels,
+        datasets: [{
+            data: arquetipoData,
+            backgroundColor: [AZUL, ROSA_OSC, AZUL_MED, '#D4B5A5', ROSA, '#8B7355', '#CCCCCC'],
+            borderRadius: 4
+        }]
+    },
+    options: {
+        ...defaultOpts,
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: { x: { ticks: { callback: v => v.toLocaleString() } } }
+    }
 });
 
 // ESTUDIO FISICO
