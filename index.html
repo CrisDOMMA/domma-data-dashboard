@@ -365,6 +365,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         <div class="card big-number"><div class="number" id="lunaSintomas">—</div><div class="label">Síntomas medios marcados</div></div>
     </div>
 
+    <div class="card" style="margin-top:20px;">
+        <h3>Funnel del quiz</h3>
+        <p class="subtitle">Pasos clave · % respecto a quienes visitan la landing</p>
+        <div id="lunaFunnel" style="margin-top:14px"></div>
+    </div>
+
     <div class="grid">
         <div class="card"><h3>Distribución por arquetipo</h3><p class="subtitle">Asignación del algoritmo de LUNA</p><canvas id="chartLunaArq"></canvas></div>
         <div class="card"><h3>Top síntomas marcados</h3><p class="subtitle">% de tests que marcan cada uno</p><canvas id="chartLunaSint"></canvas></div>
@@ -386,7 +392,20 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 <script>
 // === Configuración LUNA · test conversacional en vivo ===
 const LUNA_ENDPOINT = 'https://luna-web.pages.dev/api/export';
+const LUNA_FUNNEL_ENDPOINT = 'https://luna-web.pages.dev/api/funnel';
 const LUNA_TOKEN = 'd50e010fb5ec391bd590d860cca3dbeee31deec88c3e462b';
+// Pasos clave del funnel en orden (key, label, tipo)
+// tipo: 'screen' (mira eventos screen_view) o 'event' (mira event=key)
+const LUNA_FUNNEL_STEPS = [
+  {key:'landing',       label:'Visitan la landing',         type:'screen'},
+  {key:'landing_cta',   label:'Pulsan "Empezar mi test"',   type:'event'},
+  {key:'name',          label:'Empiezan a responder',       type:'screen'},
+  {key:'symptoms',      label:'Llegan a síntomas',          type:'screen'},
+  {key:'severities_intro', label:'Llegan a intensidad',     type:'screen'},
+  {key:'quiz_complete', label:'Completan el test',          type:'event'},
+  {key:'plan_view',     label:'Ven el plan',                type:'event'},
+  {key:'plan_cta',      label:'Pulsan "Empezar mi plan"',   type:'event'}
+];
 const LUNA_ARQUETIPO_LABELS = {
   sobrecarga_hormonal: 'Sobrecarga hormonal',
   carga_metabolica: 'Carga metabólica',
@@ -411,17 +430,54 @@ const LUNA_MENS_LABELS = {regular:'Regular', alterada:'Alterada', poca:'Poca', n
 
 async function loadLuna(){
   try{
-    const r = await fetch(`${LUNA_ENDPOINT}?token=${LUNA_TOKEN}&desde=2026-01-01`);
-    if(!r.ok) throw new Error('http '+r.status);
-    const data = await r.json();
+    const [rExp, rFun] = await Promise.all([
+      fetch(`${LUNA_ENDPOINT}?token=${LUNA_TOKEN}&desde=2026-01-01`),
+      fetch(`${LUNA_FUNNEL_ENDPOINT}?token=${LUNA_TOKEN}&desde=2026-01-01`)
+    ]);
+    if(!rExp.ok) throw new Error('http '+rExp.status);
+    const data = await rExp.json();
     if(!data.ok) throw new Error(data.error||'unknown');
     document.getElementById('lunaError').style.display='none';
     renderLuna(data.results||[]);
+    if(rFun.ok){
+      const funData = await rFun.json();
+      if(funData.ok) renderLunaFunnel(funData);
+    }
   }catch(e){
     console.error('LUNA load failed', e);
     document.getElementById('lunaError').style.display='block';
     document.getElementById('lunaUpdated').textContent='Sin datos';
   }
+}
+
+function renderLunaFunnel(data){
+  const slot = document.getElementById('lunaFunnel');
+  if(!slot) return;
+  const screensMap = {};
+  (data.screens||[]).forEach(s=>{ screensMap[s.screen] = s.n; });
+  const eventsMap = {};
+  (data.events||[]).forEach(e=>{ eventsMap[e.event] = e.n; });
+  const baseN = screensMap['landing'] || 0;
+  if(baseN===0){
+    slot.innerHTML = `<p style="color:#666;font-size:13px;margin:8px 0">Aún no hay visitas registradas. Los eventos aparecerán en cuanto alguien entre al test.</p>`;
+    return;
+  }
+  const rows = LUNA_FUNNEL_STEPS.map(step=>{
+    const n = step.type==='screen' ? (screensMap[step.key]||0) : (eventsMap[step.key]||0);
+    const pct = baseN>0 ? Math.round(100*n/baseN) : 0;
+    return {label:step.label, n, pct};
+  });
+  slot.innerHTML = rows.map(r=>`
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:4px">
+        <span style="color:#101637">${r.label}</span>
+        <span style="color:#666"><strong style="color:#101637">${r.n.toLocaleString('es-ES')}</strong> · ${r.pct}%</span>
+      </div>
+      <div style="background:#f0ece4;height:8px;border-radius:4px;overflow:hidden">
+        <div style="background:#C4977F;height:100%;width:${r.pct}%"></div>
+      </div>
+    </div>
+  `).join('');
 }
 
 const _lunaCharts = {};
