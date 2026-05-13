@@ -545,17 +545,13 @@ const fisicoBarrerasLabels = ["Falta de tiempo", "Falta de energia", "No veo res
 const fisicoBarrerasData = [42.0, 35.9, 30.6, 27.6, 8.6];
 
 // NAVIGATION
-let _lunaLoaded = false;
 function showSection(id) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     event.target.classList.add('active');
-    // Lazy-load datos LUNA solo al abrir la sección por primera vez
-    if(id==='luna' && !_lunaLoaded){
-      _lunaLoaded = true;
-      if(typeof loadLuna === 'function') loadLuna();
-    }
+    // Refrescar datos LUNA cada vez que se entra en la sección (no cachear)
+    if(id==='luna' && typeof loadLuna === 'function') loadLuna();
 }
 
 // CHART DEFAULTS
