@@ -73,6 +73,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <button onclick="showSection('arquetipos')" style="border-color:var(--azul);font-weight:600;">Arquetipos clínicos</button>
     <button onclick="showSection('insights')">Insights clave</button>
     <button onclick="showSection('fisico')" style="border-color:var(--rosa-oscuro);font-weight:600;">Estudio F&iacute;sico</button>
+    <button onclick="showSection('luna')" style="border-color:#ea504e;color:#ea504e;font-weight:600;">🌙 LUNA &middot; En vivo</button>
 </div>
 
 <div class="container">
@@ -343,7 +344,158 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     </div>
 </div>
 
+<!-- LUNA · TEST EN VIVO (test.wearedomma.com) -->
+<div id="luna" class="section">
+    <div style="background:#101637;color:#fff;border-radius:12px;padding:18px 24px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+            <div style="font-size:11px;letter-spacing:2px;color:#ea504e;text-transform:uppercase;font-weight:600;">LUNA · test conversacional</div>
+            <div style="font-size:18px;font-weight:700;margin-top:4px;">Datos en vivo de <a href="https://test.wearedomma.com" target="_blank" style="color:#fff;">test.wearedomma.com</a></div>
+        </div>
+        <div style="font-size:12px;opacity:.8;" id="lunaUpdated">Cargando…</div>
+    </div>
+
+    <div id="lunaError" style="display:none;background:#fff8e6;border:1px solid #f3d97a;color:#7a5a16;padding:14px 18px;border-radius:8px;margin-bottom:20px;font-size:13px;">
+        No se pudieron cargar los datos en vivo de LUNA. Reintenta en unos minutos.
+    </div>
+
+    <div class="grid" style="grid-template-columns: repeat(4, 1fr);" id="lunaBigNumbers">
+        <div class="card big-number"><div class="number" id="lunaTotal">—</div><div class="label">Tests completados</div></div>
+        <div class="card big-number"><div class="number" id="lunaEdad">—</div><div class="label">Edad media</div></div>
+        <div class="card big-number"><div class="number" id="lunaEmail">—</div><div class="label">% dejan email</div></div>
+        <div class="card big-number"><div class="number" id="lunaSintomas">—</div><div class="label">Síntomas medios marcados</div></div>
+    </div>
+
+    <div class="grid">
+        <div class="card"><h3>Distribución por arquetipo</h3><p class="subtitle">Asignación del algoritmo de LUNA</p><canvas id="chartLunaArq"></canvas></div>
+        <div class="card"><h3>Top síntomas marcados</h3><p class="subtitle">% de tests que marcan cada uno</p><canvas id="chartLunaSint"></canvas></div>
+    </div>
+
+    <div class="grid">
+        <div class="card"><h3>Estadío menstrual</h3><p class="subtitle">Distribución</p><canvas id="chartLunaMens"></canvas></div>
+        <div class="card"><h3>Productos en el plan</h3><p class="subtitle">% de planes que incluyen cada producto</p><canvas id="chartLunaProd"></canvas></div>
+    </div>
+
+    <div class="card insight-card" style="margin-top:20px;">
+        <h3>Cómo se actualiza</h3>
+        <p>Estos datos vienen del backend de <strong>test.wearedomma.com</strong> en tiempo real (Cloudflare Pages Functions + D1). Se actualizan cada vez que una mujer completa el test. No incluyen el email en claro (solo hash SHA-256) ni datos personales.</p>
+    </div>
 </div>
+
+</div>
+
+<script>
+// === Configuración LUNA · test conversacional en vivo ===
+const LUNA_ENDPOINT = 'https://luna-web.pages.dev/api/export';
+const LUNA_TOKEN = 'd50e010fb5ec391bd590d860cca3dbeee31deec88c3e462b';
+const LUNA_ARQUETIPO_LABELS = {
+  sobrecarga_hormonal: 'Sobrecarga hormonal',
+  carga_metabolica: 'Carga metabólica',
+  disrupcion_nocturna: 'Disrupción nocturna',
+  cambio_intimo: 'Cambio íntimo',
+  impacto_emocional: 'Impacto emocional',
+  transicion_temprana: 'Transición temprana',
+  carga_baja: 'Carga baja'
+};
+const LUNA_SINTOMA_LABELS = {
+  sofocos: 'Sofocos y sudores', sueno: 'Insomnio y mal dormir',
+  emocional: 'Ánimo, ansiedad', cognitivo: 'Niebla mental', peso: 'Peso, hinchazón',
+  cansancio: 'Cansancio', intimo_interno: 'Sequedad interna, libido',
+  intimo_externo: 'Sequedad externa', articular: 'Dolor articular',
+  pelo: 'Pelo, uñas, piel', otro: 'Otros'
+};
+const LUNA_PRODUCT_LABELS = {
+  equilibrio: 'Equilibrio', descanso: 'Descanso', enforma: 'En Forma',
+  deseo: 'Deseo', bienestar_intimo: 'Bienestar Íntimo', calma: 'Calma'
+};
+const LUNA_MENS_LABELS = {regular:'Regular', alterada:'Alterada', poca:'Poca', nada:'Sin regla'};
+
+async function loadLuna(){
+  try{
+    const r = await fetch(`${LUNA_ENDPOINT}?token=${LUNA_TOKEN}&desde=2026-01-01`);
+    if(!r.ok) throw new Error('http '+r.status);
+    const data = await r.json();
+    if(!data.ok) throw new Error(data.error||'unknown');
+    renderLuna(data.results||[]);
+  }catch(e){
+    console.error('LUNA load failed', e);
+    document.getElementById('lunaError').style.display='block';
+    document.getElementById('lunaUpdated').textContent='Sin datos';
+  }
+}
+
+function renderLuna(rows){
+  const total = rows.length;
+  document.getElementById('lunaTotal').textContent = total.toLocaleString('es-ES');
+  document.getElementById('lunaUpdated').textContent = `Actualizado · ${new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}`;
+  if(total===0){
+    document.getElementById('lunaEdad').textContent = '—';
+    document.getElementById('lunaEmail').textContent = '—';
+    document.getElementById('lunaSintomas').textContent = '—';
+    return;
+  }
+  // Big numbers
+  const edades = rows.map(r=>r.edad).filter(x=>x);
+  const edadMedia = edades.length ? Math.round(edades.reduce((a,b)=>a+b,0)/edades.length) : 0;
+  document.getElementById('lunaEdad').textContent = edadMedia + ' a';
+  const conEmail = rows.filter(r=>r.has_email===1).length;
+  document.getElementById('lunaEmail').textContent = Math.round(100*conEmail/total) + '%';
+  const sintCounts = rows.map(r=>{ try{ return JSON.parse(r.symptoms_json||'[]').length; }catch(e){return 0;} });
+  const sintMedia = sintCounts.length ? (sintCounts.reduce((a,b)=>a+b,0)/sintCounts.length).toFixed(1) : 0;
+  document.getElementById('lunaSintomas').textContent = sintMedia;
+
+  // Arquetipo
+  const arqCount = {};
+  rows.forEach(r=>{ if(r.archetype) arqCount[r.archetype]=(arqCount[r.archetype]||0)+1; });
+  const arqSorted = Object.entries(arqCount).sort((a,b)=>b[1]-a[1]);
+  new Chart('chartLunaArq', {
+    type:'doughnut',
+    data:{
+      labels: arqSorted.map(([k])=>LUNA_ARQUETIPO_LABELS[k]||k),
+      datasets:[{data: arqSorted.map(([,v])=>v), backgroundColor:palette}]
+    },
+    options:{...defaultOpts, plugins:{legend:{display:true,position:'bottom'}}}
+  });
+
+  // Top síntomas
+  const sintCount = {};
+  rows.forEach(r=>{ try{ JSON.parse(r.symptoms_json||'[]').forEach(s=>{ sintCount[s]=(sintCount[s]||0)+1; }); }catch(e){} });
+  const sintSorted = Object.entries(sintCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  new Chart('chartLunaSint', {
+    type:'bar',
+    data:{
+      labels: sintSorted.map(([k])=>LUNA_SINTOMA_LABELS[k]||k),
+      datasets:[{data: sintSorted.map(([,v])=>Math.round(100*v/total)), backgroundColor:ROSA_OSC, borderRadius:4}]
+    },
+    options:{...defaultOpts, indexAxis:'y', scales:{x:{ticks:{callback:v=>v+'%'}}}}
+  });
+
+  // Estadío menstrual
+  const mensCount = {};
+  rows.forEach(r=>{ if(r.menstrual) mensCount[r.menstrual]=(mensCount[r.menstrual]||0)+1; });
+  const mensSorted = Object.entries(mensCount).sort((a,b)=>b[1]-a[1]);
+  new Chart('chartLunaMens', {
+    type:'doughnut',
+    data:{
+      labels: mensSorted.map(([k])=>LUNA_MENS_LABELS[k]||k),
+      datasets:[{data: mensSorted.map(([,v])=>v), backgroundColor:[AZUL, ROSA_OSC, ROSA, '#D4B5A5']}]
+    },
+    options:{...defaultOpts, plugins:{legend:{display:true,position:'bottom'}}}
+  });
+
+  // Productos del plan
+  const prodCount = {};
+  rows.forEach(r=>{ try{ JSON.parse(r.products_json||'[]').forEach(p=>{ prodCount[p]=(prodCount[p]||0)+1; }); }catch(e){} });
+  const prodSorted = Object.entries(prodCount).sort((a,b)=>b[1]-a[1]);
+  new Chart('chartLunaProd', {
+    type:'bar',
+    data:{
+      labels: prodSorted.map(([k])=>LUNA_PRODUCT_LABELS[k]||k),
+      datasets:[{data: prodSorted.map(([,v])=>Math.round(100*v/total)), backgroundColor:AZUL_MED, borderRadius:4}]
+    },
+    options:{...defaultOpts, indexAxis:'y', scales:{x:{ticks:{callback:v=>v+'%'}}}}
+  });
+}
+</script>
 
 <script>
 const AZUL = '#101637';
@@ -386,11 +538,17 @@ const fisicoBarrerasLabels = ["Falta de tiempo", "Falta de energia", "No veo res
 const fisicoBarrerasData = [42.0, 35.9, 30.6, 27.6, 8.6];
 
 // NAVIGATION
+let _lunaLoaded = false;
 function showSection(id) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     event.target.classList.add('active');
+    // Lazy-load datos LUNA solo al abrir la sección por primera vez
+    if(id==='luna' && !_lunaLoaded){
+      _lunaLoaded = true;
+      if(typeof loadLuna === 'function') loadLuna();
+    }
 }
 
 // CHART DEFAULTS
