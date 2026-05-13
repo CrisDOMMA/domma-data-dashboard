@@ -371,6 +371,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         <div id="lunaFunnel" style="margin-top:14px"></div>
     </div>
 
+    <div class="grid" style="grid-template-columns: repeat(4, 1fr); margin-top:20px;">
+        <div class="card big-number"><div class="number" id="comprasN">—</div><div class="label">Compras vinculadas</div></div>
+        <div class="card big-number"><div class="number" id="comprasRev">—</div><div class="label">Ingresos quiz (€)</div></div>
+        <div class="card big-number"><div class="number" id="comprasCR">—</div><div class="label">CR · ven plan → compran</div></div>
+        <div class="card big-number"><div class="number" id="comprasAOV">—</div><div class="label">Ticket medio (€)</div></div>
+    </div>
+
+    <div class="grid">
+        <div class="card"><h3>Compras por pricing</h3><p class="subtitle">Suscripción vs compra única</p><div id="comprasPricing" style="margin-top:10px"></div></div>
+        <div class="card"><h3>Compras por arquetipo</h3><p class="subtitle">Conversión por perfil clínico</p><div id="comprasArch" style="margin-top:10px"></div></div>
+    </div>
+
     <div class="grid">
         <div class="card"><h3>Distribución por arquetipo</h3><p class="subtitle">Asignación del algoritmo de LUNA</p><canvas id="chartLunaArq"></canvas></div>
         <div class="card"><h3>Top síntomas marcados</h3><p class="subtitle">% de tests que marcan cada uno</p><canvas id="chartLunaSint"></canvas></div>
@@ -393,6 +405,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 // === Configuración LUNA · test conversacional en vivo ===
 const LUNA_ENDPOINT = 'https://luna-web.pages.dev/api/export';
 const LUNA_FUNNEL_ENDPOINT = 'https://luna-web.pages.dev/api/funnel';
+const LUNA_COMPRAS_ENDPOINT = 'https://luna-web.pages.dev/api/compras';
 const LUNA_TOKEN = 'd50e010fb5ec391bd590d860cca3dbeee31deec88c3e462b';
 // Pasos clave del funnel en orden (key, label, tipo)
 // tipo: 'screen' (mira eventos screen_view) o 'event' (mira event=key)
@@ -430,9 +443,10 @@ const LUNA_MENS_LABELS = {regular:'Regular', alterada:'Alterada', poca:'Poca', n
 
 async function loadLuna(){
   try{
-    const [rExp, rFun] = await Promise.all([
+    const [rExp, rFun, rCom] = await Promise.all([
       fetch(`${LUNA_ENDPOINT}?token=${LUNA_TOKEN}&desde=2026-01-01`),
-      fetch(`${LUNA_FUNNEL_ENDPOINT}?token=${LUNA_TOKEN}&desde=2026-01-01`)
+      fetch(`${LUNA_FUNNEL_ENDPOINT}?token=${LUNA_TOKEN}&desde=2026-01-01`),
+      fetch(`${LUNA_COMPRAS_ENDPOINT}?token=${LUNA_TOKEN}&desde=2026-01-01`)
     ]);
     if(!rExp.ok) throw new Error('http '+rExp.status);
     const data = await rExp.json();
@@ -443,10 +457,68 @@ async function loadLuna(){
       const funData = await rFun.json();
       if(funData.ok) renderLunaFunnel(funData);
     }
+    if(rCom.ok){
+      const comData = await rCom.json();
+      if(comData.ok) renderLunaCompras(comData);
+    }
   }catch(e){
     console.error('LUNA load failed', e);
     document.getElementById('lunaError').style.display='block';
     document.getElementById('lunaUpdated').textContent='Sin datos';
+  }
+}
+
+function renderLunaCompras(data){
+  const n = data.n_compras || 0;
+  const rev = data.revenue_eur || 0;
+  const aov = data.aov_eur || 0;
+  const planViews = data.plan_views || 0;
+  const cr = planViews>0 ? Math.round(100*n/planViews) : 0;
+  document.getElementById('comprasN').textContent = n.toLocaleString('es-ES');
+  document.getElementById('comprasRev').textContent = rev.toLocaleString('es-ES', {maximumFractionDigits:0});
+  document.getElementById('comprasCR').textContent = planViews>0 ? cr + '%' : '—';
+  document.getElementById('comprasAOV').textContent = n>0 ? aov.toLocaleString('es-ES', {maximumFractionDigits:0}) : '—';
+
+  // Pricing breakdown
+  const pricingSlot = document.getElementById('comprasPricing');
+  const pricingRows = data.by_pricing || [];
+  if(pricingRows.length===0){
+    pricingSlot.innerHTML = `<p style="color:#666;font-size:13px;margin:8px 0">Sin compras todavía.</p>`;
+  } else {
+    const labels = {sub:'Suscripción', once:'Compra única', '?':'Sin especificar'};
+    pricingSlot.innerHTML = pricingRows.map(r=>{
+      const pct = n>0 ? Math.round(100*r.n/n) : 0;
+      return `<div style="margin-bottom:8px;font-size:13px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span>${labels[r.pricing]||r.pricing}</span>
+          <span><strong>${r.n}</strong> · ${r.revenue.toLocaleString('es-ES',{maximumFractionDigits:0})}€ · ${pct}%</span>
+        </div>
+        <div style="background:#f0ece4;height:6px;border-radius:3px;overflow:hidden">
+          <div style="background:#C4977F;height:100%;width:${pct}%"></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Archetype breakdown
+  const archSlot = document.getElementById('comprasArch');
+  const archRows = data.by_archetype || [];
+  if(archRows.length===0){
+    archSlot.innerHTML = `<p style="color:#666;font-size:13px;margin:8px 0">Sin compras todavía.</p>`;
+  } else {
+    archSlot.innerHTML = archRows.map(r=>{
+      const pct = n>0 ? Math.round(100*r.n/n) : 0;
+      const label = LUNA_ARQUETIPO_LABELS[r.archetype] || r.archetype;
+      return `<div style="margin-bottom:8px;font-size:13px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span>${label}</span>
+          <span><strong>${r.n}</strong> · ${r.revenue.toLocaleString('es-ES',{maximumFractionDigits:0})}€</span>
+        </div>
+        <div style="background:#f0ece4;height:6px;border-radius:3px;overflow:hidden">
+          <div style="background:#C4977F;height:100%;width:${pct}%"></div>
+        </div>
+      </div>`;
+    }).join('');
   }
 }
 
