@@ -1,0 +1,40 @@
+name: Deploy dashboard to Cloudflare Pages
+
+# Auto-deploy a data.wearedomma.com en cada push a main.
+# Reemplaza el flujo manual de `wrangler pages deploy . --project-name=domma-data-hub`.
+#
+# Requiere 2 secrets en el repo:
+# - CLOUDFLARE_API_TOKEN  → API token con permiso "Pages: Edit" sobre tu cuenta
+# - CLOUDFLARE_ACCOUNT_ID → ed1d205580eba0828dbe08c5dea1e544 (cuenta de Cristina)
+#
+# Cómo generar el token (1 vez):
+# 1. https://dash.cloudflare.com/profile/api-tokens → Create Token
+# 2. Template "Edit Cloudflare Workers" → Continue
+# 3. Account Resources: Include → tu cuenta
+# 4. Zone Resources: All zones (o ninguno, no usamos zonas aquí)
+# 5. Create Token → copia el valor (solo se ve UNA vez)
+#
+# Cómo añadir secrets al repo (1 vez):
+# https://github.com/CrisDOMMA/domma-data-dashboard/settings/secrets/actions
+# → New repository secret → pegar nombre + valor para cada uno
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # también dispara manual desde Actions tab
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Cloudflare Pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy . --project-name=domma-data-hub --branch=main --commit-dirty=true
