@@ -361,8 +361,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         <label style="display:flex;align-items:center;gap:6px;">Hasta <input type="date" id="lunaHasta" style="border:1px solid #ccc;border-radius:6px;padding:4px 8px;font-size:13px;"></label>
         <button onclick="loadLuna()" style="background:#101637;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;">Aplicar</button>
         <button onclick="document.getElementById('lunaDesde').value=''; document.getElementById('lunaHasta').value=''; loadLuna();" style="background:transparent;color:#666;border:1px solid #ccc;border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;">Limpiar (todo el periodo)</button>
-        <span style="color:#888;font-size:12px;margin-left:auto;">Tests internos del equipo excluidos automáticamente</span>
+        <button onclick="downloadLunaCsv()" style="background:#ea504e;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;margin-left:auto;">⬇ Descargar CSV completo</button>
     </div>
+    <div style="color:#888;font-size:11px;margin:-12px 0 16px 0;text-align:right;">Tests internos del equipo excluidos · CSV incluye síntomas + severidades + antecedentes + medicación</div>
 
     <div id="lunaError" style="display:none;background:#fff8e6;border:1px solid #f3d97a;color:#7a5a16;padding:14px 18px;border-radius:8px;margin-bottom:20px;font-size:13px;">
         No se pudieron cargar los datos del quiz. Reintenta en unos minutos.
@@ -450,6 +451,85 @@ const LUNA_PRODUCT_LABELS = {
   deseo: 'Deseo', bienestar_intimo: 'Bienestar Íntimo', calma: 'Calma'
 };
 const LUNA_MENS_LABELS = {regular:'Regular', alterada:'Alterada', poca:'Poca', nada:'Sin regla'};
+
+// ============ CSV DOWNLOAD ============
+// Descarga las respuestas filtradas como CSV plano. Expande los JSONs anidados
+// (symptoms, severities, antecedentes, medicación) en columnas individuales
+// para que sea filtrable en Excel/Power BI sin parsing manual.
+function csvEscape(v){
+  if(v == null) return '';
+  const s = String(v);
+  if(/[",\n;]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+function tryParse(s){
+  if(s == null || s === '') return null;
+  try{ return typeof s === 'string' ? JSON.parse(s) : s; }catch(e){ return null; }
+}
+async function downloadLunaCsv(){
+  try{
+    const desde = document.getElementById('lunaDesde')?.value || '2026-01-01';
+    const hasta = document.getElementById('lunaHasta')?.value || '';
+    const dateParams = `desde=${desde}` + (hasta ? `&hasta=${hasta}` : '');
+    const r = await fetch(`${LUNA_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}`);
+    const data = await r.json();
+    const rows = data?.results || [];
+    if(!rows.length){ alert('No hay datos en el rango seleccionado.'); return; }
+
+    // Columnas planas + columnas expandidas (síntomas con severidad)
+    const allSymptomKeys = new Set();
+    rows.forEach(r => {
+      const arr = tryParse(r.symptoms_json) || [];
+      arr.forEach(s => allSymptomKeys.add(s));
+    });
+    const symptomCols = [...allSymptomKeys].sort();
+
+    const headers = [
+      'id', 'created_at', 'edad', 'menstrual', 'months_no_regla', 'cirugia', 'stage',
+      'archetype', 'qol', 'pricing_choice', 'apply_extra',
+      'sofocos_when', 'has_email', 'utm_source', 'utm_campaign',
+      'products', 'antecedentes', 'medicacion', 'suplementos', 'familiar',
+      'sueno_subs', 'emocional_subs', 'intimo_subs',
+      ...symptomCols.map(s => `sintoma_${s}`),
+      ...symptomCols.map(s => `severidad_${s}`)
+    ];
+
+    const csv = [headers.map(csvEscape).join(',')];
+    for(const r of rows){
+      const syms = new Set(tryParse(r.symptoms_json) || []);
+      const sevs = tryParse(r.severities_json) || {};
+      const row = [
+        r.id, r.created_at, r.edad, r.menstrual, r.months_no_regla, r.cirugia, r.stage,
+        r.archetype, r.qol, r.pricing_choice, r.apply_extra,
+        r.sofocos_when, r.has_email, r.utm_source, r.utm_campaign,
+        (tryParse(r.products_json) || []).join('|'),
+        (tryParse(r.antecedentes_json) || []).join('|'),
+        (tryParse(r.medicacion_json) || []).join('|'),
+        (tryParse(r.suplementos_json) || []).join('|'),
+        (tryParse(r.familiar_json) || []).join('|'),
+        (tryParse(r.sueno_json) || []).join('|'),
+        (tryParse(r.emocional_json) || []).join('|'),
+        (tryParse(r.intimo_json) || []).join('|'),
+        ...symptomCols.map(s => syms.has(s) ? '1' : '0'),
+        ...symptomCols.map(s => sevs[s] != null ? sevs[s] : '')
+      ];
+      csv.push(row.map(csvEscape).join(','));
+    }
+
+    const blob = new Blob(['﻿' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `domma-quiz-${desde}_${hasta || 'all'}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }catch(e){
+    console.error('CSV download failed', e);
+    alert('Error descargando CSV. Revisa consola.');
+  }
+}
 
 async function loadLuna(){
   try{
