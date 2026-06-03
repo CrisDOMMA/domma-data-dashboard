@@ -301,6 +301,18 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
       <svg class="chart-svg" id="ovSparkline" style="height:140px"></svg>
     </div>
 
+    <div class="section-title">Ventas por producto · en vivo (Shopify)</div>
+    <div class="chart-card" style="margin-bottom:24px;overflow-x:auto">
+      <div style="font-size:12px;color:#16a34a;margin-bottom:10px;font-weight:600">✓ Datos en vivo desde Shopify — cuadra al céntimo con tus informes, al minuto.</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="text-align:right;color:#888;border-bottom:1px solid #eee">
+          <th style="text-align:left;padding:6px 8px">Producto</th>
+          <th style="padding:6px 8px">Total sales</th><th style="padding:6px 8px">Net sales</th>
+          <th style="padding:6px 8px">Items</th><th style="padding:6px 8px">Pedidos</th></tr></thead>
+        <tbody id="ovslBody"><tr><td colspan="5" style="padding:10px;color:#888">Cargando…</td></tr></tbody>
+      </table>
+    </div>
+
   </div> <!-- /viewOverview -->
 
   <!-- ═════════════════════════ VIEW: SUSCRIPCIONES ═════════════════════════ -->
@@ -1386,7 +1398,40 @@ async function loadOverview(){
     document.getElementById('ovStatusText').textContent='Última actualización: '+new Date(ts).toLocaleString('es-ES')+' · '+label;
   }catch(e){
     document.getElementById('ovStatusText').textContent='Error cargando overview: '+e.message;
+  }finally{
+    // Datos EN VIVO de Shopify — se ejecuta SIEMPRE y al final (gana sobre el BI). Cuadra al céntimo.
+    loadShopifyLive();
   }
+}
+
+// Ventas en vivo desde Shopify (ShopifyQL) — fuente de verdad, al minuto.
+async function loadShopifyLive(){
+  const body=document.getElementById('ovslBody');
+  try{
+    const qs=buildRangeQS('ovFrom','ovTo');
+    const resp=await fetch(API+'/api/admin/metrics/shopify-sales'+(qs?'?'+qs:''),{headers:authHeaders()});
+    if(resp.status===401||resp.status===403){ if(body)body.innerHTML='<tr><td colspan="5" style="padding:10px;color:#888">Sesión caducada</td></tr>'; return; }
+    const r=await resp.json();
+    if(!r.ok){ if(body)body.innerHTML='<tr><td colspan="5" style="padding:10px;color:#c33">'+(r.error||'error')+'</td></tr>'; return; }
+    const t=r.totals||{};
+    // Sobreescribe KPIs principales con la cifra REAL de Shopify
+    setLiveKpi('ovRevenue', fmtEUR(t.total_sales), 'ovRevenueDelta', 'ovRevenueSub', 'Net '+fmtEUR(t.net_sales)+' · en vivo');
+    setLiveKpi('ovOrders', fmt(t.orders), 'ovOrdersDelta');
+    setLiveKpi('ovAov', fmtEUR2(t.average_order_value), 'ovAovDelta');
+    // Tabla por producto
+    const rows=(r.by_product||[]).map(p=>`<tr style="text-align:right;border-bottom:1px solid #f3f3f5">
+      <td style="text-align:left;padding:6px 8px">${p.product_title||''}</td>
+      <td style="padding:6px 8px">${fmtEUR(p.total_sales)}</td>
+      <td style="padding:6px 8px">${fmtEUR(p.net_sales)}</td>
+      <td style="padding:6px 8px">${fmt(p.net_items_sold)}</td>
+      <td style="padding:6px 8px">${fmt(p.orders)}</td></tr>`).join('');
+    if(body)body.innerHTML=rows||'<tr><td colspan="5" style="padding:10px;color:#888">Sin datos en el rango</td></tr>';
+  }catch(e){ if(body)body.innerHTML='<tr><td colspan="5" style="padding:10px;color:#c33">Error: '+e.message+'</td></tr>'; }
+}
+function setLiveKpi(valId, val, deltaId, subId, subText){
+  const v=document.getElementById(valId); if(v)v.textContent=val;
+  if(deltaId){ const d=document.getElementById(deltaId); if(d)d.innerHTML='<span class="delta-up">✓ Shopify en vivo</span>'; }
+  if(subId&&subText){ const s=document.getElementById(subId); if(s)s.textContent=subText; }
 }
 
 function todayISO(){ return new Date().toISOString().slice(0,10); }
