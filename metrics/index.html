@@ -227,6 +227,23 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
     <button class="top-tab" id="vtClientes" onclick="switchView('clientes',this)">Clientes</button>
     <button class="top-tab" id="vtB2B" onclick="switchView('b2b',this)">B2B</button>
     <button class="top-tab" id="vtPlan" onclick="switchView('plan',this)">Plan 2026</button>
+    <button class="top-tab" id="vtHistorico" onclick="switchView('historico',this)">Histórico</button>
+  </div>
+
+  <!-- ═════════════════════════ VIEW: HISTÓRICO MENSUAL ═════════════════════════ -->
+  <div id="viewHistorico" style="display:none">
+    <div class="section-title">Histórico mensual · 2021 → hoy</div>
+    <div class="chart-card" style="margin-bottom:24px;overflow-x:auto">
+      <div style="font-size:12px;color:#888;margin-bottom:10px">Fuente: master DOMMA Performance Metrics (Woo + Shopify). B2C cuadra al céntimo con Shopify · AOV = total ÷ pedidos.</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="text-align:right;color:#888;border-bottom:2px solid #ddd">
+          <th style="text-align:left;padding:6px 8px">Mes</th>
+          <th style="padding:6px 8px">Total</th><th style="padding:6px 8px">B2C</th><th style="padding:6px 8px">B2B</th>
+          <th style="padding:6px 8px">Pedidos</th><th style="padding:6px 8px">AOV</th>
+          <th style="padding:6px 8px">% Sub</th><th style="padding:6px 8px">Subs activas</th></tr></thead>
+        <tbody id="histBody"><tr><td colspan="8" style="padding:10px;color:#888">Cargando histórico…</td></tr></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- ═════════════════════════ VIEW: OVERVIEW ═════════════════════════ -->
@@ -1083,7 +1100,7 @@ function fmtEUR2(n){return n!=null?'€'+n.toLocaleString('es-ES',{minimumFracti
 // ═══════════════════════════════════════════════════════════════
 // VIEW: CLIENTES & PEDIDOS
 // ═══════════════════════════════════════════════════════════════
-let pedidosLoaded=false, clientesLoaded=false, overviewLoaded=false, b2bLoaded=false, planLoaded=false;
+let pedidosLoaded=false, clientesLoaded=false, overviewLoaded=false, b2bLoaded=false, planLoaded=false, historicoLoaded=false;
 
 function switchView(v, btn){
   document.querySelectorAll('.top-tab').forEach(t=>t.classList.remove('active'));
@@ -1094,7 +1111,9 @@ function switchView(v, btn){
   document.getElementById('viewClientes').style.display = v==='clientes'?'block':'none';
   document.getElementById('viewB2B').style.display      = v==='b2b'?'block':'none';
   document.getElementById('viewPlan').style.display     = v==='plan'?'block':'none';
+  document.getElementById('viewHistorico').style.display= v==='historico'?'block':'none';
   if(v==='overview' && !overviewLoaded){ overviewLoaded=true; loadOverview(); }
+  if(v==='historico'&& !historicoLoaded){ historicoLoaded=true; loadHistorico(); }
   if(v==='pedidos'  && !pedidosLoaded){  pedidosLoaded=true;  initPedidosFilters();  loadPedidosView();  }
   if(v==='clientes' && !clientesLoaded){ clientesLoaded=true; initClientesFilters(); loadClientesView(); }
   if(v==='b2b'      && !b2bLoaded){      b2bLoaded=true;      initB2BFilters();      loadB2BView();      }
@@ -1417,7 +1436,9 @@ async function loadShopifyLive(){
     // Sobreescribe KPIs principales con la cifra REAL de Shopify
     setLiveKpi('ovRevenue', fmtEUR(t.total_sales), 'ovRevenueDelta', 'ovRevenueSub', 'Net '+fmtEUR(t.net_sales)+' · en vivo');
     setLiveKpi('ovOrders', fmt(t.orders), 'ovOrdersDelta');
-    setLiveKpi('ovAov', fmtEUR2(t.average_order_value), 'ovAovDelta');
+    // AOV con la definición del master de DOMMA: total_sales / pedidos (no el AOV de Shopify)
+    const aov=(t.orders? t.total_sales/t.orders : t.average_order_value);
+    setLiveKpi('ovAov', fmtEUR2(aov), 'ovAovDelta');
     // Tabla por producto
     const rows=(r.by_product||[]).map(p=>`<tr style="text-align:right;border-bottom:1px solid #f3f3f5">
       <td style="text-align:left;padding:6px 8px">${p.product_title||''}</td>
@@ -1432,6 +1453,38 @@ function setLiveKpi(valId, val, deltaId, subId, subText){
   const v=document.getElementById(valId); if(v)v.textContent=val;
   if(deltaId){ const d=document.getElementById(deltaId); if(d)d.innerHTML='<span class="delta-up">✓ Shopify en vivo</span>'; }
   if(subId&&subText){ const s=document.getElementById(subId); if(s)s.textContent=subText; }
+}
+
+// ───── HISTÓRICO MENSUAL (JSON estático del master de DOMMA) ─────
+const MESES_ES=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+async function loadHistorico(){
+  const body=document.getElementById('histBody');
+  try{
+    const r=await fetch('/metrics/historico_mensual.json',{cache:'no-cache'});
+    const d=await r.json();
+    const months=(d.months||[]).slice().sort((a,b)=>a.ym<b.ym?1:-1); // recientes arriba
+    let html='', curYear=null, acc=null;
+    const subtotal=(y,a)=>`<tr style="font-weight:700;background:#f6f6f8;border-top:1px solid #ddd;border-bottom:1px solid #ddd;text-align:right">
+      <td style="text-align:left;padding:6px 8px">TOTAL ${y}</td>
+      <td style="padding:6px 8px">${fmtEUR(a.total)}</td><td style="padding:6px 8px">${fmtEUR(a.b2c)}</td>
+      <td style="padding:6px 8px">${fmtEUR(a.b2b)}</td><td style="padding:6px 8px">${fmt(a.orders)}</td>
+      <td colspan="3"></td></tr>`;
+    for(const m of months){
+      if(curYear!==null && m.year!==curYear){ html+=subtotal(curYear,acc); acc=null; }
+      if(acc===null||m.year!==curYear){ curYear=m.year; acc={total:0,b2c:0,b2b:0,orders:0}; }
+      acc.total+=m.total||0; acc.b2c+=m.b2c||0; acc.b2b+=m.b2b||0; acc.orders+=m.orders||0;
+      const aov=(m.orders? (m.b2c!=null?m.b2c:m.total)/m.orders : null);
+      html+=`<tr style="text-align:right;border-bottom:1px solid #f3f3f5">
+        <td style="text-align:left;padding:6px 8px">${MESES_ES[m.month]} ${m.year}</td>
+        <td style="padding:6px 8px">${fmtEUR(m.total)}</td><td style="padding:6px 8px">${m.b2c!=null?fmtEUR(m.b2c):'—'}</td>
+        <td style="padding:6px 8px">${m.b2b!=null?fmtEUR(m.b2b):'—'}</td><td style="padding:6px 8px">${m.orders!=null?fmt(m.orders):'—'}</td>
+        <td style="padding:6px 8px">${aov!=null?fmtEUR2(aov):'—'}</td>
+        <td style="padding:6px 8px">${m.pct_subs!=null?m.pct_subs+'%':'—'}</td>
+        <td style="padding:6px 8px">${m.active_subs!=null?fmt(m.active_subs):'—'}</td></tr>`;
+    }
+    if(acc!==null) html+=subtotal(curYear,acc);
+    body.innerHTML=html||'<tr><td colspan="8" style="padding:10px;color:#888">Sin datos</td></tr>';
+  }catch(e){ body.innerHTML='<tr><td colspan="8" style="padding:10px;color:#c33">Error cargando histórico: '+e.message+'</td></tr>'; }
 }
 
 function todayISO(){ return new Date().toISOString().slice(0,10); }
