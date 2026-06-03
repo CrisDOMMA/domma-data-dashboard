@@ -1286,11 +1286,11 @@ async function loadB2BView(){
 }
 
 // ───── OVERVIEW ─────
+function firstOfMonthISO(){ const d=new Date(); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString().slice(0,10); }
 function initOverviewFilters(){
-  // Default: HOY (from=to=today)
-  const t=todayISO();
-  document.getElementById('ovFrom').value=t;
-  document.getElementById('ovTo').value=t;
+  // Default: MES EN CURSO (1 del mes → hoy)
+  document.getElementById('ovFrom').value=firstOfMonthISO();
+  document.getElementById('ovTo').value=todayISO();
 }
 
 function setOverviewPreset(preset){
@@ -1422,36 +1422,67 @@ async function loadOverview(){
   }
 }
 
-// Ventas en vivo desde Shopify (ShopifyQL) — fuente de verdad, al minuto.
-async function loadShopifyLive(){
-  const body=document.getElementById('ovslBody');
-  try{
-    const qs=buildRangeQS('ovFrom','ovTo');
-    const resp=await fetch(API+'/api/admin/metrics/shopify-sales'+(qs?'?'+qs:''),{headers:authHeaders()});
-    if(resp.status===401||resp.status===403){ if(body)body.innerHTML='<tr><td colspan="5" style="padding:10px;color:#888">Sesión caducada</td></tr>'; return; }
-    const r=await resp.json();
-    if(!r.ok){ if(body)body.innerHTML='<tr><td colspan="5" style="padding:10px;color:#c33">'+(r.error||'error')+'</td></tr>'; return; }
-    const t=r.totals||{};
-    // Sobreescribe KPIs principales con la cifra REAL de Shopify
-    setLiveKpi('ovRevenue', fmtEUR(t.total_sales), 'ovRevenueDelta', 'ovRevenueSub', 'Net '+fmtEUR(t.net_sales)+' · en vivo');
-    setLiveKpi('ovOrders', fmt(t.orders), 'ovOrdersDelta');
-    // AOV con la definición del master de DOMMA: total_sales / pedidos (no el AOV de Shopify)
-    const aov=(t.orders? t.total_sales/t.orders : t.average_order_value);
-    setLiveKpi('ovAov', fmtEUR2(aov), 'ovAovDelta');
-    // Tabla por producto
-    const rows=(r.by_product||[]).map(p=>`<tr style="text-align:right;border-bottom:1px solid #f3f3f5">
-      <td style="text-align:left;padding:6px 8px">${p.product_title||''}</td>
-      <td style="padding:6px 8px">${fmtEUR(p.total_sales)}</td>
-      <td style="padding:6px 8px">${fmtEUR(p.net_sales)}</td>
-      <td style="padding:6px 8px">${fmt(p.net_items_sold)}</td>
-      <td style="padding:6px 8px">${fmt(p.orders)}</td></tr>`).join('');
-    if(body)body.innerHTML=rows||'<tr><td colspan="5" style="padding:10px;color:#888">Sin datos en el rango</td></tr>';
-  }catch(e){ if(body)body.innerHTML='<tr><td colspan="5" style="padding:10px;color:#c33">Error: '+e.message+'</td></tr>'; }
+// ═══════════════════════════════════════════════════════════════
+// MODELO HÍBRIDO de ventas: cuadra SIEMPRE con el master de DOMMA.
+//  · Meses cerrados (≤ feb-2026) → del Excel/Histórico (Woo+Shopify reconciliado)
+//  · Desde mar-2026 (incl. mes en curso) → Shopify en vivo (cuadra al céntimo, al minuto)
+// El corte es el 1-mar-2026 (fin de la migración WooCommerce→Shopify).
+// ═══════════════════════════════════════════════════════════════
+const CUTOVER='2026-03-01'; // Shopify fiable desde aquí; antes, Excel
+let HIST_CACHE=null;
+async function getHistorico(){
+  if(HIST_CACHE) return HIST_CACHE;
+  try{ HIST_CACHE=((await (await fetch('/metrics/historico_mensual.json',{cache:'no-cache'})).json()).months)||[]; }
+  catch(e){ HIST_CACHE=[]; }
+  return HIST_CACHE;
 }
-function setLiveKpi(valId, val, deltaId, subId, subText){
+// Devuelve {revenue, orders, byProduct, src} combinando Excel (pasado) + Shopify (desde mar-26)
+async function combinedSales(from, to){
+  const hist=await getHistorico();
+  const fromYM=from.slice(0,7), toYM=to.slice(0,7), cutYM=CUTOVER.slice(0,7);
+  let exRev=0, exOrd=0, usedExcel=false;
+  for(const m of hist){
+    if(m.ym>=cutYM) continue;                 // de marzo-26 en adelante manda Shopify
+    if(m.ym>=fromYM && m.ym<=toYM){ exRev+=m.b2c||0; exOrd+=m.orders||0; usedExcel=true; }
+  }
+  let shRev=0, shOrd=0, byProduct=[], usedShopify=false, shErr=null;
+  const shFrom = from<CUTOVER ? CUTOVER : from;
+  if(to>=CUTOVER && shFrom<=to){
+    const r=await fetch(API+'/api/admin/metrics/shopify-sales?from='+shFrom+'&to='+to,{headers:authHeaders()}).then(x=>x.json()).catch(()=>({error:'red'}));
+    if(r&&r.ok){ const t=r.totals||{}; shRev=t.total_sales||0; shOrd=t.orders||0; byProduct=r.by_product||[]; usedShopify=true; }
+    else shErr=(r&&r.error)||'error';
+  }
+  let src = usedExcel&&usedShopify ? 'Excel (meses cerrados) + Shopify en vivo'
+          : usedShopify ? 'Shopify en vivo (cuadra al céntimo)'
+          : usedExcel ? 'Excel / histórico (periodo pre-migración)' : (shErr||'sin datos');
+  return {revenue:exRev+shRev, orders:exOrd+shOrd, byProduct, src, shErr};
+}
+function setLiveKpi(valId, val, note, subId, subText){
   const v=document.getElementById(valId); if(v)v.textContent=val;
-  if(deltaId){ const d=document.getElementById(deltaId); if(d)d.innerHTML='<span class="delta-up">✓ Shopify en vivo</span>'; }
+  if(note){ const d=document.getElementById(note); if(d)d.innerHTML='<span class="delta-up">✓ cuadra</span>'; }
   if(subId&&subText){ const s=document.getElementById(subId); if(s)s.textContent=subText; }
+}
+function renderByProduct(bodyId, byProduct, src){
+  const body=document.getElementById(bodyId); if(!body) return;
+  const rows=(byProduct||[]).map(p=>`<tr style="text-align:right;border-bottom:1px solid #f3f3f5">
+    <td style="text-align:left;padding:6px 8px">${p.product_title||''}</td>
+    <td style="padding:6px 8px">${fmtEUR(p.total_sales)}</td>
+    <td style="padding:6px 8px">${fmtEUR(p.net_sales)}</td>
+    <td style="padding:6px 8px">${fmt(p.net_items_sold)}</td>
+    <td style="padding:6px 8px">${fmt(p.orders)}</td></tr>`).join('');
+  body.innerHTML=rows||'<tr><td colspan="5" style="padding:10px;color:#888">Por producto disponible solo desde mar-2026 (Shopify).</td></tr>';
+}
+// Overview: sobreescribe Revenue/Pedidos/AOV con el modelo híbrido
+async function loadShopifyLive(){
+  try{
+    const from=document.getElementById('ovFrom').value, to=document.getElementById('ovTo').value;
+    const c=await combinedSales(from,to);
+    setLiveKpi('ovRevenue', fmtEUR(c.revenue), 'ovRevenueDelta', 'ovRevenueSub', c.src);
+    setLiveKpi('ovOrders', fmt(c.orders), 'ovOrdersDelta');
+    const aov=(c.orders? c.revenue/c.orders : 0);
+    setLiveKpi('ovAov', fmtEUR2(aov), 'ovAovDelta');
+    renderByProduct('ovslBody', c.byProduct, c.src);
+  }catch(e){ const b=document.getElementById('ovslBody'); if(b)b.innerHTML='<tr><td colspan="5" style="padding:10px;color:#c33">Error: '+e.message+'</td></tr>'; }
 }
 
 // ───── HISTÓRICO MENSUAL (JSON estático del master de DOMMA) ─────
@@ -1566,18 +1597,16 @@ async function loadPedidosView(){
   }
 }
 
-// Pedidos EN VIVO desde Shopify (gana sobre el BI; cuadra al céntimo)
+// Pedidos: modelo híbrido (Excel meses cerrados + Shopify en vivo), cuadra con el master
 async function loadPedidosLive(){
   try{
-    const qs=buildRangeQS('pFrom','pTo');
-    const r=await fetch(API+'/api/admin/metrics/shopify-sales'+(qs?'?'+qs:''),{headers:authHeaders()}).then(x=>x.json());
-    if(!r.ok) return;
-    const t=r.totals||{};
-    document.getElementById('pGMV').textContent=fmtEUR(t.total_sales);
-    document.getElementById('pTotalOrders').textContent=fmt(t.orders);
-    const aov=(t.orders? t.total_sales/t.orders : t.average_order_value);
+    const from=document.getElementById('pFrom').value, to=document.getElementById('pTo').value;
+    const c=await combinedSales(from,to);
+    document.getElementById('pGMV').textContent=fmtEUR(c.revenue);
+    document.getElementById('pTotalOrders').textContent=fmt(c.orders);
+    const aov=(c.orders? c.revenue/c.orders : 0);
     document.getElementById('pAOV').textContent=fmtEUR2(aov);
-    document.getElementById('pStatusText').innerHTML='✓ En vivo desde Shopify · '+fmt(t.orders)+' pedidos · '+fmtEUR(t.total_sales)+' total (cuadra al céntimo)';
+    document.getElementById('pStatusText').innerHTML='✓ '+fmt(c.orders)+' pedidos · '+fmtEUR(c.revenue)+' · '+c.src;
   }catch(e){}
 }
 
