@@ -226,7 +226,6 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
     <button class="top-tab" id="vtPedidos" onclick="switchView('pedidos',this)">Pedidos</button>
     <button class="top-tab" id="vtClientes" onclick="switchView('clientes',this)">Clientes</button>
     <button class="top-tab" id="vtB2B" onclick="switchView('b2b',this)">B2B</button>
-    <button class="top-tab" id="vtPlan" onclick="switchView('plan',this)">Plan 2026</button>
     <button class="top-tab" id="vtHistorico" onclick="switchView('historico',this)">Histórico</button>
   </div>
 
@@ -1562,7 +1561,24 @@ async function loadPedidosView(){
       ' · '+fmt(stats.total_orders)+' pedidos · '+fmtEUR(stats.total_gmv)+' GMV';
   }catch(e){
     document.getElementById('pStatusText').textContent='Error cargando datos: '+e.message;
+  }finally{
+    loadPedidosLive();
   }
+}
+
+// Pedidos EN VIVO desde Shopify (gana sobre el BI; cuadra al céntimo)
+async function loadPedidosLive(){
+  try{
+    const qs=buildRangeQS('pFrom','pTo');
+    const r=await fetch(API+'/api/admin/metrics/shopify-sales'+(qs?'?'+qs:''),{headers:authHeaders()}).then(x=>x.json());
+    if(!r.ok) return;
+    const t=r.totals||{};
+    document.getElementById('pGMV').textContent=fmtEUR(t.total_sales);
+    document.getElementById('pTotalOrders').textContent=fmt(t.orders);
+    const aov=(t.orders? t.total_sales/t.orders : t.average_order_value);
+    document.getElementById('pAOV').textContent=fmtEUR2(aov);
+    document.getElementById('pStatusText').innerHTML='✓ En vivo desde Shopify · '+fmt(t.orders)+' pedidos · '+fmtEUR(t.total_sales)+' total (cuadra al céntimo)';
+  }catch(e){}
 }
 
 // ───── CLIENTES ─────
