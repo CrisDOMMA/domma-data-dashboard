@@ -289,10 +289,10 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
 
     <div class="section-title" id="ovBreakdownTitle">Desglose de pedidos · en el rango</div>
     <div class="kpis">
-      <div class="kpi green"><div class="kpi-label-top">NUEVO · SUB</div><div class="value" id="ovNewSub">—</div><div class="kpi-sub" id="ovNewSubRev">primera compra fue sub</div></div>
-      <div class="kpi"><div class="kpi-label-top">NUEVO · ONE-TIMER</div><div class="value" id="ovNewOnetimer">—</div><div class="kpi-sub" id="ovNewOnetimerRev">primera compra única</div></div>
-      <div class="kpi blue"><div class="kpi-label-top">REPEAT · RENEWAL</div><div class="value" id="ovRepRenewal">—</div><div class="kpi-sub" id="ovRepRenewalRev">renovaciones de sub</div></div>
-      <div class="kpi orange"><div class="kpi-label-top">REPEAT · ONE-TIMER</div><div class="value" id="ovRepOnetimer">—</div><div class="kpi-sub" id="ovRepOnetimerRev">recompra única</div></div>
+      <div class="kpi green"><div class="kpi-label-top">NUEVAS</div><div class="value" id="bdNuevas">—</div><div class="kpi-sub">clientas que compran por 1ª vez</div></div>
+      <div class="kpi"><div class="kpi-label-top">REPEAT</div><div class="value" id="bdRepeat">—</div><div class="kpi-sub">ya habían comprado</div></div>
+      <div class="kpi blue"><div class="kpi-label-top">SUSCRIPCIÓN</div><div class="value" id="bdSub">—</div><div class="kpi-sub" id="bdSubDetail">renovaciones + nuevas subs</div></div>
+      <div class="kpi orange"><div class="kpi-label-top">ÚNICA</div><div class="value" id="bdUnica">—</div><div class="kpi-sub">compra puntual (sin suscripción)</div></div>
     </div>
 
     <div class="section-title" id="ovSubsSectionTitle">Suscripciones B2C en el rango</div>
@@ -1381,14 +1381,7 @@ async function loadOverview(){
     // Desglose de pedidos · 4 cards (Excel-like)
     const bd=r.breakdown||{};
     document.getElementById('ovBreakdownTitle').textContent='Desglose de pedidos · '+label;
-    document.getElementById('ovNewSub').textContent=fmt(bd.new_sub||0);
-    document.getElementById('ovNewSubRev').textContent=fmtEUR(Number(bd.new_sub_rev||0));
-    document.getElementById('ovNewOnetimer').textContent=fmt(bd.new_onetimer||0);
-    document.getElementById('ovNewOnetimerRev').textContent=fmtEUR(Number(bd.new_onetimer_rev||0));
-    document.getElementById('ovRepRenewal').textContent=fmt(bd.repeat_renewal||0);
-    document.getElementById('ovRepRenewalRev').textContent=fmtEUR(Number(bd.repeat_renewal_rev||0));
-    document.getElementById('ovRepOnetimer').textContent=fmt(bd.repeat_onetimer||0);
-    document.getElementById('ovRepOnetimerRev').textContent=fmtEUR(Number(bd.repeat_onetimer_rev||0));
+    // (las tarjetas Nuevas/Repeat/Suscripción/Única las rellena loadBreakdown() en vivo desde Shopify)
 
     // Subs en el rango
     document.getElementById('ovSubsActive').textContent=fmt(b.active_end);
@@ -1419,7 +1412,25 @@ async function loadOverview(){
   }finally{
     // Datos EN VIVO de Shopify — se ejecuta SIEMPRE y al final (gana sobre el BI). Cuadra al céntimo.
     loadShopifyLive();
+    loadBreakdown();
   }
+}
+
+// Desglose nuevas/repeat/suscripción/única EN VIVO (reemplaza el conteo manual del Excel)
+async function loadBreakdown(){
+  const set=(id,v)=>{const el=document.getElementById(id); if(el)el.textContent=v;};
+  set('bdNuevas','…'); set('bdRepeat','…'); set('bdSub','…'); set('bdUnica','…');
+  try{
+    const from=document.getElementById('ovFrom').value, to=document.getElementById('ovTo').value;
+    const r=await fetch(API+'/api/admin/metrics/order-breakdown?from='+from+'&to='+to,{headers:authHeaders()}).then(x=>x.json());
+    if(!r.ok){ set('bdNuevas','—');set('bdRepeat','—');set('bdSub','—');set('bdUnica','—'); set('bdSubDetail', r.error||'no disponible'); return; }
+    set('bdNuevas', fmt(r.new_customers));
+    set('bdRepeat', fmt(r.repeat_customers));
+    set('bdSub', fmt(r.sub));
+    set('bdUnica', fmt(r.unique));
+    const det=document.getElementById('bdSubDetail');
+    if(det) det.textContent=fmt(r.renewal)+' renovaciones · '+fmt(r.new_sub)+' nuevas subs';
+  }catch(e){ set('bdNuevas','—');set('bdRepeat','—');set('bdSub','—');set('bdUnica','—'); }
 }
 
 // ═══════════════════════════════════════════════════════════════
