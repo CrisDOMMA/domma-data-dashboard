@@ -282,7 +282,6 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
     <div class="kpis kpis-5">
       <div class="kpi"><div class="kpi-label-top" id="ovRevLabel">REVENUE</div><div class="value" id="ovRevenue">—</div><div class="kpi-delta" id="ovRevenueDelta">—</div><div class="kpi-sub" id="ovRevenueSub">vs periodo previo</div></div>
       <div class="kpi"><div class="kpi-label-top">PEDIDOS</div><div class="value" id="ovOrders">—</div><div class="kpi-delta" id="ovOrdersDelta">—</div><div class="kpi-sub">vs periodo previo</div></div>
-      <div class="kpi"><div class="kpi-label-top">vs AÑO ANTERIOR</div><div class="value" id="ovYoY">—</div><div class="kpi-sub" id="ovYoYSub">mismo periodo año pasado</div></div>
       <div class="kpi"><div class="kpi-label-top">% SUB</div><div class="value" id="ovSubPct">—</div><div class="kpi-delta" id="ovSubPctDelta">—</div><div class="kpi-sub">vs periodo previo</div></div>
       <div class="kpi"><div class="kpi-label-top">AOV</div><div class="value" id="ovAov">—</div><div class="kpi-delta" id="ovAovDelta">—</div><div class="kpi-sub">vs periodo previo</div></div>
     </div>
@@ -1363,10 +1362,6 @@ async function loadOverview(){
     document.getElementById('ovOrders').textContent=fmt(k.orders);
     document.getElementById('ovOrdersDelta').innerHTML=fmtDelta(deltaPct(k.orders, k.prev_orders));
 
-    // YoY
-    const yoyPct=deltaPct(k.revenue, k.yoy_revenue);
-    document.getElementById('ovYoY').innerHTML=fmtDelta(yoyPct);
-    document.getElementById('ovYoYSub').textContent=fmtEUR(k.revenue||0)+' vs '+fmtEUR(k.yoy_revenue||0);
 
     // %Sub
     document.getElementById('ovSubPct').textContent=(k.sub_pct!=null?Number(k.sub_pct).toFixed(1)+'%':'—');
