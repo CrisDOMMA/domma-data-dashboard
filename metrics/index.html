@@ -299,7 +299,6 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
       <div class="kpi"><div class="value" id="ovSubsActive">—</div><div class="label">Subs activas</div><div class="kpi-sub" id="ovSubsActiveSub">al final del rango</div></div>
       <div class="kpi green"><div class="value" id="ovSubsNew">—</div><div class="label">Nuevas</div><div class="kpi-sub" id="ovSubsNewSub">en el rango</div></div>
       <div class="kpi orange"><div class="value" id="ovSubsCanc">—</div><div class="label">Canceladas</div><div class="kpi-sub" id="ovSubsCancSub">en el rango</div></div>
-      <div class="kpi"><div class="value" id="ovNetNew">—</div><div class="label">Net new</div><div class="kpi-sub" id="ovChurn"></div></div>
     </div>
 
     <div class="section-title">Finanzas (snapshot actual)</div>
@@ -310,9 +309,10 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
       <div class="kpi orange"><div class="value" id="ovPayback">—</div><div class="label">Payback</div><div class="kpi-sub" id="ovPaybackSub">pendiente CAC (#17)</div></div>
     </div>
 
-    <div class="section-title" id="ovSparklineTitle">Revenue diario en el rango</div>
+    <div class="section-title" id="ovSparklineTitle">Revenue diario · nuevas vs recurrentes</div>
     <div class="chart-card" style="margin-bottom:24px">
       <div class="big" id="ovSparklineBig">—</div>
+      <div style="font-size:12px;margin:4px 0 8px"><span style="color:#16a34a;font-weight:600">● Nuevas</span> &nbsp;&nbsp; <span style="color:#2563eb;font-weight:600">● Recurrentes</span></div>
       <svg class="chart-svg" id="ovSparkline" style="height:140px"></svg>
     </div>
 
@@ -1379,9 +1379,6 @@ async function loadOverview(){
     document.getElementById('ovSubsActiveSub').textContent='al '+rng.to;
     document.getElementById('ovSubsNew').textContent=fmt(b.new_in_range);
     document.getElementById('ovSubsCanc').textContent=fmt(b.cancelled_in_range);
-    const netNew=(Number(b.new_in_range)||0) - (Number(b.cancelled_in_range)||0);
-    document.getElementById('ovNetNew').textContent=(netNew>=0?'+':'')+fmt(netNew);
-    document.getElementById('ovChurn').textContent='Churn '+(b.churn_pct!=null?b.churn_pct+'%':'—')+' en el rango';
 
     // Finanzas (snapshot)
     document.getElementById('ovMrr').textContent=fmtEUR(f.mrr||0);
@@ -1422,12 +1419,17 @@ async function loadBreakdown(){
     const det=document.getElementById('bdSubDetail');
     if(det) det.textContent=fmt(r.renewal)+' renovaciones · '+fmt(r.new_sub)+' nuevas subs';
     const ndet=document.getElementById('bdNuevasDetail');
-    if(ndet && r.new_cust_sub!=null) ndet.textContent=fmt(r.new_cust_sub)+' suscripción · '+fmt(r.new_cust_unique)+' única';
+    if(ndet && r.new_cust_sub!=null) ndet.innerHTML='<b style="color:#16a34a">'+fmtEUR(r.new_revenue)+'</b> · '+fmt(r.new_cust_sub)+' susc · '+fmt(r.new_cust_unique)+' única';
     // % SUB = revenue de suscripción / facturación total
     if(r.sub_revenue_pct!=null){
       set('ovSubPct', Number(r.sub_revenue_pct).toFixed(1)+'%');
       const sd=document.getElementById('ovSubPctDelta'); if(sd) sd.innerHTML='';
       const ss=document.getElementById('ovSubPctSub'); if(ss) ss.textContent=fmtEUR(r.sub_revenue)+' de '+fmtEUR(r.revenue);
+    }
+    // Gráfico diario nuevas vs recurrentes
+    if(r.daily && r.daily.length){
+      renderTwoSeriesSVG('ovSparkline', r.daily.map(d=>({bucket:d.day, a:d.nuevas, b:d.recurrentes})), v=>fmtEUR(v));
+      const big=document.getElementById('ovSparklineBig'); if(big) big.textContent=fmtEUR(r.revenue)+' total · '+fmtEUR(r.new_revenue)+' nuevas';
     }
   }catch(e){ set('bdNuevas','—');set('bdRepeat','—');set('bdSub','—');set('bdUnica','—'); }
 }
@@ -1687,6 +1689,31 @@ async function loadCustomersSplit(){
   }
 }
 
+// Dos series (nuevas=verde, recurrentes=azul). data=[{bucket,a,b}]
+function renderTwoSeriesSVG(id, data, fmtFn){
+  const svg=document.getElementById(id); if(!svg) return;
+  svg.innerHTML='';
+  if(!data||data.length===0) return;
+  const ns='http://www.w3.org/2000/svg';
+  const w=svg.clientWidth||500, h=160, pad={t:10,r:8,b:24,l:52};
+  const innerW=w-pad.l-pad.r, innerH=h-pad.t-pad.b;
+  const maxV=Math.max(1,...data.map(d=>Math.max(d.a||0,d.b||0)))*1.08;
+  const xStep=data.length>1?innerW/(data.length-1):0;
+  const X=i=>data.length>1?pad.l+i*xStep:pad.l+innerW/2;
+  const Y=v=>pad.t+innerH-(v/maxV)*innerH;
+  for(let i=0;i<=3;i++){ const y=pad.t+innerH*(i/3), v=maxV-maxV*(i/3);
+    const l=document.createElementNS(ns,'line'); l.setAttribute('x1',pad.l);l.setAttribute('y1',y);l.setAttribute('x2',w-pad.r);l.setAttribute('y2',y);l.setAttribute('stroke','#eee'); svg.appendChild(l);
+    const t=document.createElementNS(ns,'text'); t.setAttribute('x',pad.l-6);t.setAttribute('y',y+3);t.setAttribute('text-anchor','end');t.setAttribute('font-size','9');t.setAttribute('fill','#999');t.textContent=fmtFn(Math.round(v)); svg.appendChild(t); }
+  const step=Math.max(1,Math.ceil(data.length/6));
+  data.forEach((d,i)=>{ if(i%step!==0 && i!==data.length-1) return;
+    const t=document.createElementNS(ns,'text'); t.setAttribute('x',X(i));t.setAttribute('y',h-8);t.setAttribute('text-anchor','middle');t.setAttribute('font-size','9');t.setAttribute('fill','#999');t.textContent=(d.bucket||'').replace(/^20\d\d-/,''); svg.appendChild(t); });
+  const draw=(key,color)=>{
+    const pts=data.map((d,i)=>[X(i),Y(d[key]||0)]);
+    if(pts.length>1){ const p=document.createElementNS(ns,'path'); p.setAttribute('d','M '+pts.map(q=>q.join(',')).join(' L '));p.setAttribute('fill','none');p.setAttribute('stroke',color);p.setAttribute('stroke-width','2'); svg.appendChild(p); }
+    pts.forEach(([x,y],i)=>{ const c=document.createElementNS(ns,'circle'); c.setAttribute('cx',x);c.setAttribute('cy',y);c.setAttribute('r',pts.length>1?2.5:4);c.setAttribute('fill',color); const tt=document.createElementNS(ns,'title'); tt.textContent=(data[i].bucket||'')+' · '+(key==='a'?'Nuevas ':'Recurrentes ')+fmtFn(data[i][key]||0); c.appendChild(tt); svg.appendChild(c); });
+  };
+  draw('b','#2563eb'); draw('a','#16a34a');
+}
 function renderTimeSVG(id, series, fmtFn){
   const svg=document.getElementById(id);
   if(!svg) return;
