@@ -289,7 +289,7 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
 
     <div class="section-title" id="ovBreakdownTitle">Desglose de pedidos · en el rango</div>
     <div class="kpis">
-      <div class="kpi green"><div class="kpi-label-top">NUEVAS</div><div class="value" id="bdNuevas">—</div><div class="kpi-sub">clientas que compran por 1ª vez</div></div>
+      <div class="kpi green"><div class="kpi-label-top">NUEVAS</div><div class="value" id="bdNuevas">—</div><div class="kpi-sub" id="bdNuevasDetail">clientas que compran por 1ª vez</div></div>
       <div class="kpi"><div class="kpi-label-top">REPEAT</div><div class="value" id="bdRepeat">—</div><div class="kpi-sub">ya habían comprado</div></div>
       <div class="kpi blue"><div class="kpi-label-top">SUSCRIPCIÓN</div><div class="value" id="bdSub">—</div><div class="kpi-sub" id="bdSubDetail">renovaciones + nuevas subs</div></div>
       <div class="kpi orange"><div class="kpi-label-top">ÚNICA</div><div class="value" id="bdUnica">—</div><div class="kpi-sub">compra puntual (sin suscripción)</div></div>
@@ -1430,6 +1430,8 @@ async function loadBreakdown(){
     set('bdUnica', fmt(r.unique));
     const det=document.getElementById('bdSubDetail');
     if(det) det.textContent=fmt(r.renewal)+' renovaciones · '+fmt(r.new_sub)+' nuevas subs';
+    const ndet=document.getElementById('bdNuevasDetail');
+    if(ndet && r.new_cust_sub!=null) ndet.textContent=fmt(r.new_cust_sub)+' suscripción · '+fmt(r.new_cust_unique)+' única';
   }catch(e){ set('bdNuevas','—');set('bdRepeat','—');set('bdSub','—');set('bdUnica','—'); }
 }
 
