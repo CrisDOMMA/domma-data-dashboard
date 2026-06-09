@@ -1349,7 +1349,6 @@ async function loadOverview(){
     const label=rangeLabel(rng.from, rng.to);
     document.getElementById('ovKpiSectionTitle').textContent='Cómo vamos · '+label;
     document.getElementById('ovSubsSectionTitle').textContent='Suscripciones B2C · '+label;
-    document.getElementById('ovSparklineTitle').textContent='Revenue diario · '+label;
     document.getElementById('ovRevLabel').textContent='REVENUE '+(label==='HOY'?'HOY':label==='AYER'?'AYER':rng.days+'d');
 
     // KPIs principales
@@ -1383,10 +1382,7 @@ async function loadOverview(){
     document.getElementById('ovMrrSub').textContent=fmt(f.active_subs||0)+' subs activas';
     document.getElementById('ovArr').textContent=fmtEUR(f.arr||0);
 
-    // Sparkline (del rango)
-    const sumRev=s.reduce((a,d)=>a+Number(d.revenue||0),0);
-    document.getElementById('ovSparklineBig').textContent=fmtEUR(sumRev)+' · '+rng.from+' → '+rng.to;
-    renderTimeSVG('ovSparkline', s.map(d=>({bucket:d.day, value:Number(d.revenue||0)})), v=>fmtEUR(v));
+    // El gráfico de revenue diario (nuevas vs recurrentes) lo pinta SOLO loadBreakdown()
 
     const ts=r.generated_at||new Date().toISOString();
     document.getElementById('ovStatusText').textContent='Última actualización: '+new Date(ts).toLocaleString('es-ES')+' · '+label;
@@ -1421,10 +1417,16 @@ async function loadBreakdown(){
       const sd=document.getElementById('ovSubPctDelta'); if(sd) sd.innerHTML='';
       const ss=document.getElementById('ovSubPctSub'); if(ss) ss.textContent=fmtEUR(r.sub_revenue)+' de '+fmtEUR(r.revenue);
     }
-    // Gráfico diario nuevas vs recurrentes
+    // Gráfico diario nuevas vs recurrentes (lo pinta SOLO esta función)
+    const big=document.getElementById('ovSparklineBig');
+    const ttl=document.getElementById('ovSparklineTitle');
     if(r.daily && r.daily.length){
       renderTwoSeriesSVG('ovSparkline', r.daily.map(d=>({bucket:d.day, a:d.nuevas, b:d.recurrentes})), v=>fmtEUR(v));
-      const big=document.getElementById('ovSparklineBig'); if(big) big.textContent=fmtEUR(r.revenue)+' total · '+fmtEUR(r.new_revenue)+' nuevas';
+      if(big) big.textContent=fmtEUR(r.revenue)+' total · '+fmtEUR(r.new_revenue)+' nuevas';
+      if(ttl) ttl.textContent='Revenue diario · nuevas vs recurrentes';
+    } else {
+      const svg=document.getElementById('ovSparkline'); if(svg) svg.innerHTML='';
+      if(big) big.textContent=fmtEUR(r.revenue||0);
     }
   }catch(e){ set('bdNuevas','—');set('bdRepeat','—');set('bdSub','—');set('bdUnica','—'); }
 }
