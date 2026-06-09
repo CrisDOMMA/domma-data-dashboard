@@ -305,8 +305,6 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
     <div class="kpis">
       <div class="kpi blue"><div class="value" id="ovMrr">—</div><div class="label">MRR</div><div class="kpi-sub" id="ovMrrSub">de subs activas</div></div>
       <div class="kpi teal"><div class="value" id="ovArr">—</div><div class="label">ARR</div><div class="kpi-sub">MRR × 12</div></div>
-      <div class="kpi"><div class="value" id="ovLtvBlended">—</div><div class="label">LTV blended</div><div class="kpi-sub" id="ovLtvSub">últimos 12 meses</div></div>
-      <div class="kpi orange"><div class="value" id="ovPayback">—</div><div class="label">Payback</div><div class="kpi-sub" id="ovPaybackSub">pendiente CAC (#17)</div></div>
     </div>
 
     <div class="section-title" id="ovSparklineTitle">Revenue diario · nuevas vs recurrentes</div>
@@ -1384,9 +1382,6 @@ async function loadOverview(){
     document.getElementById('ovMrr').textContent=fmtEUR(f.mrr||0);
     document.getElementById('ovMrrSub').textContent=fmt(f.active_subs||0)+' subs activas';
     document.getElementById('ovArr').textContent=fmtEUR(f.arr||0);
-    document.getElementById('ovLtvBlended').textContent=fmtEUR2(f.ltv_blended||0);
-    document.getElementById('ovLtvSub').textContent=fmt(f.customers_12m||0)+' clientes 12m';
-    document.getElementById('ovPayback').textContent=f.payback_months!=null?f.payback_months.toFixed(1)+' meses':'—';
 
     // Sparkline (del rango)
     const sumRev=s.reduce((a,d)=>a+Number(d.revenue||0),0);
