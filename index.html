@@ -80,6 +80,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <nav class="sb-nav">
       <button class="sb-item active" data-view="metrics" onclick="nav('metrics',this)"><span class="ic">📊</span> Métricas</button>
       <button class="sb-item" data-view="quiz" onclick="nav('quiz',this)"><span class="ic">🧬</span> Datos Quiz</button>
+      <button class="sb-item" data-view="luna" onclick="nav('luna',this)"><span class="ic">🌙</span> Dashboard LUNA</button>
     </nav>
     <div class="sb-spacer"></div>
     <div class="sb-user">
@@ -98,7 +99,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script>
 const AUTH_API='https://domma-pro-api.cristina-ed1.workers.dev';
-const VIEWS={ metrics:'/metrics?embed=1', quiz:'/quiz' };
+const VIEWS={ metrics:'/metrics?embed=1', quiz:'/quiz', luna:'/luna' };
 let token=localStorage.getItem('domma_analytics_token');
 
 function showApp(){

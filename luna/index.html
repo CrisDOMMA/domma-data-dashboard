@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard LUNA</title>
+<style>
+:root{--azul:#101637;--azul-medio:#2A3060;--rosa:#E7C6B9;--rosa-oscuro:#C4977F;--crema:#F8F7F5;--gris:#6B6B6B;--linea:#e8e8ea;--verde:#2e9e6b;--ambar:#c8902f;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--crema);color:var(--azul);padding:26px 30px 60px;}
+.head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px;}
+h1{font-size:22px;font-weight:800;}
+.sub{font-size:13px;color:var(--gris);margin-bottom:20px;}
+.rango{display:flex;gap:6px;}
+.rango button{border:1px solid var(--linea);background:#fff;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;color:var(--gris);font-weight:600;}
+.rango button.on{background:var(--azul);color:#fff;border-color:var(--azul);}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+.card{background:#fff;border:1px solid var(--linea);border-radius:14px;padding:20px;}
+.card .lbl{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--gris);font-weight:700;}
+.card .big{font-size:38px;font-weight:800;margin:8px 0 2px;line-height:1;}
+.card .det{font-size:13px;color:var(--gris);}
+.card .hint{font-size:11.5px;color:#9a9aa3;margin-top:10px;line-height:1.45;}
+.sec{background:#fff;border:1px solid var(--linea);border-radius:14px;padding:20px;margin-bottom:18px;}
+.sec h2{font-size:15px;font-weight:700;margin-bottom:14px;}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:13px;}
+.bar-row .nm{width:96px;color:var(--gris);text-transform:capitalize;}
+.bar-track{flex:1;background:#f0eef4;border-radius:6px;height:18px;overflow:hidden;}
+.bar-fill{height:100%;background:var(--azul-medio);border-radius:6px;}
+.bar-row .vl{width:120px;text-align:right;color:var(--azul);font-weight:600;}
+.note{font-size:12px;color:var(--gris);background:#fbf9f7;border:1px dashed var(--linea);border-radius:10px;padding:12px 14px;line-height:1.55;}
+.note b{color:var(--azul);}
+.foot{font-size:11.5px;color:#9a9aa3;margin-top:14px;}
+.loading,.err{padding:40px;text-align:center;color:var(--gris);}
+.err{color:#d33;}
+@media(max-width:760px){.cards{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="head">
+  <div>
+    <h1>🌙 Dashboard LUNA</h1>
+  </div>
+  <div class="rango" id="rango">
+    <button data-d="30" class="on">30 días</button>
+    <button data-d="60">60 días</button>
+    <button data-d="90">90 días</button>
+  </div>
+</div>
+<p class="sub">Métricas reales del agente LUNA (WhatsApp). Datos en vivo desde la base de LUNA + estado de suscripción Appstle. Sin datos inventados.</p>
+
+<div id="root"><div class="loading">Cargando métricas…</div></div>
+
+<script>
+const METRICS_URL='https://luna-agent.cristina-ed1.workers.dev/api/metrics/luna';
+const TOKEN='ae054e9b8acb290020c6be1d0839832ef34145dfe5ea3acc';
+let dias=30;
+
+const pct=v=>(v==null?'—':v+'%');
+const esc=s=>String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+
+async function cargar(){
+  const root=document.getElementById('root');
+  root.innerHTML='<div class="loading">Cargando métricas…</div>';
+  try{
+    const r=await fetch(`${METRICS_URL}?dias=${dias}&token=${TOKEN}`);
+    const d=await r.json();
+    if(d.error){root.innerHTML=`<div class="err">Error: ${esc(d.error)}</div>`;return;}
+    render(d);
+  }catch(e){
+    root.innerHTML=`<div class="err">Error de conexión: ${esc(e.message)}</div>`;
+  }
+}
+
+function render(d){
+  const vf=d.venta_fria||{}, pr=d.push_respuesta||{}, ret=d.retencion||null;
+  const fa=(ret&&ret.foto_actual)||null;
+  const tipos=Object.entries(pr.por_tipo||{}).sort((a,b)=>b[1].enviados-a[1].enviados);
+  const maxPct=Math.max(1,...tipos.map(t=>t[1].pct));
+
+  let html=`<div class="cards">
+    <div class="card">
+      <div class="lbl">Venta fría</div>
+      <div class="big">${pct(vf.pct)}</div>
+      <div class="det">${vf.compraron||0} de ${vf.frias||0} prospectos compran tras escribir a LUNA</div>
+      <div class="hint">Mujeres que entran a preguntar (modo descubrimiento) y compran después de contactar. Conversión de prospecto frío.</div>
+    </div>
+    <div class="card">
+      <div class="lbl">Retención / evitar baja</div>
+      <div class="big">${fa?pct(fa.pct_retencion):'—'}</div>
+      <div class="det">${fa?`${fa.retenidas} de ${fa.n} que pidieron baja/pausa siguen activas o pausadas`:'Sin snapshot todavía'}</div>
+      <div class="hint">De quienes pidieron baja o pausa a LUNA, cuántas siguen con suscripción activa o pausada (no canceladas).</div>
+    </div>
+    <div class="card">
+      <div class="lbl">Responden al push</div>
+      <div class="big">${pct(pr.pct)}</div>
+      <div class="det">${pr.respondieron||0} de ${pr.enviados||0} seguimientos enviados reciben respuesta</div>
+      <div class="hint">% de mujeres que contestan a un mensaje de seguimiento de LUNA dentro de 72h.</div>
+    </div>
+  </div>`;
+
+  if(tipos.length){
+    html+=`<div class="sec"><h2>Respuesta al push por tipo</h2>`;
+    for(const [nm,t] of tipos){
+      html+=`<div class="bar-row"><span class="nm">${esc(nm)}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:${Math.round(100*t.pct/maxPct)}%"></span></span>
+        <span class="vl">${t.pct}% · ${t.respondieron}/${t.enviados}</span></div>`;
+    }
+    html+=`</div>`;
+  }
+
+  // Retención — detalle + caveats honestos
+  if(ret){
+    const ap=ret.appstle||{};
+    const e14=ret.elapsed_14d||{}, e30=ret.elapsed_30d||{};
+    html+=`<div class="sec"><h2>Retención — detalle</h2>
+      <div class="note">
+        <b>Definición:</b> "retenida" = suscripción <b>activa o pausada</b> hoy; solo la <b>cancelación</b> cuenta como baja.<br>
+        <b>Foto actual</b> (todas las solicitudes): ${fa?`${fa.retenidas}/${fa.n} = ${pct(fa.pct_retencion)} retenidas`:'—'}.<br>
+        Con ≥14 días transcurridos: ${e14.n?`${e14.retenidas}/${e14.n} = ${pct(e14.pct_retencion)}`:'sin muestra'} ·
+        Con ≥30 días: ${e30.n?`${e30.retenidas}/${e30.n} = ${pct(e30.pct_retencion)}`:'sin muestra aún (los datos de baja solo tienen ~1 mes; la ventana de 30 días se irá poblando)'}.<br>
+        Base Appstle: ${ap.activos||0} activas + ${ap.pausados||0} pausadas. Snapshot: ${ret.generado?esc(ret.generado.replace('T',' ').slice(0,16)):'—'}.<br>
+        <span style="color:#9a9aa3">Cautela: foto puntual; una baja pedida hace días puede no estar resuelta. No aísla causalidad (Marta también retiene).</span>
+      </div></div>`;
+  }
+
+  html+=`<div class="foot">Generado: ${d.generado?esc(d.generado.replace('T',' ').slice(0,16)):'—'} · ventana ${d.ventana_dias} días · datos reales (D1 LUNA + Appstle vía Monday).</div>`;
+  document.getElementById('root').innerHTML=html;
+}
+
+document.getElementById('rango').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  document.querySelectorAll('#rango button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); dias=parseInt(b.dataset.d,10); cargar();
+});
+cargar();
+</script>
+</body>
+</html>
