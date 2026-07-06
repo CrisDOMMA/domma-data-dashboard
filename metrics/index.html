@@ -430,6 +430,8 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
   <div class="tabs-row">
     <button class="tab active" id="tabRetention" onclick="loadCohorts('retention',this)">Retención</button>
     <button class="tab" id="tabLTV" onclick="loadCohorts('ltv',this)">LTV</button>
+    <button class="tab" id="tabRevenue" onclick="loadCohorts('revenue',this)">Revenue €/mes</button>
+    <button class="tab" id="tabRevenueAcum" onclick="loadCohorts('revenue_acum',this)">Revenue € acum.</button>
     <div class="tabs-spacer"></div>
     <select class="filter-select" id="sourceFilter" onchange="loadCohorts(currentType)">
       <option value="all">Todas las fuentes</option>
@@ -894,8 +896,13 @@ async function loadCohorts(type,btn){
   currentType=type;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   if(btn)btn.classList.add('active');
-  else document.getElementById(type==='retention'?'tabRetention':'tabLTV').classList.add('active');
-  document.getElementById('cohortTitle').textContent=type==='retention'?'Cohortes de Retención':'Cohortes de LTV (Lifetime Value)';
+  else document.getElementById({retention:'tabRetention',ltv:'tabLTV',revenue:'tabRevenue',revenue_acum:'tabRevenueAcum'}[type]||'tabRetention').classList.add('active');
+  document.getElementById('cohortTitle').textContent={
+    retention:'Cohortes de Retención',
+    ltv:'Cohortes de LTV (Lifetime Value)',
+    revenue:'Revenue por cohorte (€ generados en cada mes)',
+    revenue_acum:'Revenue acumulado por cohorte (€ desde M0)'
+  }[type]||'Cohortes';
   document.getElementById('legendRow').style.display=type==='retention'?'flex':'none';
 
   const source=document.getElementById('sourceFilter').value;
@@ -921,7 +928,7 @@ function renderCohortTable(data){
 
   const maxMonths=Math.max(...cohorts.map(c=>(c.months||[]).length));
   const migMonth=data.migration_month||'2026-01';
-  const isLTV=data.type==='ltv';
+  const isEuro=data.type==='ltv'||data.type==='revenue'||data.type==='revenue_acum';
 
   let infoText=cohorts.length+' cohortes · hasta '+maxMonths+' meses';
   if(data.total_migrated)infoText+=' · '+fmt(data.total_migrated)+' migradas (unificadas)';
@@ -931,6 +938,7 @@ function renderCohortTable(data){
   const monthNames=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   function cohortLabel(ym){
     if(ym==='avg')return 'Media ponderada';
+    if(ym==='total')return 'TOTAL';
     const [y,m]=ym.split('-');
     return monthNames[parseInt(m)-1]+' '+y.slice(2);
   }
@@ -962,7 +970,7 @@ function renderCohortTable(data){
     for(let i=0;i<maxMonths;i++){
       if(i<months.length&&months[i]!==null){
         const v=months[i];
-        if(isLTV){
+        if(isEuro){
           bhtml+='<td class="cell-ltv">€'+fmt(Math.round(v))+'</td>';
         }else{
           const color=retentionColor(v);
