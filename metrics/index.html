@@ -456,7 +456,10 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
     <button class="tab" id="tabRevReal" onclick="loadCohorts('revenue_real',this)">Revenue €</button>
     <button class="tab" id="tabTicket" onclick="loadCohorts('ticket',this)">Ticket €/pedido</button>
     <button class="tab" id="tabLtvReal" onclick="loadCohorts('ltv_real',this)">LTV €/clienta</button>
-    <span style="font-size:11px;color:var(--text-light);align-self:center">cohorte = 1ª sub por clienta (WC→Shopify unificado) · solo meses completos · filtro de fuente no aplica</span>
+    <select class="filter-select" id="segFilter" onchange="loadCohorts(currentType)" title="Producto o plan de INICIO de la suscripción">
+      <option value="0">Todos los productos</option>
+    </select>
+    <span style="font-size:11px;color:var(--text-light);align-self:center">cohorte = 1ª sub por clienta (WC→Shopify unificado) · solo meses completos</span>
   </div>
 
   <!-- COHORT TABLE -->
@@ -922,14 +925,22 @@ async function loadCohorts(type,btn){
   const REAL={pago:1,pedidos:1,revenue_real:1,ticket:1,ltv_real:1};
   const source=document.getElementById('sourceFilter').value;
   const months=document.getElementById('monthsFilter').value;
+  const seg=document.getElementById('segFilter').value||'0';
+  document.getElementById('segFilter').style.display=REAL[type]?'':'none';
 
   try{
-    const ep=REAL[type]?'/api/admin/subs/cohorts-real?type='+type+'&months='+months
+    const ep=REAL[type]?'/api/admin/subs/cohorts-real?type='+type+'&months='+months+'&seg='+seg
                        :'/api/admin/subs/cohorts?type='+type+'&source='+source+'&months='+months;
     const r=await fetch(API+ep,{headers:authHeaders()});
     const d=await r.json();
     if(d.error){document.getElementById('cohortEmpty').style.display='block';return;}
     cohortData=d;
+    if(d.segments&&d.segments.length){
+      const sf=document.getElementById('segFilter');
+      if(sf.options.length!==d.segments.length){
+        sf.innerHTML=d.segments.map((s,i)=>'<option value="'+i+'"'+(String(i)===seg?' selected':'')+'>'+(i===0?'Todos los productos':s)+'</option>').join('');
+      }
+    }
     renderCohortTable(d);
   }catch(e){document.getElementById('cohortEmpty').style.display='block';}
 }
@@ -950,7 +961,10 @@ function renderCohortTable(data){
   let infoText=cohorts.length+' cohortes · hasta '+maxMonths+' meses';
   if(data.total_migrated)infoText+=' · '+fmt(data.total_migrated)+' migradas (unificadas)';
   if(data.excluded_same_month)infoText+=' · '+fmt(data.excluded_same_month)+' excluidas (canceladas mismo mes)';
-  if(data.real)infoText+=' · pagos reales del warehouse (ex-IVA) · datos a '+(data.generated_at||'');
+  if(data.real){
+    if(data.segment&&data.segment!=='TODAS')infoText+=' · producto inicio: '+data.segment;
+    infoText+=' · pagos reales del warehouse (ex-IVA) · datos a '+(data.generated_at||'');
+  }
   info.textContent=infoText;
 
   const monthNames=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
