@@ -449,6 +449,15 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
     <span class="source-badge" style="background:#f3e5f5;color:#7b1fa2">MIX Migradas</span>
     <span class="migration-line">⚡ Migración: 8 Ene 2026</span>
   </div>
+  <div class="tabs-row" style="margin-top:6px">
+    <span style="font-size:11px;color:var(--text-light);align-self:center;font-weight:600">PAGOS REALES (pedidos, ex-IVA):</span>
+    <button class="tab" id="tabPago" onclick="loadCohorts('pago',this)">Retención pago %</button>
+    <button class="tab" id="tabPedidos" onclick="loadCohorts('pedidos',this)">Pedidos</button>
+    <button class="tab" id="tabRevReal" onclick="loadCohorts('revenue_real',this)">Revenue €</button>
+    <button class="tab" id="tabTicket" onclick="loadCohorts('ticket',this)">Ticket €/pedido</button>
+    <button class="tab" id="tabLtvReal" onclick="loadCohorts('ltv_real',this)">LTV €/clienta</button>
+    <span style="font-size:11px;color:var(--text-light);align-self:center">cohorte = 1ª sub por clienta (WC→Shopify unificado) · solo meses completos · filtro de fuente no aplica</span>
+  </div>
 
   <!-- COHORT TABLE -->
   <div class="card">
@@ -896,20 +905,28 @@ async function loadCohorts(type,btn){
   currentType=type;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   if(btn)btn.classList.add('active');
-  else document.getElementById({retention:'tabRetention',ltv:'tabLTV',revenue:'tabRevenue',revenue_acum:'tabRevenueAcum'}[type]||'tabRetention').classList.add('active');
+  else document.getElementById({retention:'tabRetention',ltv:'tabLTV',revenue:'tabRevenue',revenue_acum:'tabRevenueAcum',pago:'tabPago',pedidos:'tabPedidos',revenue_real:'tabRevReal',ticket:'tabTicket',ltv_real:'tabLtvReal'}[type]||'tabRetention').classList.add('active');
   document.getElementById('cohortTitle').textContent={
     retention:'Cohortes de Retención',
     ltv:'Cohortes de LTV (Lifetime Value)',
     revenue:'Revenue por cohorte (€ generados en cada mes)',
-    revenue_acum:'Revenue acumulado por cohorte (€ desde M0)'
+    revenue_acum:'Revenue acumulado por cohorte (€ desde M0)',
+    pago:'Retención de PAGO (% clientas que facturan cada mes) — pagos reales',
+    pedidos:'Pedidos de suscripción por cohorte y mes — pagos reales',
+    revenue_real:'Revenue por cohorte y mes (€ ex-IVA) — pagos reales',
+    ticket:'Ticket medio por cohorte y mes (€/pedido, ex-IVA) — pagos reales',
+    ltv_real:'LTV acumulado por clienta (€ ex-IVA) — pagos reales'
   }[type]||'Cohortes';
-  document.getElementById('legendRow').style.display=type==='retention'?'flex':'none';
+  document.getElementById('legendRow').style.display=(type==='retention'||type==='pago')?'flex':'none';
 
+  const REAL={pago:1,pedidos:1,revenue_real:1,ticket:1,ltv_real:1};
   const source=document.getElementById('sourceFilter').value;
   const months=document.getElementById('monthsFilter').value;
 
   try{
-    const r=await fetch(API+'/api/admin/subs/cohorts?type='+type+'&source='+source+'&months='+months,{headers:authHeaders()});
+    const ep=REAL[type]?'/api/admin/subs/cohorts-real?type='+type+'&months='+months
+                       :'/api/admin/subs/cohorts?type='+type+'&source='+source+'&months='+months;
+    const r=await fetch(API+ep,{headers:authHeaders()});
     const d=await r.json();
     if(d.error){document.getElementById('cohortEmpty').style.display='block';return;}
     cohortData=d;
@@ -928,11 +945,12 @@ function renderCohortTable(data){
 
   const maxMonths=Math.max(...cohorts.map(c=>(c.months||[]).length));
   const migMonth=data.migration_month||'2026-01';
-  const isEuro=data.type==='ltv'||data.type==='revenue'||data.type==='revenue_acum';
+  const kind={retention:'pct',pago:'pct',pedidos:'int',ticket:'eur2'}[data.type]||'eur';
 
   let infoText=cohorts.length+' cohortes · hasta '+maxMonths+' meses';
   if(data.total_migrated)infoText+=' · '+fmt(data.total_migrated)+' migradas (unificadas)';
   if(data.excluded_same_month)infoText+=' · '+fmt(data.excluded_same_month)+' excluidas (canceladas mismo mes)';
+  if(data.real)infoText+=' · pagos reales del warehouse (ex-IVA) · datos a '+(data.generated_at||'');
   info.textContent=infoText;
 
   const monthNames=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -970,8 +988,12 @@ function renderCohortTable(data){
     for(let i=0;i<maxMonths;i++){
       if(i<months.length&&months[i]!==null){
         const v=months[i];
-        if(isEuro){
+        if(kind==='eur'){
           bhtml+='<td class="cell-ltv">€'+fmt(Math.round(v))+'</td>';
+        }else if(kind==='eur2'){
+          bhtml+='<td class="cell-ltv">€'+v.toFixed(2)+'</td>';
+        }else if(kind==='int'){
+          bhtml+='<td style="text-align:center">'+fmt(Math.round(v))+'</td>';
         }else{
           const color=retentionColor(v);
           bhtml+='<td><span class="cell-retention" style="background:'+color+'">'+v.toFixed(1)+'%</span></td>';
