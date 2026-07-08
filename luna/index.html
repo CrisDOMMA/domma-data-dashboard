@@ -11,9 +11,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px;}
 h1{font-size:22px;font-weight:800;}
 .sub{font-size:13px;color:var(--gris);margin-bottom:20px;}
-.rango{display:flex;gap:6px;}
+.rango{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
 .rango button{border:1px solid var(--linea);background:#fff;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;color:var(--gris);font-weight:600;}
 .rango button.on{background:var(--azul);color:#fff;border-color:var(--azul);}
+.custom{display:none;gap:6px;align-items:center;font-size:13px;color:var(--gris);}
+.custom.visible{display:flex;}
+.custom input{border:1px solid var(--linea);border-radius:8px;padding:6px 8px;font-size:13px;color:var(--azul);background:#fff;font-family:inherit;}
+.custom button{border:none;background:var(--azul);color:#fff;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-weight:600;}
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
 .card{background:#fff;border:1px solid var(--linea);border-radius:14px;padding:20px;}
 .card .lbl{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--gris);font-weight:700;}
@@ -24,11 +28,15 @@ h1{font-size:22px;font-weight:800;}
 .sec h2{font-size:15px;font-weight:700;margin-bottom:14px;}
 .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:13px;}
 .bar-row .nm{width:96px;color:var(--gris);text-transform:capitalize;}
-.bar-track{flex:1;background:#f0eef4;border-radius:6px;height:18px;overflow:hidden;}
-.bar-fill{height:100%;background:var(--azul-medio);border-radius:6px;}
+.bar-track{flex:1;display:block;background:#f0eef4;border-radius:6px;height:18px;overflow:hidden;}
+.bar-fill{display:block;height:100%;background:var(--azul-medio);border-radius:6px;}
 .bar-row .vl{width:120px;text-align:right;color:var(--azul);font-weight:600;}
 .note{font-size:12px;color:var(--gris);background:#fbf9f7;border:1px dashed var(--linea);border-radius:10px;padding:12px 14px;line-height:1.55;}
 .note b{color:var(--azul);}
+table.sem{width:100%;border-collapse:collapse;font-size:13px;}
+table.sem th{text-align:right;padding:6px 8px;color:var(--gris);font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;}
+table.sem th:first-child,table.sem td:first-child{text-align:left;}
+table.sem td{text-align:right;padding:7px 8px;border-top:1px solid var(--linea);}
 .foot{font-size:11.5px;color:#9a9aa3;margin-top:14px;}
 .loading,.err{padding:40px;text-align:center;color:var(--gris);}
 .err{color:#d33;}
@@ -41,9 +49,15 @@ h1{font-size:22px;font-weight:800;}
     <h1>🌙 Dashboard LUNA</h1>
   </div>
   <div class="rango" id="rango">
+    <button data-d="7">7 días</button>
     <button data-d="30" class="on">30 días</button>
     <button data-d="60">60 días</button>
     <button data-d="90">90 días</button>
+    <button data-d="custom">📅 Personalizado</button>
+    <span class="custom" id="custom">
+      <input type="date" id="f-desde"> <span>→</span> <input type="date" id="f-hasta">
+      <button id="aplicar">Aplicar</button>
+    </span>
   </div>
 </div>
 <p class="sub">Métricas reales del agente LUNA (WhatsApp). Datos en vivo desde la base de LUNA + estado de suscripción Appstle. Sin datos inventados.</p>
@@ -53,16 +67,21 @@ h1{font-size:22px;font-weight:800;}
 <script>
 const METRICS_URL='https://luna-agent.cristina-ed1.workers.dev/api/metrics/luna';
 const TOKEN='ae054e9b8acb290020c6be1d0839832ef34145dfe5ea3acc';
-let dias=30;
+let dias=30, rango=null; // rango={desde,hasta} cuando el selector es personalizado
 
 const pct=v=>(v==null?'—':v+'%');
+const rr=(a,b)=>(b?Math.round(1000*a/b)/10:null);
 const esc=s=>String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+const d2s=d=>d.toISOString().slice(0,10);
+const hoy=()=>d2s(new Date());
+const addD=(s,n)=>{const d=new Date(s+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d2s(d);};
 
 async function cargar(){
   const root=document.getElementById('root');
   root.innerHTML='<div class="loading">Cargando métricas…</div>';
   try{
-    const r=await fetch(`${METRICS_URL}?dias=${dias}&token=${TOKEN}`);
+    const q=rango?`desde=${rango.desde}&hasta=${rango.hasta}`:`dias=${dias}`;
+    const r=await fetch(`${METRICS_URL}?${q}&token=${TOKEN}`);
     const d=await r.json();
     if(d.error){root.innerHTML=`<div class="err">Error: ${esc(d.error)}</div>`;return;}
     render(d);
@@ -71,109 +90,134 @@ async function cargar(){
   }
 }
 
+// Rango efectivo que se está mostrando (para etiquetas y para filtrar semanas)
+function rangoActual(){
+  if(rango)return{desde:rango.desde,hasta:rango.hasta};
+  return{desde:addD(hoy(),-dias),hasta:hoy()};
+}
+
+// Agrega los buckets semanales del snapshot de fallo pago a un total del rango
+function aggSemanas(sems){
+  const t={sec:0,con:0,rec:0,pag:0,viva:0,abi:0,baja:0,recC:0,recN:0};
+  for(const w of sems){
+    t.sec+=w.secuencias||0;
+    t.con+=(w.contestan&&w.contestan.n)||0;
+    t.rec+=(w.recuperadas&&w.recuperadas.n)||0;
+    const de=w.desenlace||{};
+    t.pag+=(de.pagaron_confirmado&&de.pagaron_confirmado.n)||0;
+    t.viva+=(de.suscripcion_viva&&de.suscripcion_viva.n)||0;
+    t.abi+=(de.fallo_abierto&&de.fallo_abierto.n)||0;
+    t.baja+=(de.baja_sin_pagar&&de.baja_sin_pagar.n)||0;
+    t.recC+=(w.recuperadas_split&&w.recuperadas_split.contesto)||0;
+    t.recN+=(w.recuperadas_split&&w.recuperadas_split.no_contesto)||0;
+  }
+  return t;
+}
+
 function render(d){
   const vf=d.venta_fria||{}, pr=d.push_respuesta||{}, ret=d.retencion||null;
   const fa=(ret&&ret.foto_actual)||null;
   const tipos=Object.entries(pr.por_tipo||{}).sort((a,b)=>b[1].enviados-a[1].enviados);
   const maxPct=Math.max(1,...tipos.map(t=>t[1].pct));
+  const ra=rangoActual();
+  const etiqueta=rango?`${ra.desde} → ${ra.hasta}`:`últimos ${dias} días`;
 
   let html=`<div class="cards">
     <div class="card">
       <div class="lbl">Venta fría</div>
       <div class="big">${pct(vf.pct)}</div>
-      <div class="det">${vf.compraron||0} de ${vf.frias||0} prospectos compran tras escribir a LUNA</div>
+      <div class="det">${vf.compraron||0} de ${vf.frias||0} prospectos compran tras escribir a LUNA (${etiqueta})</div>
       <div class="hint">Mujeres que entran a preguntar (modo descubrimiento) y compran después de contactar. Conversión de prospecto frío.</div>
     </div>
     <div class="card">
       <div class="lbl">Retención / evitar baja</div>
       <div class="big">${fa?pct(fa.pct_retencion):'—'}</div>
       <div class="det">${fa?`${fa.retenidas} de ${fa.n} que pidieron baja/pausa siguen activas o pausadas`:'Sin snapshot todavía'}</div>
-      <div class="hint">De quienes pidieron baja o pausa a LUNA, cuántas siguen con suscripción activa o pausada (no canceladas).</div>
+      <div class="hint">De quienes pidieron baja o pausa a LUNA, cuántas siguen con suscripción activa o pausada. Foto actual (no filtra por fecha).</div>
     </div>
     <div class="card">
       <div class="lbl">Responden al push</div>
       <div class="big">${pct(pr.pct)}</div>
-      <div class="det">${pr.respondieron||0} de ${pr.enviados||0} seguimientos enviados reciben respuesta</div>
+      <div class="det">${pr.respondieron||0} de ${pr.enviados||0} seguimientos enviados reciben respuesta (${etiqueta})</div>
       <div class="hint">% de mujeres que contestan a un mensaje de seguimiento de LUNA dentro de 72h.</div>
     </div>
   </div>`;
 
   if(tipos.length){
-    html+=`<div class="sec"><h2>Respuesta al push por tipo</h2>`;
+    html+=`<div class="sec"><h2>Respuesta al push por tipo (${etiqueta})</h2>`;
     for(const [nm,t] of tipos){
       html+=`<div class="bar-row"><span class="nm">${esc(nm)}</span>
-        <span class="bar-track"><span class="bar-fill" style="width:${Math.round(100*t.pct/maxPct)}%"></span></span>
+        <span class="bar-track"><span class="bar-fill" style="width:${Math.max(2,Math.round(100*t.pct/maxPct))}%"></span></span>
         <span class="vl">${t.pct}% · ${t.respondieron}/${t.enviados}</span></div>`;
     }
     html+=`</div>`;
   }
 
-  // Recuperación de fallo de pago (WhatsApp) — snapshot diario 30d/90d
+  // Recuperación de fallo de pago — agregado desde los buckets semanales del snapshot
   const fpAll=d.fallo_pago_efectividad||null;
-  if(fpAll&&fpAll.ultimos_30d){
-    const fp=(dias<=30?fpAll.ultimos_30d:fpAll.ultimos_90d)||{};
-    const fpWin=dias<=30?'últimos 30 días':'últimos 90 días';
+  const semTodas=(fpAll&&fpAll.por_semana)||[];
+  if(semTodas.length){
     const ctx=fpAll.contexto_appstle||{};
-    const de=fp.desenlace||{};
-    const n=fp.secuencias||0;
-    const rec=fp.recuperadas||{};
+    // una semana entra si se solapa con el rango [desde,hasta]
+    const sems=semTodas.filter(w=>w.semana<=ra.hasta&&addD(w.semana,6)>=ra.desde);
+    const t=aggSemanas(sems);
+    const primeraSemana=semTodas[0]?semTodas[0].semana:null;
     const barras=[
-      ['Pagaron (confirmado)',de.pagaron_confirmado,'var(--verde)'],
-      ['Suscripción sigue viva',de.suscripcion_viva,'#7fb894'],
-      ['Fallo aún abierto',de.fallo_abierto,'var(--ambar)'],
-      ['Baja sin pagar',de.baja_sin_pagar,'#c0564f'],
+      ['Pagaron (confirmado)',t.pag,'var(--verde)'],
+      ['Suscripción sigue viva',t.viva,'#7fb894'],
+      ['Fallo aún abierto',t.abi,'var(--ambar)'],
+      ['Baja sin pagar',t.baja,'#c0564f'],
     ];
-    html+=`<div class="sec"><h2>Recuperación de fallo de pago — WhatsApp LUNA (${fpWin})</h2>
-      <div class="cards" style="margin-bottom:16px">
+    html+=`<div class="sec"><h2>Recuperación de fallo de pago — WhatsApp LUNA (${etiqueta}, por semanas completas)</h2>`;
+    if(!t.sec){
+      html+=`<div class="note">Sin secuencias en este rango. El histórico de secuencias empieza el ${primeraSemana?esc(primeraSemana):'—'} (máx. 90 días atrás).</div></div>`;
+    }else{
+      html+=`<div class="cards" style="margin-bottom:16px">
         <div class="card">
           <div class="lbl">Secuencias enviadas</div>
-          <div class="big">${n}</div>
+          <div class="big">${t.sec}</div>
           <div class="det">clientas con fallo de pago que recibieron la secuencia +1h / +48h / +7d</div>
         </div>
         <div class="card">
           <div class="lbl">Contestan</div>
-          <div class="big">${fp.contestan?pct(fp.contestan.pct):'—'}</div>
-          <div class="det">${fp.contestan?`${fp.contestan.n} de ${n} responden al WhatsApp (<10 días)`:'—'}</div>
+          <div class="big">${pct(rr(t.con,t.sec))}</div>
+          <div class="det">${t.con} de ${t.sec} responden al WhatsApp (&lt;10 días)</div>
         </div>
         <div class="card">
           <div class="lbl">Recuperadas</div>
-          <div class="big">${pct(rec.pct)}</div>
-          <div class="det">${rec.n||0} de ${n} acaban pagando o mantienen la suscripción viva</div>
+          <div class="big">${pct(rr(t.rec,t.sec))}</div>
+          <div class="det">${t.rec} de ${t.sec} acaban pagando o mantienen la suscripción viva</div>
         </div>
       </div>`;
-    for(const [nm,v,color] of barras){
-      if(!v)continue;
-      html+=`<div class="bar-row"><span class="nm" style="width:150px">${nm}</span>
-        <span class="bar-track"><span class="bar-fill" style="width:${Math.min(100,Math.round(v.pct||0))}%;background:${color}"></span></span>
-        <span class="vl">${v.pct==null?'—':v.pct+'%'} · ${v.n}</span></div>`;
-    }
-    const sem=(fpAll.por_semana||[]).slice().reverse();
-    if(sem.length){
-      html+=`<h2 style="margin:18px 0 10px">Evolución por semana (últimos 90 días)</h2>
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <tr style="text-align:right;color:var(--gris);font-size:11.5px;text-transform:uppercase;letter-spacing:.03em">
-          <th style="text-align:left;padding:6px 8px">Semana del</th><th style="padding:6px 8px">Secuencias</th>
-          <th style="padding:6px 8px">Contestan</th><th style="padding:6px 8px">Recuperadas</th>
-          <th style="padding:6px 8px">Dunning abierto</th><th style="padding:6px 8px">Baja sin pagar</th></tr>`;
-      for(const w of sem){
-        const c=w.contestan||{}, r=w.recuperadas||{}, de=w.desenlace||{};
-        const fmt=(o)=>o&&o.n!=null?`<b>${o.pct==null?'—':o.pct+'%'}</b> · ${o.n}`:'—';
-        html+=`<tr style="text-align:right;border-top:1px solid var(--linea)">
-          <td style="text-align:left;padding:7px 8px;font-weight:600">${esc(w.semana)}</td>
-          <td style="padding:7px 8px">${w.secuencias}</td>
-          <td style="padding:7px 8px">${fmt(c)}</td>
-          <td style="padding:7px 8px;color:var(--verde)">${fmt(r)}</td>
-          <td style="padding:7px 8px;color:var(--ambar)">${de.fallo_abierto?de.fallo_abierto.n:'—'}</td>
-          <td style="padding:7px 8px;color:#c0564f">${de.baja_sin_pagar?de.baja_sin_pagar.n:'—'}</td></tr>`;
+      for(const [nm,n,color] of barras){
+        html+=`<div class="bar-row"><span class="nm" style="width:150px">${nm}</span>
+          <span class="bar-track"><span class="bar-fill" style="width:${Math.max(t.sec?2:0,Math.round(100*n/t.sec))}%;background:${color}"></span></span>
+          <span class="vl">${pct(rr(n,t.sec))} · ${n}</span></div>`;
       }
-      html+=`</table>`;
-    }
-    html+=`<div class="note" style="margin-top:12px">
-        <b>¿Está funcionando?</b> De las que <b>contestan</b> al WhatsApp se recupera el <b>${pct(fp.recuperacion_si_contesta_pct)}</b>; de las que no contestan, el ${pct(fp.recuperacion_si_no_contesta_pct)}.<br>
+      if(sems.length>1){
+        html+=`<h2 style="margin:18px 0 10px">Evolución por semana</h2>
+        <table class="sem">
+          <tr><th>Semana del</th><th>Secuencias</th><th>Contestan</th><th>Recuperadas</th><th>Dunning abierto</th><th>Baja sin pagar</th></tr>`;
+        for(const w of sems.slice().reverse()){
+          const c=w.contestan||{}, r=w.recuperadas||{}, de=w.desenlace||{};
+          const fmt=o=>o&&o.n!=null?`<b>${o.pct==null?'—':o.pct+'%'}</b> · ${o.n}`:'—';
+          html+=`<tr>
+            <td style="font-weight:600">${esc(w.semana)}</td>
+            <td>${w.secuencias}</td>
+            <td>${fmt(c)}</td>
+            <td style="color:var(--verde)">${fmt(r)}</td>
+            <td style="color:var(--ambar)">${de.fallo_abierto?de.fallo_abierto.n:'—'}</td>
+            <td style="color:#c0564f">${de.baja_sin_pagar?de.baja_sin_pagar.n:'—'}</td></tr>`;
+        }
+        html+=`</table>`;
+      }
+      html+=`<div class="note" style="margin-top:12px">
+        <b>¿Está funcionando?</b> De las que <b>contestan</b> al WhatsApp se recupera el <b>${pct(rr(t.recC,t.con))}</b>; de las que no contestan, el ${pct(rr(t.recN,t.sec-t.con))}.<br>
         <b>Ojo al leer:</b> "recuperada" NO exige contestar — el reintento automático de Appstle cobra solo, o actualizan la tarjeta desde el enlace sin responder. Por eso recuperadas puede superar a contestan.<br>
         <b>Contexto:</b> ${ctx.suscripciones_activas||'—'} suscripciones activas (+${ctx.suscripciones_pausadas||0} pausadas) · ${ctx.fallos_reales_abiertos||'—'} fallos de pago abiertos hoy · "dunning abierto" = fallo en curso, ni ganado ni perdido (normal en las semanas recientes).<br>
-        <span style="color:#9a9aa3">Cautela: correlación, no causalidad pura (quien iba a pagar también contesta más). Semanas con &lt;15 secuencias: leer con prudencia. Snapshot diario: ${fpAll.generado?esc(fpAll.generado.replace('T',' ').slice(0,16)):'—'}.</span>
+        <span style="color:#9a9aa3">El rango se ajusta a semanas completas (lunes-domingo). Histórico máx. 90 días (desde ${primeraSemana?esc(primeraSemana):'—'}). Semanas con &lt;15 secuencias: leer con prudencia. Snapshot diario: ${fpAll.generado?esc(fpAll.generado.replace('T',' ').slice(0,16)):'—'}.</span>
       </div></div>`;
+    }
   }
 
   // Retención — detalle + caveats honestos
@@ -187,18 +231,37 @@ function render(d){
         Con ≥14 días transcurridos: ${e14.n?`${e14.retenidas}/${e14.n} = ${pct(e14.pct_retencion)}`:'sin muestra'} ·
         Con ≥30 días: ${e30.n?`${e30.retenidas}/${e30.n} = ${pct(e30.pct_retencion)}`:'sin muestra aún (los datos de baja solo tienen ~1 mes; la ventana de 30 días se irá poblando)'}.<br>
         Base Appstle: ${ap.activos||0} activas + ${ap.pausados||0} pausadas. Snapshot: ${ret.generado?esc(ret.generado.replace('T',' ').slice(0,16)):'—'}.<br>
-        <span style="color:#9a9aa3">Cautela: foto puntual; una baja pedida hace días puede no estar resuelta. No aísla causalidad (Marta también retiene).</span>
+        <span style="color:#9a9aa3">Cautela: foto puntual; una baja pedida hace días puede no estar resuelta. No aísla causalidad (Marta también retiene). Esta métrica no se filtra por el selector de fechas.</span>
       </div></div>`;
   }
 
-  html+=`<div class="foot">Generado: ${d.generado?esc(d.generado.replace('T',' ').slice(0,16)):'—'} · ventana ${d.ventana_dias} días · datos reales (D1 LUNA + Appstle vía Monday).</div>`;
+  html+=`<div class="foot">Generado: ${d.generado?esc(d.generado.replace('T',' ').slice(0,16)):'—'} · ${etiqueta} · datos reales (D1 LUNA + Appstle vía Monday).</div>`;
   document.getElementById('root').innerHTML=html;
 }
 
+const customBox=document.getElementById('custom');
 document.getElementById('rango').addEventListener('click',e=>{
-  const b=e.target.closest('button'); if(!b)return;
-  document.querySelectorAll('#rango button').forEach(x=>x.classList.remove('on'));
-  b.classList.add('on'); dias=parseInt(b.dataset.d,10); cargar();
+  const b=e.target.closest('button'); if(!b||b.id==='aplicar')return;
+  if(b.dataset.d==='custom'){
+    document.querySelectorAll('#rango > button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    customBox.classList.add('visible');
+    const fd=document.getElementById('f-desde'), fh=document.getElementById('f-hasta');
+    if(!fd.value)fd.value=addD(hoy(),-30);
+    if(!fh.value)fh.value=hoy();
+    return;
+  }
+  document.querySelectorAll('#rango > button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  customBox.classList.remove('visible');
+  rango=null; dias=parseInt(b.dataset.d,10); cargar();
+});
+document.getElementById('aplicar').addEventListener('click',()=>{
+  let de=document.getElementById('f-desde').value, ha=document.getElementById('f-hasta').value;
+  if(!de)return;
+  if(!ha)ha=hoy();
+  if(de>ha)[de,ha]=[ha,de];
+  rango={desde:de,hasta:ha}; cargar();
 });
 cargar();
 </script>
