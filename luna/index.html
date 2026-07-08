@@ -147,10 +147,32 @@ function render(d){
         <span class="bar-track"><span class="bar-fill" style="width:${Math.min(100,Math.round(v.pct||0))}%;background:${color}"></span></span>
         <span class="vl">${v.pct==null?'—':v.pct+'%'} · ${v.n}</span></div>`;
     }
+    const sem=(fpAll.por_semana||[]).slice().reverse();
+    if(sem.length){
+      html+=`<h2 style="margin:18px 0 10px">Evolución por semana (últimos 90 días)</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <tr style="text-align:right;color:var(--gris);font-size:11.5px;text-transform:uppercase;letter-spacing:.03em">
+          <th style="text-align:left;padding:6px 8px">Semana del</th><th style="padding:6px 8px">Secuencias</th>
+          <th style="padding:6px 8px">Contestan</th><th style="padding:6px 8px">Recuperadas</th>
+          <th style="padding:6px 8px">Dunning abierto</th><th style="padding:6px 8px">Baja sin pagar</th></tr>`;
+      for(const w of sem){
+        const c=w.contestan||{}, r=w.recuperadas||{}, de=w.desenlace||{};
+        const fmt=(o)=>o&&o.n!=null?`<b>${o.pct==null?'—':o.pct+'%'}</b> · ${o.n}`:'—';
+        html+=`<tr style="text-align:right;border-top:1px solid var(--linea)">
+          <td style="text-align:left;padding:7px 8px;font-weight:600">${esc(w.semana)}</td>
+          <td style="padding:7px 8px">${w.secuencias}</td>
+          <td style="padding:7px 8px">${fmt(c)}</td>
+          <td style="padding:7px 8px;color:var(--verde)">${fmt(r)}</td>
+          <td style="padding:7px 8px;color:var(--ambar)">${de.fallo_abierto?de.fallo_abierto.n:'—'}</td>
+          <td style="padding:7px 8px;color:#c0564f">${de.baja_sin_pagar?de.baja_sin_pagar.n:'—'}</td></tr>`;
+      }
+      html+=`</table>`;
+    }
     html+=`<div class="note" style="margin-top:12px">
         <b>¿Está funcionando?</b> De las que <b>contestan</b> al WhatsApp se recupera el <b>${pct(fp.recuperacion_si_contesta_pct)}</b>; de las que no contestan, el ${pct(fp.recuperacion_si_no_contesta_pct)}.<br>
-        <b>Contexto:</b> ${ctx.suscripciones_activas||'—'} suscripciones activas (+${ctx.suscripciones_pausadas||0} pausadas) · ${ctx.fallos_reales_abiertos||'—'} fallos de pago abiertos hoy · "fallo aún abierto" = dunning en curso, ni ganado ni perdido.<br>
-        <span style="color:#9a9aa3">Cautela: correlación, no causalidad pura (quien iba a pagar también contesta más). Snapshot diario: ${fpAll.generado?esc(fpAll.generado.replace('T',' ').slice(0,16)):'—'}.</span>
+        <b>Ojo al leer:</b> "recuperada" NO exige contestar — el reintento automático de Appstle cobra solo, o actualizan la tarjeta desde el enlace sin responder. Por eso recuperadas puede superar a contestan.<br>
+        <b>Contexto:</b> ${ctx.suscripciones_activas||'—'} suscripciones activas (+${ctx.suscripciones_pausadas||0} pausadas) · ${ctx.fallos_reales_abiertos||'—'} fallos de pago abiertos hoy · "dunning abierto" = fallo en curso, ni ganado ni perdido (normal en las semanas recientes).<br>
+        <span style="color:#9a9aa3">Cautela: correlación, no causalidad pura (quien iba a pagar también contesta más). Semanas con &lt;15 secuencias: leer con prudencia. Snapshot diario: ${fpAll.generado?esc(fpAll.generado.replace('T',' ').slice(0,16)):'—'}.</span>
       </div></div>`;
   }
 
