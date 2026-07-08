@@ -108,6 +108,52 @@ function render(d){
     html+=`</div>`;
   }
 
+  // Recuperación de fallo de pago (WhatsApp) — snapshot diario 30d/90d
+  const fpAll=d.fallo_pago_efectividad||null;
+  if(fpAll&&fpAll.ultimos_30d){
+    const fp=(dias<=30?fpAll.ultimos_30d:fpAll.ultimos_90d)||{};
+    const fpWin=dias<=30?'últimos 30 días':'últimos 90 días';
+    const ctx=fpAll.contexto_appstle||{};
+    const de=fp.desenlace||{};
+    const n=fp.secuencias||0;
+    const rec=fp.recuperadas||{};
+    const barras=[
+      ['Pagaron (confirmado)',de.pagaron_confirmado,'var(--verde)'],
+      ['Suscripción sigue viva',de.suscripcion_viva,'#7fb894'],
+      ['Fallo aún abierto',de.fallo_abierto,'var(--ambar)'],
+      ['Baja sin pagar',de.baja_sin_pagar,'#c0564f'],
+    ];
+    html+=`<div class="sec"><h2>Recuperación de fallo de pago — WhatsApp LUNA (${fpWin})</h2>
+      <div class="cards" style="margin-bottom:16px">
+        <div class="card">
+          <div class="lbl">Secuencias enviadas</div>
+          <div class="big">${n}</div>
+          <div class="det">clientas con fallo de pago que recibieron la secuencia +1h / +48h / +7d</div>
+        </div>
+        <div class="card">
+          <div class="lbl">Contestan</div>
+          <div class="big">${fp.contestan?pct(fp.contestan.pct):'—'}</div>
+          <div class="det">${fp.contestan?`${fp.contestan.n} de ${n} responden al WhatsApp (<10 días)`:'—'}</div>
+        </div>
+        <div class="card">
+          <div class="lbl">Recuperadas</div>
+          <div class="big">${pct(rec.pct)}</div>
+          <div class="det">${rec.n||0} de ${n} acaban pagando o mantienen la suscripción viva</div>
+        </div>
+      </div>`;
+    for(const [nm,v,color] of barras){
+      if(!v)continue;
+      html+=`<div class="bar-row"><span class="nm" style="width:150px">${nm}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:${Math.min(100,Math.round(v.pct||0))}%;background:${color}"></span></span>
+        <span class="vl">${v.pct==null?'—':v.pct+'%'} · ${v.n}</span></div>`;
+    }
+    html+=`<div class="note" style="margin-top:12px">
+        <b>¿Está funcionando?</b> De las que <b>contestan</b> al WhatsApp se recupera el <b>${pct(fp.recuperacion_si_contesta_pct)}</b>; de las que no contestan, el ${pct(fp.recuperacion_si_no_contesta_pct)}.<br>
+        <b>Contexto:</b> ${ctx.suscripciones_activas||'—'} suscripciones activas (+${ctx.suscripciones_pausadas||0} pausadas) · ${ctx.fallos_reales_abiertos||'—'} fallos de pago abiertos hoy · "fallo aún abierto" = dunning en curso, ni ganado ni perdido.<br>
+        <span style="color:#9a9aa3">Cautela: correlación, no causalidad pura (quien iba a pagar también contesta más). Snapshot diario: ${fpAll.generado?esc(fpAll.generado.replace('T',' ').slice(0,16)):'—'}.</span>
+      </div></div>`;
+  }
+
   // Retención — detalle + caveats honestos
   if(ret){
     const ap=ret.appstle||{};
