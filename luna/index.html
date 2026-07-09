@@ -115,7 +115,7 @@ function aggSemanas(sems){
 }
 
 function render(d){
-  const vf=d.venta_fria||{}, pr=d.push_respuesta||{}, ret=d.retencion||null;
+  const vf=d.venta_fria||{}, vfr=d.venta_fria_real||null, rc=d.recontacto_7d||null, pr=d.push_respuesta||{}, ret=d.retencion||null;
   const fa=(ret&&ret.foto_actual)||null;
   const tipos=Object.entries(pr.por_tipo||{}).sort((a,b)=>b[1].enviados-a[1].enviados);
   const maxPct=Math.max(1,...tipos.map(t=>t[1].pct));
@@ -124,10 +124,10 @@ function render(d){
 
   let html=`<div class="cards">
     <div class="card">
-      <div class="lbl">Venta fría</div>
-      <div class="big">${pct(vf.pct)}</div>
-      <div class="det">${vf.compraron||0} de ${vf.frias||0} prospectos compran tras escribir a LUNA (${etiqueta})</div>
-      <div class="hint">Mujeres que entran a preguntar (modo descubrimiento) y compran después de contactar. Conversión de prospecto frío.</div>
+      <div class="lbl">Venta fría (pedidos Shopify reales)</div>
+      <div class="big">${vfr?pct(vfr.pct):pct(vf.pct)}</div>
+      <div class="det">${vfr?`${vfr.compraron} de ${vfr.frias}`:`${vf.compraron||0} de ${vf.frias||0}`} prospectos compran tras escribir a LUNA (${etiqueta})</div>
+      <div class="hint">Compra = su primer pedido REAL de Shopify (enviado por Amphora) es posterior al primer contacto. El envío va 1-3 días por detrás del pedido, así que los prospectos de los últimos días aún no computan.${vfr?` Con el proxy antiguo (secuencia bienvenida) saldría ${pct(vf.pct)}.`:''}</div>
     </div>
     <div class="card">
       <div class="lbl">Retención / evitar baja</div>
@@ -151,6 +151,39 @@ function render(d){
         <span class="vl">${t.pct}% · ${t.respondieron}/${t.enviados}</span></div>`;
     }
     html+=`</div>`;
+  }
+
+  // ¿LUNA arregla o enfada? — re-contacto <7 días por el mismo tema
+  if(rc&&rc.episodios){
+    const ints=Object.entries(rc.por_intencion||{}).sort((a,b)=>b[1].pct-a[1].pct);
+    const maxRc=Math.max(1,...ints.map(t=>t[1].pct));
+    html+=`<div class="sec"><h2>¿LUNA arregla o enfada? — Re-contacto &lt;7 días por el mismo tema (${etiqueta})</h2>
+      <div class="cards" style="margin-bottom:16px">
+        <div class="card">
+          <div class="lbl">Episodios analizados</div>
+          <div class="big">${rc.episodios}</div>
+          <div class="det">conversaciones de clienta (mensaje tras &gt;24h de silencio) con ventana completa de 7 días</div>
+        </div>
+        <div class="card">
+          <div class="lbl">Vuelven por lo mismo</div>
+          <div class="big">${pct(rc.pct)}</div>
+          <div class="det">${rc.reabren} de ${rc.episodios} reabren el mismo tema entre 1 y 7 días después</div>
+        </div>
+        <div class="card">
+          <div class="lbl">Quejas que se repiten</div>
+          <div class="big">${rc.por_intencion&&rc.por_intencion.queja?pct(rc.por_intencion.queja.pct):'—'}</div>
+          <div class="det">${rc.por_intencion&&rc.por_intencion.queja?`${rc.por_intencion.queja.reabren} de ${rc.por_intencion.queja.episodios} quejas vuelven en &lt;7d — el indicador nº1 de fricción`:'sin quejas en el rango'}</div>
+        </div>
+      </div>`;
+    for(const [nm,t] of ints){
+      html+=`<div class="bar-row"><span class="nm">${esc(nm)}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:${Math.max(2,Math.round(100*t.pct/maxRc))}%;background:${nm==='queja'||nm==='baja'?'#c0564f':'var(--azul-medio)'}"></span></span>
+        <span class="vl">${t.pct}% · ${t.reabren}/${t.episodios}</span></div>`;
+    }
+    html+=`<div class="note" style="margin-top:12px">
+      <b>Cómo leerlo:</b> que una clienta vuelva en &lt;7 días con el MISMO tema significa que la primera respuesta no lo resolvió. Cuanto más bajo, mejor — especialmente en <b>queja</b> y <b>baja</b>. "Consulta" o "seguimiento" repetidos son menos graves (puede ser interés natural).<br>
+      <span style="color:#9a9aa3">Dato real: intención clasificada por el análisis automático de cada mensaje (analisis_conversacion). Solo cuentan episodios con más de 7 días transcurridos, para no infracontar los recientes.</span>
+    </div></div>`;
   }
 
   // Recuperación de fallo de pago — agregado desde los buckets semanales del snapshot
@@ -232,7 +265,25 @@ function render(d){
         Con ≥30 días: ${e30.n?`${e30.retenidas}/${e30.n} = ${pct(e30.pct_retencion)}`:'sin muestra aún (los datos de baja solo tienen ~1 mes; la ventana de 30 días se irá poblando)'}.<br>
         Base Appstle: ${ap.activos||0} activas + ${ap.pausados||0} pausadas. Snapshot: ${ret.generado?esc(ret.generado.replace('T',' ').slice(0,16)):'—'}.<br>
         <span style="color:#9a9aa3">Cautela: foto puntual; una baja pedida hace días puede no estar resuelta. No aísla causalidad (Marta también retiene). Esta métrica no se filtra por el selector de fechas.</span>
-      </div></div>`;
+      </div>`;
+    const cm=ret.por_mes||[];
+    if(cm.length){
+      html+=`<h2 style="margin:16px 0 10px">Cohorte mensual — solicitudes de baja/pausa × estado Appstle hoy</h2>
+      <table class="sem">
+        <tr><th>Mes solicitud</th><th>Solicitudes</th><th>Retenidas hoy</th><th>% retención</th><th>Días transcurridos (media)</th></tr>`;
+      for(const m of cm.slice().reverse()){
+        const inmaduro=m.dias_media<14;
+        html+=`<tr>
+          <td style="font-weight:600">${esc(m.mes)}${inmaduro?' ⏳':''}</td>
+          <td>${m.n}</td>
+          <td>${m.retenidas}</td>
+          <td style="color:${inmaduro?'#9a9aa3':'var(--verde)'};font-weight:700">${pct(m.pct_retencion)}</td>
+          <td>${m.dias_media}</td></tr>`;
+      }
+      html+=`</table>
+      <div class="note" style="margin-top:10px"><span style="color:#9a9aa3">⏳ = cohorte inmadura (menos de 14 días de media desde la solicitud): su % aún puede bajar porque hay bajas pedidas sin resolver. Comparar solo cohortes maduras entre sí.</span></div>`;
+    }
+    html+=`</div>`;
   }
 
   html+=`<div class="foot">Generado: ${d.generado?esc(d.generado.replace('T',' ').slice(0,16)):'—'} · ${etiqueta} · datos reales (D1 LUNA + Appstle vía Monday).</div>`;
