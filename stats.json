@@ -1,0 +1,34 @@
+{
+  "_doc": "FUENTE ÚNICA DE VERDAD de la Radiografía de la Menopausia DOMMA. Edita AQUÍ y corre build_stats.py para propagar a radiografia.wearedomma.com, landing AEEM y dashboard. NO edites las cifras a mano en los HTML.",
+  "fecha_corte": "2026-07-14",
+  "n_total": 100000,
+  "n_total_label": "100.000",
+  "n_total_exacto": 99568,
+  "n_analizada": 95000,
+  "n_analizada_label": "95.000",
+  "n_analizada_exacto": 94651,
+  "periodo": "2022-2026",
+  "sintomas": {
+    "fatiga":     { "label": "Fatiga",          "pct": 65 },
+    "peso":       { "label": "Aumento de peso",  "pct": 65 },
+    "insomnio":   { "label": "Insomnio",         "pct": 65 },
+    "libido":     { "label": "Baja libido",      "pct": 63 },
+    "hinchazon":  { "label": "Hinchazón",        "pct": 56 },
+    "sofoco":     { "label": "Sofoco",           "pct": 54 },
+    "emocional":  { "label": "Inestabilidad emocional", "pct": 52 },
+    "sequedad":   { "label": "Sequedad vaginal", "pct": 49 },
+    "articular":  { "label": "Dolor articular",  "pct": 46 },
+    "pelo_unas":  { "label": "Pelo y uñas frágiles", "pct": 33 },
+    "sudores_nocturnos": { "label": "Sudores nocturnos", "pct": 14 }
+  },
+  "top3_pct": 65,
+  "sofoco_pct": 54,
+  "fuentes": {
+    "revenuehunt_woocommerce": 65586,
+    "revenuehunt_shopify": 15757,
+    "typeform_principal": 13308,
+    "typeform_fisico": 729,
+    "quiz_luna": 4171
+  },
+  "pie_prevalencia": "Prevalencia autorreportada · % sobre ~95.000 analizados · registro +100.000"
+}
