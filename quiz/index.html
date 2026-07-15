@@ -97,14 +97,14 @@ if(dommaToken){document.getElementById('loginOverlay').style.display='none';}
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 </script>
 
-<div class="update-banner">Actualizado: 28/04/2026 11:00 | Fuentes: WooCommerce RevenueHunt (65603), Typeform Principal (13308), Typeform Fisico (729), Nuevo: DOMMA_Quiz_responses_2026-04-28_085240.csv (11023)</div>
+<div class="update-banner">Actualizado: 15/07/2026 | Fuentes: RevenueHunt WooCommerce (65.586) + Shopify (15.757), Typeform Principal (13.308) + F&iacute;sico (729), Quiz LUNA en vivo. Registro total &asymp; 100.000 &middot; muestra analizada ~95.000.</div>
 
 <div class="header">
     <h1>DOMMA &mdash; Radiograf&iacute;a de la Menopausia en Espa&ntilde;a</h1>
     <div class="stats">
-        <div>Respuestas<span>90.663</span></div>
+        <div>Registro en vivo<span id="liveTotal" title="base hist&oacute;rica + quiz LUNA en tiempo real">99.594</span></div>
         <div>Periodo<span>2022-2026</span></div>
-        <div>Media s&iacute;ntomas<span>6.0</span></div>
+        <div>Media s&iacute;ntomas<span>6,0</span></div>
     </div>
 </div>
 
@@ -127,7 +127,7 @@ document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='
 <!-- OVERVIEW -->
 <div id="overview" class="section active">
     <div class="grid" style="grid-template-columns: repeat(4, 1fr);">
-        <div class="card big-number"><div class="number">90.663</div><div class="label">Respuestas totales</div></div>
+        <div class="card big-number"><div class="number" id="liveTotalBig">99.594</div><div class="label">Registro en vivo <span id="liveDot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ea504e;margin-left:4px;vertical-align:middle;animation:pulse 1.6s infinite"></span> &middot; base + quiz LUNA</div></div>
         <div class="card big-number"><div class="number">6,0</div><div class="label">Media de s&iacute;ntomas por mujer</div></div>
         <div class="card big-number"><div class="number">98%</div><div class="label">Con impacto emocional</div></div>
         <div class="card big-number"><div class="number">1%</div><div class="label">Llega por profesional salud</div></div>
@@ -232,7 +232,7 @@ document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='
     <div class="grid" style="grid-template-columns: 1fr;">
         <div class="card">
             <h3>6 arquetipos clínicos derivados de la cohorte</h3>
-            <p class="subtitle">Clustering por reglas sobre los síntomas dominantes · n = 89,934 respuestas (cleaned + abril 2026 batch)</p>
+            <p class="subtitle">Clustering por reglas sobre los síntomas dominantes · n ≈ 95.000 analizados (registro total +100.000, corte jul-2026)</p>
             <canvas id="chartArquetipos" style="max-height:340px;"></canvas>
         </div>
     </div>
@@ -299,7 +299,7 @@ document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='
         <div class="card" style="background:#FDF6F0;">
             <h3>Metodología</h3>
             <p style="font-size:13px;line-height:1.6;">
-                <b>Cohorte:</b> 89.934 respuestas totales = 78.911 cleaned histórico (WooCommerce + Shopify + Typeform) + 11.023 nuevas del 28 abril 2026.<br><br>
+                <b>Cohorte:</b> registro total &asymp; 100.000 cuestionarios (RevenueHunt WooCommerce 65.586 + Shopify 15.757 + Typeform 13.308 + Físico 729 + Quiz LUNA en vivo). Muestra analizada para prevalencias ~95.000 (fuentes con batería de síntomas comparable). Corte jul-2026.<br><br>
                 <b>Asignación por reglas:</b> cada respondedora se clasifica en uno de 6 arquetipos (+ "low burden" extra) según el patrón de síntomas dominante, número total de síntomas físicos/emocionales y fase menstrual.<br><br>
                 <b>Próximo paso:</b> validación clínica con el equipo médico para confirmar coherencia de bundles asignados a cada arquetipo. Cross-tab físico × emocional pendiente de calcular.
             </p>
@@ -779,8 +779,9 @@ const ROSA_OSC = '#C4977F';
 const AZUL_MED = '#2A3060';
 const palette = [ROSA_OSC, '#D4A574', AZUL, ROSA, AZUL_MED, '#8B7355', '#6B4C3B', '#A0522D'];
 
-const symLabels = ["Baja libido", "Insomnio", "Fatiga", "Aumento de peso", "Sequedad general", "Sofocos", "Hinchazion", "Dolor articular"];
-const symPcts = [65.5, 56.7, 55.8, 55.4, 50.2, 49.6, 46.6, 37.8];
+// Recalculado 15/07/2026 sobre corpus real (94.651 RevenueHunt+Typeform), % sobre total. Alineado con Kit/web.
+const symLabels = ["Aumento de peso", "Fatiga", "Insomnio", "Baja libido", "Hinchazon", "Sofocos", "Sequedad vaginal", "Dolor articular", "Pelo y unas fragiles"];
+const symPcts = [64.8, 64.7, 64.6, 63.0, 56.4, 54.4, 48.8, 45.6, 33.4];
 const emoLabels = ["Cambios de humor", "Estres", "Descentrada", "Irritabilidad", "Ansiedad", "Tristeza", "Estupenda"];
 const emoPcts = [39.7, 36.5, 33.8, 32.8, 32.4, 32.3, 2.1];
 const faseData = {"Regular": 25492, "Sin menstruacion": 39064, "Alterada": 15752, "Otro": 7811, "Poco frecuente": 1850, "Posmenopausia": 196, "Perimenopausia": 124, "Menopausia": 313, "Premenopausia": 60};
@@ -935,7 +936,7 @@ new Chart('chartSegmentos', {
     options: { ...defaultOpts, plugins: { legend: { display: true, position: 'right' } } }
 });
 
-// ARQUETIPOS CLINICOS (n = 89,934 full dataset, cleaned + April 2026 batch)
+// ARQUETIPOS CLINICOS (n ~ 95.000 analizados, registro total +100.000, corte jul-2026)
 const arquetipoLabels = [
     'Sobrecarga hormonal (31%)',
     'Carga metabólica (19%)',
@@ -1005,6 +1006,35 @@ new Chart('chartFisicoBarreras', {
     data: { labels: fisicoBarrerasLabels, datasets: [{ data: fisicoBarrerasData, backgroundColor: ROSA_OSC, borderRadius: 4 }] },
     options: { ...defaultOpts, indexAxis: 'y', scales: { x: { max: 50, ticks: { callback: v => v + '%' } } } }
 });
+</script>
+
+<!-- ── Contador en vivo (Radiografía): base histórica + quiz LUNA en tiempo real ── -->
+<script>
+(function(){
+  var STATS_LIVE = 'https://luna-web.pages.dev/api/stats-live';
+  // keyframes del puntito "en vivo"
+  var st = document.createElement('style');
+  st.textContent = '@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}';
+  document.head.appendChild(st);
+
+  function fmt(n){ return Number(n).toLocaleString('es-ES'); }
+  function setText(id, val){ var el=document.getElementById(id); if(el) el.textContent=val; }
+
+  function tick(){
+    fetch(STATS_LIVE, {cache:'no-store'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(!d || !d.ok) return;
+        setText('liveTotal', fmt(d.total));
+        setText('liveTotalBig', fmt(d.total));
+        var big = document.getElementById('liveTotalBig');
+        if(big){ big.title = 'Base histórica ' + fmt(d.base_frozen) + ' + quiz LUNA en vivo ' + fmt(d.luna_live) + ' · actualizado ' + (d.updated_at||'').slice(0,16).replace('T',' '); }
+      })
+      .catch(function(){ /* si falla, se queda el valor estático */ });
+  }
+  tick();
+  setInterval(tick, 60000); // refresco cada 60 s
+})();
 </script>
 </body>
 </html><!-- Auto-deploy test 2026-05-29 10:07:44 -->
