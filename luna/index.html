@@ -122,7 +122,14 @@ function render(d){
   const ra=rangoActual();
   const etiqueta=rango?`${ra.desde} → ${ra.hasta}`:`últimos ${dias} días`;
 
-  let html=`<div class="cards">
+  const eng=d.engagement||null;
+  let html = eng ? `<div class="sec"><h2>Uso de LUNA — MAU / WAU / DAU (mujeres que escriben)</h2>
+    <div class="cards" style="margin-bottom:0">
+      <div class="card"><div class="lbl">MAU · activas / mes</div><div class="big">${eng.mau}</div><div class="det">${eng.mau_pct_base}% de la base total que LUNA conoce (${eng.base_total})</div><div class="hint">Activa = escribe a LUNA. Ventana fija de 30 días (no depende del selector).</div></div>
+      <div class="card"><div class="lbl">WAU · activas / semana</div><div class="big">${eng.wau}</div><div class="det">últimos 7 días</div></div>
+      <div class="card"><div class="lbl">DAU · activas / día</div><div class="big">${eng.dau_medio}</div><div class="det">media diaria (hoy ${eng.dau_hoy}) · stickiness DAU/MAU ${eng.stickiness_dau_mau}%</div><div class="hint">Stickiness bajo es esperado: LUNA es una agente de acompañamiento, no una app de uso diario.</div></div>
+    </div></div>` : '';
+  html += `<div class="cards">
     <div class="card">
       <div class="lbl">Venta fría (pedidos Shopify reales)</div>
       <div class="big">${vfr?pct(vfr.pct):pct(vf.pct)}</div>
