@@ -192,6 +192,18 @@
     </div>
   </div>
 
+  <div class="card tablecard">
+    <h3>Repositorio de acciones <span class="muted" id="repoCount"></span></h3>
+    <p class="hint">Todas las acciones —altas, bajas, cambios, pausas— con nombre y apellidos. Busca por nombre, email o ID de clienta.</p>
+    <div class="filters"><input id="repoSearch" placeholder="Buscar por nombre, email o ID…" style="flex:1;min-width:240px;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;outline:none;font-size:13px"></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Fecha</th><th>Clienta</th><th>Acción</th><th>Producto</th><th>Motivo</th><th>Origen</th></tr></thead>
+        <tbody id="repoBody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="foot">Panel interno DOMMA · datos del worker <code>domma-bajas</code> · no compartir enlaces con PII</div>
 </div>
 
@@ -228,11 +240,12 @@ function money(n){ return (n||0).toLocaleString('es-ES'); }
 function pct(x){ return (x*100).toFixed(0)+'%'; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-async function api(path){
+async function api(path, extra){
   const body = {
     desde: document.getElementById('desde').value || null,
     hasta: document.getElementById('hasta').value || null,
     incluir_test: document.getElementById('incTest').checked,
+    ...(extra || {}),
   };
   return fetch(API + path, {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(body)});
 }
@@ -300,6 +313,7 @@ function render(){
     : `<div class="empty">Aún sin webhooks de Appstle.<br>La repesca confirmada aparecerá aquí en cuanto se conecten (Svix).</div>`;
 
   renderLista();
+  loadRepo((document.getElementById('repoSearch').value || '').trim());
 }
 
 function renderStacked(id, arr, map){
@@ -351,6 +365,36 @@ function renderLista(){
 }
 function labelEstado(e){ return {baja:'Baja',solicitud_baja:'Solicitud',pausa:'Pausa',gate:'Derivada'}[e]||e; }
 function setFilter(k){ listaFilter=k; renderLista(); }
+
+// ── Repositorio de acciones (buscable) ──
+function repoPill(acc){
+  const a = (acc||'').toLowerCase();
+  if(a.includes('solicitud')) return 'solicitud_baja';
+  if(a.includes('baja')) return 'baja';
+  if(a.includes('alta') || a.includes('reactiv')) return 're';
+  if(a.includes('pausa') || a.includes('espaci')) return 'pausa';
+  return 'coach';
+}
+async function loadRepo(q){
+  try{
+    const r = await api('/api/dashboard/repositorio', {q: q || null, limit: 300});
+    if(!r.ok) return;
+    const d = await r.json();
+    document.getElementById('repoCount').textContent = d.total ? `· ${d.mostrados}${d.total>d.mostrados?' de '+d.total:''}` : '';
+    const b = document.getElementById('repoBody');
+    if(!d.acciones.length){ b.innerHTML = '<tr><td colspan="6"><div class="empty">Sin acciones para esta búsqueda.</div></td></tr>'; return; }
+    b.innerHTML = d.acciones.map(a=>`<tr>
+      <td class="muted" style="white-space:nowrap">${esc((a.fecha||'').slice(0,16).replace('T',' '))}</td>
+      <td>${a.nombre?esc(a.nombre):'<span class="muted">—</span>'}${a.customer_id?`<div class="muted" style="font-size:11px">id ${esc(a.customer_id)}</div>`:''}${a.es_test?' <span class="pill test">prueba</span>':''}</td>
+      <td><span class="pill ${repoPill(a.accion)}">${esc(a.accion)}</span></td>
+      <td>${esc(a.producto||'—')}</td>
+      <td>${esc(a.motivo||'—')}</td>
+      <td class="muted">${esc(a.origen)}</td>
+    </tr>`).join('');
+  }catch(e){}
+}
+let repoT;
+document.getElementById('repoSearch').addEventListener('input', e=>{ clearTimeout(repoT); repoT = setTimeout(()=>loadRepo(e.target.value.trim()), 300); });
 
 async function exportCsv(){
   const r = await api('/api/dashboard/export');
