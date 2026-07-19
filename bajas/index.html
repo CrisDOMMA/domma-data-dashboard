@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>DOMMA · Bajas y repesca</title>
+<style>
+  :root{
+    --navy:#1C296A; --navy-2:#2C3A85; --bg:#F8F7F5; --card:#ffffff;
+    --text:#101637; --muted:#6A6E85; --border:#E7E4DE; --line:#EFEDE8;
+    --green:#1F9D6B; --amber:#C8860A; --red:#C0453B; --track:#EFEDF0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  a{color:var(--navy)}
+  .wrap{max-width:1140px;margin:0 auto;padding:24px 20px 80px}
+
+  /* Header */
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand img{height:26px;width:auto}
+  .brand h1{font-size:20px;font-weight:650;margin:0;letter-spacing:-.01em}
+  .brand .tag{font-size:12px;color:var(--muted);margin-top:2px}
+  .muted{color:var(--muted)}
+
+  /* Login */
+  .overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .login{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 40px rgba(28,41,106,.08);padding:34px 30px;width:360px;text-align:center}
+  .login img{height:30px;margin-bottom:18px}
+  .login h2{font-size:19px;margin:0 0 4px}
+  .login p{font-size:13px;color:var(--muted);margin:0 0 20px}
+  input,select{font-family:inherit;font-size:14px}
+  .login input{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:9px;outline:none;margin-bottom:12px}
+  .login input:focus{border-color:var(--navy)}
+  .btn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:12px 18px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+  .btn:hover{background:var(--navy-2)}
+  .btn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--border)}
+  .btn.ghost:hover{border-color:var(--navy)}
+  .login .btn{width:100%}
+  .err{color:var(--red);font-size:13px;margin-top:10px;min-height:16px}
+
+  /* Controls */
+  .controls{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin:18px 0 22px;
+    background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .field input,.field select{padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;background:#fff}
+  .field input:focus,.field select:focus{border-color:var(--navy)}
+  .toggle{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text);cursor:pointer;user-select:none}
+  .spacer{flex:1}
+
+  /* KPIs */
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:22px}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:15px 16px}
+  .kpi .n{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .kpi .l{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.3}
+  .kpi.hero{background:linear-gradient(135deg,#1C296A,#2C3A85);border-color:#1C296A;color:#fff}
+  .kpi.hero .l{color:#C9CEEA}
+  .kpi .n.green{color:var(--green)} .kpi .n.red{color:var(--red)} .kpi .n.amber{color:var(--amber)}
+
+  /* Cards */
+  .grid{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 18px 20px}
+  .card h3{font-size:14px;font-weight:650;margin:0 0 3px}
+  .card .hint{font-size:12px;color:var(--muted);margin:0 0 14px}
+
+  /* Bar rows */
+  .row{margin-bottom:11px}
+  .row .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+  .row .top .lbl{font-weight:550;text-transform:capitalize}
+  .row .top .val{color:var(--muted);font-variant-numeric:tabular-nums}
+  .bar{height:9px;background:var(--track);border-radius:6px;overflow:hidden;display:flex}
+  .seg{height:100%}
+  .seg.salvado{background:var(--green)} .seg.baja{background:var(--red)}
+  .seg.solicitud{background:var(--amber)} .seg.otro{background:#B9BCCB}
+  .legend{display:flex;gap:16px;font-size:11.5px;color:var(--muted);margin-top:12px;flex-wrap:wrap}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:middle}
+  .i-salvado{background:var(--green)} .i-baja{background:var(--red)} .i-solicitud{background:var(--amber)} .i-otro{background:#B9BCCB}
+
+  /* Table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1.5px solid var(--line);position:sticky;top:0;background:var(--card)}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:hover td{background:#FBFAF8}
+  .pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap}
+  .pill.baja{background:#FBE9E7;color:var(--red)} .pill.solicitud_baja{background:#FCF3E0;color:var(--amber)}
+  .pill.pausa{background:#E7F5EF;color:var(--green)} .pill.coach,.pill.gate{background:#EDEEF4;color:var(--navy)}
+  .pill.test{background:#F0EEF6;color:#7A5CC0;margin-left:6px}
+  .pill.re{background:#E7F5EF;color:var(--green)}
+  .actions{display:flex;gap:8px;white-space:nowrap}
+  .actions a{font-size:12px;text-decoration:none;font-weight:600}
+  .tablecard{padding:18px 0 4px}
+  .tablecard h3,.tablecard .hint,.tablecard .filters{padding:0 18px}
+  .tablewrap{max-height:520px;overflow:auto;margin-top:12px}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .chip{font-size:12px;padding:5px 12px;border:1.5px solid var(--border);border-radius:20px;background:#fff;cursor:pointer;color:var(--muted)}
+  .chip.on{border-color:var(--navy);color:var(--navy);background:#F3F4FA;font-weight:600}
+  .empty{text-align:center;color:var(--muted);font-size:13px;padding:30px 10px}
+  .foot{font-size:11.5px;color:var(--muted);margin-top:24px;text-align:center}
+  .banner{background:#FCF3E0;border:1px solid #EAD9A8;color:#8A6206;font-size:12.5px;padding:9px 14px;border-radius:9px;margin-bottom:16px}
+  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="overlay" id="overlay">
+  <div class="login">
+    <img src="https://wearedomma.com/cdn/shop/files/Vector_06860792-3ad3-4c55-896f-7e93d3a52205.png?v=1771481473&width=400" alt="DOMMA">
+    <h2>Bajas y repesca</h2>
+    <p>Panel interno del equipo · acceso admin DOMMA</p>
+    <input type="email" id="email" placeholder="tu@wearedomma.com" autocomplete="username">
+    <input type="password" id="pass" placeholder="Contraseña" autocomplete="current-password">
+    <button class="btn" onclick="login()">Acceder</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="wrap" id="app" style="display:none">
+  <header>
+    <div class="brand">
+      <img src="https://wearedomma.com/cdn/shop/files/Vector_06860792-3ad3-4c55-896f-7e93d3a52205.png?v=1771481473&width=400" alt="DOMMA">
+      <div>
+        <h1>Bajas y repesca</h1>
+        <div class="tag">Flujo de gestión · <span id="gen"></span></div>
+      </div>
+    </div>
+    <button class="btn ghost" onclick="logout()">Salir</button>
+  </header>
+
+  <div class="banner" id="testBanner" style="display:none">Mostrando también <b>datos de prueba</b> (modo prueba del equipo). Desmarca «Incluir pruebas» para ver solo clientas reales.</div>
+
+  <div class="controls">
+    <div class="field"><label>Desde</label><input type="date" id="desde"></div>
+    <div class="field"><label>Hasta</label><input type="date" id="hasta"></div>
+    <label class="toggle"><input type="checkbox" id="incTest"> Incluir pruebas</label>
+    <button class="btn ghost" onclick="load()">Aplicar</button>
+    <div class="spacer"></div>
+    <button class="btn ghost" onclick="exportCsv()">⬇ Exportar CSV</button>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Por qué se van y a quién salvamos</h3>
+      <p class="hint">Cada barra = un motivo de baja. Verde = retenida (pausa/cambio/espaciar), ámbar = solicitud pendiente, rojo = baja efectiva.</p>
+      <div id="motivos"></div>
+      <div class="legend">
+        <span><i class="i-salvado"></i>Salvada</span>
+        <span><i class="i-solicitud"></i>Solicitud pendiente</span>
+        <span><i class="i-baja"></i>Baja efectiva</span>
+        <span><i class="i-otro"></i>Derivada / sin acción</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Por antigüedad</h3>
+      <p class="hint">Dónde se concentra la fuga según meses de suscripción.</p>
+      <div id="tenure"></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Por producto</h3>
+      <p class="hint">Qué productos generan más bajas.</p>
+      <div id="productos"></div>
+    </div>
+    <div class="card">
+      <h3>Reactivaciones (repesca real)</h3>
+      <p class="hint">Clientas que volvieron a activar tras pasar por el flujo. Se llena con los webhooks de Appstle.</p>
+      <div id="repescaBox"></div>
+    </div>
+  </div>
+
+  <div class="card tablecard">
+    <h3>Lista de repesca <span class="muted" id="listaCount"></span></h3>
+    <p class="hint">Clientas para recontactar: bajas, solicitudes pendientes, pausas (repesca futura) y casos derivados.</p>
+    <div class="filters" id="listaFilters"></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Fecha</th><th>Clienta</th><th>Estado</th><th>Motivo</th><th>Antigüedad</th><th>Productos</th><th>Contactar</th></tr></thead>
+        <tbody id="listaBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="foot">Panel interno DOMMA · datos del worker <code>domma-bajas</code> · no compartir enlaces con PII</div>
+</div>
+
+<script>
+const API = 'https://domma-bajas.cristina-ed1.workers.dev';
+const AUTH_API = 'https://domma-pro-api.cristina-ed1.workers.dev'; // mismo login que /metrics
+const WA = '34613152397';
+let DATA = null, listaFilter = 'todo';
+
+// SSO: si venimos del hub con #token=... lo guardamos
+(function(){ const m = location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token', decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
+let token = localStorage.getItem('domma_analytics_token') || '';
+
+function login(){
+  const email = document.getElementById('email').value.trim();
+  const pass = document.getElementById('pass').value;
+  const err = document.getElementById('loginErr');
+  err.textContent = '';
+  fetch(AUTH_API + '/api/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email, password:pass})})
+    .then(r => r.json())
+    .then(d => {
+      const role = d.role || (d.user && d.user.role);
+      if(d.token && role === 'admin'){ token = d.token; localStorage.setItem('domma_analytics_token', token); load(); }
+      else if(d.token){ err.textContent = 'Tu usuario no tiene acceso admin'; }
+      else { err.textContent = 'Credenciales incorrectas'; }
+    })
+    .catch(() => { err.textContent = 'No se pudo conectar'; });
+}
+function logout(){ localStorage.removeItem('domma_analytics_token'); location.reload(); }
+
+function money(n){ return (n||0).toLocaleString('es-ES'); }
+function pct(x){ return (x*100).toFixed(0)+'%'; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function api(path){
+  const body = {
+    desde: document.getElementById('desde').value || null,
+    hasta: document.getElementById('hasta').value || null,
+    incluir_test: document.getElementById('incTest').checked,
+  };
+  return fetch(API + path, {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(body)});
+}
+
+async function load(){
+  try{
+    const r = await api('/api/dashboard');
+    if(r.status === 401 || r.status === 403){
+      if(token){ logout(); } else { document.getElementById('loginErr').textContent = 'Sesión no válida'; }
+      return;
+    }
+    if(!r.ok){ document.getElementById('loginErr').textContent = 'Error del servidor'; return; }
+    document.getElementById('overlay').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    DATA = await r.json();
+    render();
+  }catch(e){ document.getElementById('loginErr').textContent = 'No se pudo conectar'; }
+}
+
+function render(){
+  const d = DATA;
+  document.getElementById('gen').textContent = new Date(d.generated_at).toLocaleString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('testBanner').style.display = d.filtros.incluir_test ? 'block' : 'none';
+
+  // KPIs
+  const k = d.kpis;
+  document.getElementById('kpis').innerHTML = [
+    ['hero', pct(k.save_rate), 'Save rate<br><span style="font-size:11px">de las que deciden</span>', ''],
+    ['', money(k.sesiones), 'Sesiones', ''],
+    ['', money(k.salvados), 'Retenidas', 'green'],
+    ['', money(k.bajas), 'Bajas efectivas', 'red'],
+    ['', money(k.solicitudes), 'Solicitudes pendientes', 'amber'],
+    ['', money(k.derivadas), 'Derivadas a Marta', ''],
+  ].map(([cls,n,l,nc])=>`<div class="kpi ${cls}"><div class="n ${nc}">${n}</div><div class="l">${l}</div></div>`).join('');
+
+  // Motivos (barras apiladas)
+  renderStacked('motivos', d.por_motivo, r=>({
+    lbl: r.motivo,
+    val: `${r.total} · save ${pct(r.save_rate)}`,
+    segs: [['salvado',r.salvado],['solicitud',r.solicitud],['baja',r.baja],['otro',(r.derivada||0)+(r.sin_accion||0)]],
+    total: r.total,
+  }));
+
+  // Tenure
+  renderStacked('tenure', d.por_tenure, r=>({
+    lbl: r.bucket,
+    val: `${r.total}`,
+    segs: [['salvado',r.salvado],['solicitud',r.solicitud||0],['baja',r.baja],['otro', r.total-(r.salvado+(r.solicitud||0)+r.baja)]],
+    total: r.total,
+  }));
+
+  // Productos
+  renderStacked('productos', d.por_producto, r=>({
+    lbl: r.producto,
+    val: `${r.total}`,
+    segs: [['salvado',r.salvado||0],['solicitud',r.solicitud||0],['baja',r.baja||0],['otro', r.total-((r.salvado||0)+(r.solicitud||0)+(r.baja||0))]],
+    total: r.total,
+  }));
+
+  // Repesca real
+  const rp = d.repesca;
+  document.getElementById('repescaBox').innerHTML = rp.webhooks_total
+    ? `<div style="display:flex;gap:26px;align-items:baseline"><div><div style="font-size:30px;font-weight:700;color:var(--green)">${money(rp.reactivaciones)}</div><div class="hint" style="margin:0">reactivaciones</div></div>
+       <div class="hint" style="margin:0">${rp.webhooks_total} eventos Appstle recibidos</div></div>`
+    : `<div class="empty">Aún sin webhooks de Appstle.<br>La repesca confirmada aparecerá aquí en cuanto se conecten (Svix).</div>`;
+
+  renderLista();
+}
+
+function renderStacked(id, arr, map){
+  const el = document.getElementById(id);
+  if(!arr || !arr.length){ el.innerHTML = '<div class="empty">Sin datos en este periodo.</div>'; return; }
+  const max = Math.max(...arr.map(r=>map(r).total), 1);
+  el.innerHTML = arr.map(r=>{
+    const m = map(r);
+    const w = (m.total/max)*100; // ancho relativo de la barra respecto al mayor motivo
+    const inner = m.segs.map(([cls,v])=> v>0 ? `<div class="seg ${cls}" style="width:${(v/m.total)*100}%"></div>`:'').join('');
+    return `<div class="row"><div class="top"><span class="lbl">${esc(m.lbl)}</span><span class="val">${m.val}</span></div>
+      <div class="bar" style="width:${Math.max(w,8)}%">${inner}</div></div>`;
+  }).join('');
+}
+
+function renderLista(){
+  const all = (DATA.repesca.lista)||[];
+  // filtros
+  const counts = {todo:all.length, baja:0, solicitud_baja:0, pausa:0, gate:0};
+  all.forEach(x=>{ const key = x.estado==='coach'?'gate':x.estado; if(counts[key]!==undefined) counts[key]++; });
+  const defs = [['todo','Todas'],['baja','Bajas'],['solicitud_baja','Solicitudes'],['pausa','Pausas'],['gate','Derivadas']];
+  document.getElementById('listaFilters').innerHTML = defs.map(([k,l])=>
+    `<span class="chip ${listaFilter===k?'on':''}" onclick="setFilter('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
+
+  let rows = all;
+  if(listaFilter!=='todo') rows = all.filter(x=>(x.estado==='coach'?'gate':x.estado)===listaFilter);
+  document.getElementById('listaCount').textContent = rows.length ? `· ${rows.length}` : '';
+
+  const body = document.getElementById('listaBody');
+  if(!rows.length){ body.innerHTML = '<tr><td colspan="7"><div class="empty">Sin clientas para este filtro.</div></td></tr>'; return; }
+  body.innerHTML = rows.map(x=>{
+    const estado = x.estado==='coach'?'gate':x.estado;
+    const waTxt = encodeURIComponent('Hola, te escribo de DOMMA sobre tu suscripción.');
+    const cli = `${x.email?esc(x.email):'<span class="muted">sin email</span>'}${x.reactivada?' <span class="pill re">reactivó ✓</span>':''}${x.es_test?' <span class="pill test">prueba</span>':''}`;
+    const contacto = [
+      x.email?`<a href="mailto:${esc(x.email)}?subject=${encodeURIComponent('DOMMA · tu suscripción')}">Email</a>`:'',
+      `<a href="https://wa.me/${WA}?text=${waTxt}" target="_blank" rel="noopener">WhatsApp</a>`
+    ].filter(Boolean).join('');
+    return `<tr>
+      <td class="muted" style="white-space:nowrap">${esc((x.fecha||'').replace('T',' '))}</td>
+      <td>${cli}<div class="muted" style="font-size:11px">id ${esc(x.customer_id||'—')}</div></td>
+      <td><span class="pill ${estado}">${esc(labelEstado(estado))}</span></td>
+      <td>${esc(x.motivo||'—')}${x.submotivo?`<div class="muted" style="font-size:11px">${esc(x.submotivo)}</div>`:''}</td>
+      <td>${esc(x.tenure||'—')}<div class="muted" style="font-size:11px">${x.pedidos!=null?x.pedidos+' ped.':''}</div></td>
+      <td>${(x.productos||[]).map(esc).join(', ')||'—'}</td>
+      <td><div class="actions">${contacto}</div></td>
+    </tr>`;
+  }).join('');
+}
+function labelEstado(e){ return {baja:'Baja',solicitud_baja:'Solicitud',pausa:'Pausa',gate:'Derivada'}[e]||e; }
+function setFilter(k){ listaFilter=k; renderLista(); }
+
+async function exportCsv(){
+  const r = await api('/api/dashboard/export');
+  if(!r.ok){ alert('No se pudo exportar'); return; }
+  const blob = await r.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const desde = document.getElementById('desde').value || 'inicio';
+  const hasta = document.getElementById('hasta').value || 'hoy';
+  a.download = `domma-bajas_${desde}_${hasta}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+document.getElementById('pass').addEventListener('keydown',e=>{ if(e.key==='Enter') login(); });
+document.getElementById('email').addEventListener('keydown',e=>{ if(e.key==='Enter') login(); });
+// sesión recordada (o SSO desde el hub)
+if(token){ load(); }
+</script>
+</body>
+</html>
