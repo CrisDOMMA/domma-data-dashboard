@@ -175,7 +175,7 @@
     </div>
     <div class="card">
       <h3>Reactivaciones (repesca real)</h3>
-      <p class="hint">Clientas que volvieron a activar tras pasar por el flujo. Se llena con los webhooks de Appstle.</p>
+      <p class="hint">Clientas que volvieron a activar su plan. Se actualiza con el sync automático de Appstle (cada 6 h).</p>
       <div id="repescaBox"></div>
     </div>
   </div>
@@ -310,7 +310,7 @@ function render(){
   document.getElementById('repescaBox').innerHTML = rp.webhooks_total
     ? `<div style="display:flex;gap:26px;align-items:baseline"><div><div style="font-size:30px;font-weight:700;color:var(--green)">${money(rp.reactivaciones)}</div><div class="hint" style="margin:0">reactivaciones</div></div>
        <div class="hint" style="margin:0">${rp.webhooks_total} eventos Appstle recibidos</div></div>`
-    : `<div class="empty">Aún sin webhooks de Appstle.<br>La repesca confirmada aparecerá aquí en cuanto se conecten (Svix).</div>`;
+    : `<div class="empty">Aún sin reactivaciones registradas.<br>Aparecerán aquí cuando una clienta vuelva a activar su plan.</div>`;
 
   renderLista();
   loadRepo((document.getElementById('repoSearch').value || '').trim());
