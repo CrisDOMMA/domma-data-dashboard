@@ -192,6 +192,22 @@
     </div>
   </div>
 
+  <div class="card" style="margin-bottom:16px">
+    <h3>Fricciones</h3>
+    <p class="hint">Veces que el flujo le dijo «no» a una clienta. Si esto sube, las reglas están apretando de más y conviene revisarlas.</p>
+    <div id="fricciones"></div>
+  </div>
+
+  <div class="card tablecard" style="padding-bottom:20px">
+    <h3>Buscar una clienta</h3>
+    <p class="hint">Por email: sus fichas, sus planes y <b>todos sus contratos con el estado</b>. Resuelve los «no me aparece mi suscripción» — se ve si está cancelada, pausada o en otra ficha.</p>
+    <div class="filters">
+      <input id="cliEmail" type="email" placeholder="email de la clienta…" style="flex:1;min-width:240px;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;outline:none;font-size:13px">
+      <button class="btn ghost" onclick="buscarClienta()">Buscar</button>
+    </div>
+    <div id="cliRes" style="padding:0 18px"></div>
+  </div>
+
   <div class="card tablecard">
     <h3>Repositorio de acciones <span class="muted" id="repoCount"></span></h3>
     <p class="hint">Todas las acciones —altas, bajas, cambios, pausas— con nombre y apellidos. Busca por nombre, email o ID de clienta.</p>
@@ -312,6 +328,11 @@ function render(){
        <div class="hint" style="margin:0">${rp.webhooks_total} eventos Appstle recibidos</div></div>`
     : `<div class="empty">Aún sin reactivaciones registradas.<br>Aparecerán aquí cuando una clienta vuelva a activar su plan.</div>`;
 
+  // Fricciones: dónde el flujo dice "no"
+  const fr = d.fricciones || [];
+  if(fr.length) renderStacked('fricciones', fr, r=>({lbl:r.motivo, val:String(r.n), segs:[['solicitud',r.n]], total:r.n}));
+  else document.getElementById('fricciones').innerHTML = '<div class="empty">Ninguna clienta se ha topado con un bloqueo. 👌</div>';
+
   renderLista();
   loadRepo((document.getElementById('repoSearch').value || '').trim());
 }
@@ -365,6 +386,47 @@ function renderLista(){
 }
 function labelEstado(e){ return {baja:'Baja',solicitud_baja:'Solicitud',pausa:'Pausa',gate:'Derivada'}[e]||e; }
 function setFilter(k){ listaFilter=k; renderLista(); }
+
+// ── Buscador de clientas (soporte) ──
+const estadoPill = (s)=>{ const e=(s||'').toLowerCase();
+  return e==='active' ? '<span class="pill pausa">activa</span>'
+    : e==='cancelled' ? '<span class="pill baja">cancelada</span>'
+    : e==='paused' ? '<span class="pill solicitud_baja">pausada</span>'
+    : `<span class="pill coach">${esc(s||'—')}</span>`; };
+
+async function buscarClienta(){
+  const email=(document.getElementById('cliEmail').value||'').trim();
+  const box=document.getElementById('cliRes');
+  if(!email){ box.innerHTML=''; return; }
+  box.innerHTML='<div class="empty">Buscando…</div>';
+  try{
+    const r=await api('/api/dashboard/plan', {email});
+    if(!r.ok){ box.innerHTML='<div class="empty">No se pudo consultar.</div>'; return; }
+    const d=await r.json();
+    if(!d.fichas_encontradas){ box.innerHTML='<div class="empty">Ninguna clienta con ese email en Appstle.</div>'; return; }
+    box.innerHTML=(d.fichas||[]).map(f=>{
+      const p=f.plan||{};
+      const cabecera = p.estado==='ok'
+        ? `<b>${esc(p.nombre||'—')}</b> · ${esc(p.email||'')} ${p.fallo_pago?'<span class="pill baja">pago pendiente</span>':''}
+           <div class="muted" style="font-size:12px">id ${esc(f.customerId)} · ${(p.planes||[]).length} plan(es) activo(s) · ${p.pedidos!=null?p.pedidos+' pedidos':''} ${p.tenure_bucket?'· '+esc(p.tenure_bucket):''}</div>`
+        : `<b class="muted">Sin suscripción activa</b><div class="muted" style="font-size:12px">id ${esc(f.customerId)}</div>`;
+      const filas=(f.contratos||[]).map(c=>`<tr>
+          <td>${estadoPill(c.status)}</td>
+          <td>${(c.productos||[]).map(esc).join(', ')||'—'}</td>
+          <td class="muted">${esc(c.frecuencia||'—')}</td>
+          <td class="muted" style="white-space:nowrap">${esc(c.proxima||'—')}</td>
+          <td class="muted" style="font-size:11px">${esc(c.contractId||'')}</td>
+        </tr>`).join('');
+      return `<div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:12px">
+        ${cabecera}
+        <div class="scroller" style="margin-top:10px"><table>
+          <thead><tr><th>Estado</th><th>Productos</th><th>Frecuencia</th><th>Próxima</th><th>Contrato</th></tr></thead>
+          <tbody>${filas||'<tr><td colspan="5" class="muted">Sin contratos</td></tr>'}</tbody>
+        </table></div></div>`;
+    }).join('');
+  }catch(e){ box.innerHTML='<div class="empty">Error al consultar.</div>'; }
+}
+document.getElementById('cliEmail').addEventListener('keydown',e=>{ if(e.key==='Enter') buscarClienta(); });
 
 // ── Repositorio de acciones (buscable) ──
 function repoPill(acc){
