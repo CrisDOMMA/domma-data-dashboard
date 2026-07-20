@@ -192,6 +192,17 @@
     </div>
   </div>
 
+  <div class="card tablecard" style="margin-bottom:16px">
+    <h3>Solicitudes de baja pendientes <span class="muted" id="solCount"></span></h3>
+    <p class="hint">Se cierran solas: cuando el contrato aparece cancelado en Appstle, la solicitud desaparece de aquí. Nadie tiene que marcar nada. En <b>rojo</b>, las que pasan de las 72 h que le prometemos a la clienta.</p>
+    <div class="tablewrap" style="max-height:340px">
+      <table>
+        <thead><tr><th>Esperando</th><th>Clienta</th><th>Motivo</th><th>Estado del plan</th><th>Contactar</th></tr></thead>
+        <tbody id="solBody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="card" style="margin-bottom:16px">
     <h3>Fricciones</h3>
     <p class="hint">Veces que el flujo le dijo «no» a una clienta. Si esto sube, las reglas están apretando de más y conviene revisarlas.</p>
@@ -327,6 +338,22 @@ function render(){
     ? `<div style="display:flex;gap:26px;align-items:baseline"><div><div style="font-size:30px;font-weight:700;color:var(--green)">${money(rp.reactivaciones)}</div><div class="hint" style="margin:0">reactivaciones</div></div>
        <div class="hint" style="margin:0">${rp.webhooks_total} eventos Appstle recibidos</div></div>`
     : `<div class="empty">Aún sin reactivaciones registradas.<br>Aparecerán aquí cuando una clienta vuelva a activar su plan.</div>`;
+
+  // Solicitudes pendientes (se resuelven solas contra el estado real en Appstle)
+  const sol = d.solicitudes || {resueltas:0, pendientes:[]};
+  document.getElementById('solCount').textContent =
+    `· ${sol.pendientes.length} pendiente${sol.pendientes.length===1?'':'s'}${sol.resueltas?` · ${sol.resueltas} ya resuelta${sol.resueltas===1?'':'s'}`:''}`;
+  const sb = document.getElementById('solBody');
+  sb.innerHTML = sol.pendientes.length ? sol.pendientes.map(s=>{
+    const tarde = s.fuera_de_plazo;
+    return `<tr>
+      <td style="white-space:nowrap"><b style="color:${tarde?'var(--red)':'var(--ink)'}">${s.dias===0?'hoy':s.dias+' día'+(s.dias===1?'':'s')}</b>${tarde?'<div style="font-size:11px;color:var(--red)">pasa de 72h</div>':''}</td>
+      <td>${s.nombre?esc(s.nombre):'<span class="muted">—</span>'}${s.email?`<div class="muted" style="font-size:11px">${esc(s.email)}</div>`:''}${s.es_test?' <span class="pill test">prueba</span>':''}</td>
+      <td>${esc(s.motivo||'—')}</td>
+      <td>${s.estado_actual==='active'?'<span class="pill pausa">sigue activo</span>':`<span class="pill coach">${esc(s.estado_actual)}</span>`}</td>
+      <td><div class="actions">${s.email?`<a href="mailto:${esc(s.email)}?subject=${encodeURIComponent('DOMMA · tu solicitud')}">Email</a>`:''}<a href="https://wa.me/${WA}" target="_blank" rel="noopener">WhatsApp</a></div></td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="5"><div class="empty">Ninguna solicitud pendiente. 👌</div></td></tr>';
 
   // Fricciones: dónde el flujo dice "no"
   const fr = d.fricciones || [];
