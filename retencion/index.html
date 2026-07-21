@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DOMMA — Acciones de Carme</title>
+<title>DOMMA — Acciones retención</title>
 <style>
   :root{
     --navy:#1C296A; --navy-2:#2C3A85; --bg:#F8F7F5; --card:#fff;
@@ -41,10 +41,6 @@
   .cmp-check{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
   .cmp-check input{width:14px;height:14px;accent-color:var(--navy);cursor:pointer}
   .cmp-wrap select:disabled{opacity:.45;cursor:not-allowed}
-  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
-  .chip{padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;background:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;color:var(--muted)}
-  .chip:hover{border-color:var(--navy)}
-  .chip.on{border-color:var(--navy);color:var(--navy);background:#F3F4FA;font-weight:600}
 
   .seccion{margin-bottom:26px}
   .seccion > h2{font-size:15px;margin-bottom:4px}
@@ -82,7 +78,7 @@
 <div class="overlay" id="overlay">
   <div class="login">
     <img src="https://wearedomma.com/cdn/shop/files/Vector_06860792-3ad3-4c55-896f-7e93d3a52205.png?v=1771481473&width=400" alt="DOMMA">
-    <h2>Acciones de Carme</h2>
+    <h2>Acciones retención</h2>
     <p>Panel interno · acceso admin DOMMA</p>
     <input type="email" id="email" placeholder="tu@wearedomma.com" autocomplete="username">
     <input type="password" id="pass" placeholder="Contraseña" autocomplete="current-password">
@@ -96,16 +92,24 @@
     <div class="brand">
       <img src="https://wearedomma.com/cdn/shop/files/Vector_06860792-3ad3-4c55-896f-7e93d3a52205.png?v=1771481473&width=400" alt="DOMMA">
       <div>
-        <h1>Acciones de Carme</h1>
+        <h1>Acciones retención</h1>
         <div class="tag">Repesca de bajas y rescate de fallos de pago · <span id="gen"></span></div>
       </div>
     </div>
     <button class="btn ghost" onclick="logout()">Salir</button>
   </header>
 
-  <div class="presets" id="presets"></div>
-
   <div class="controls">
+    <div class="field"><label>Rango</label>
+      <select id="rango" onchange="usarPreset(this.value)">
+        <option value="7d">Últimos 7 días</option>
+        <option value="30d" selected>Últimos 30 días</option>
+        <option value="mes">Mes actual</option>
+        <option value="prev">Mes anterior</option>
+        <option value="90d">Últimos 90 días</option>
+        <option value="custom">Personalizado</option>
+      </select>
+    </div>
     <div class="field"><label>Desde</label><input type="date" id="desde"></div>
     <div class="field"><label>Hasta</label><input type="date" id="hasta"></div>
     <div class="field"><label>Agrupar por</label>
@@ -139,7 +143,7 @@
 </div>
 
 <script>
-const API = 'https://gestorsubs-domma.cristina-ed1.workers.dev/metricas-carme';
+const API = 'https://gestorsubs-domma.cristina-ed1.workers.dev/metricas-retencion';
 const AUTH_API = 'https://domma-pro-api.cristina-ed1.workers.dev';
 
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
@@ -173,18 +177,19 @@ const PRESETS=[
   {k:'prev',t:'Mes anterior',    f:()=>{const d=new Date(); const fin=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),0)); const ini=new Date(Date.UTC(fin.getUTCFullYear(),fin.getUTCMonth(),1)); return {desde:d2s(ini),hasta:d2s(fin),gran:'semana'};}},
   {k:'90d', t:'Últimos 90 días', f:()=>({desde:addD(hoy(),-89), hasta:hoy(), gran:'mes'})},
 ];
-function pintarPresets(){
-  document.getElementById('presets').innerHTML = PRESETS.map(p=>`<button class="chip" data-k="${p.k}" onclick="usarPreset('${p.k}')">${p.t}</button>`).join('');
-}
 function usarPreset(k){
+  document.getElementById('rango').value=k;
+  if(k==='custom') return; // el usuario pone las fechas a mano y pulsa Aplicar
   const p=PRESETS.find(x=>x.k===k); if(!p) return;
   const v=p.f();
   document.getElementById('desde').value=v.desde;
   document.getElementById('hasta').value=v.hasta;
   document.getElementById('gran').value=v.gran;
-  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.k===k));
   load();
 }
+// Tocar las fechas a mano pasa el desplegable a "Personalizado".
+['desde','hasta'].forEach(id=>document.getElementById(id)
+  .addEventListener('change',()=>{document.getElementById('rango').value='custom';}));
 
 function toggleCmp(){
   const on=document.getElementById('cmpOn').checked;
@@ -324,7 +329,6 @@ function render(d){
 function arrancar(){
   document.getElementById('overlay').style.display='none';
   document.getElementById('app').style.display='block';
-  pintarPresets();
   usarPreset('30d');
 }
 document.getElementById('pass').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
