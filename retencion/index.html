@@ -205,7 +205,8 @@ function delta(a,b){
   const d=Math.round((a-b)*10)/10;
   if(!isFinite(d)||d===0) return '<span class="delta flat">= que el periodo anterior</span>';
   const cls=d>0?'up':'down';
-  return `<span class="delta ${cls}">${d>0?'▲':'▼'} ${Math.abs(d)} vs periodo anterior</span>`;
+  // Son puntos porcentuales (diferencia entre dos tasas), no un % de variación.
+  return `<span class="delta ${cls}" title="Diferencia en puntos porcentuales entre la tasa de este periodo y la del comparado">${d>0?'▲':'▼'} ${Math.abs(d).toString().replace('.',',')} pp vs comparado</span>`;
 }
 
 async function load(refresh){
@@ -247,12 +248,18 @@ function render(d){
   const bajas=`
     <div class="seccion">
       <h2>Solicitudes de baja · repesca</h2>
-      <div class="sub">Solicitudes recibidas en el periodo y cuántas siguen con la suscripción viva hoy en Appstle.</div>
+      <div class="sub">Clientas que pidieron la baja en el periodo y cuántas siguen con la suscripción viva hoy en Appstle.</div>
       <div class="kpis">
-        ${kpi('Solicitudes', a.bajas.solicitudes, hayCmp?`${p.bajas.solicitudes} en el periodo comparado`:'')}
-        ${kpi('Intentos de retención', a.bajas.intentos_retencion, `${pc(a.bajas.pct_intentos)} de las solicitudes`, delta(a.bajas.pct_intentos,p.bajas.pct_intentos))}
-        ${kpi('Repescadas', a.bajas.repescadas, `de ${a.bajas.intentos_retencion} intentos`, delta(a.bajas.pct_exito_intento,p.bajas.pct_exito_intento))}
-        ${kpi('Éxito del intento', pc(a.bajas.pct_exito_intento), `frente a ${pc(a.bajas.pct_vivas_total)} del total`)}
+        ${kpi('Solicitudes', a.bajas.solicitudes, hayCmp?`${p.bajas.solicitudes} en el periodo comparado`:'Clientas que pidieron darse de baja')}
+        ${kpi('Marcadas «Retener»', a.bajas.intentos_retencion, `${pc(a.bajas.pct_intentos)} de las solicitudes · ficha con Flujo interno = Retener`, delta(a.bajas.pct_intentos,p.bajas.pct_intentos))}
+        ${kpi('Repescadas', a.bajas.repescadas, `de ${a.bajas.intentos_retencion} marcadas, siguen vivas hoy`, delta(a.bajas.pct_exito_intento,p.bajas.pct_exito_intento))}
+        ${kpi('Se quedan si se marca', pc(a.bajas.pct_exito_intento), `frente a ${pc(a.bajas.pct_vivas_total)} del total de solicitudes`)}
+      </div>
+      <div class="avisos" style="margin-top:12px">
+        <b>«Marcadas Retener» no significa «se ha llamado».</b> Es la etiqueta que alguien pone en la ficha, y se suele poner
+        cuando ya se conoce el desenlace — así que parte de ese ${pc(a.bajas.pct_exito_intento)} puede ser efecto de etiquetar
+        lo que ya iba bien. Para medir el trabajo real hay que rellenar la columna <b>Llamada 1</b> del tablero de bajas,
+        hoy vacía en todas las fichas.
       </div>
     </div>`;
 
