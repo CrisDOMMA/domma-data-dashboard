@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOMMA — Acciones de Carme</title>
+<style>
+  :root{
+    --navy:#1C296A; --navy-2:#2C3A85; --bg:#F8F7F5; --card:#fff;
+    --border:#e6e6ea; --muted:#6B6B6B; --green:#1E7A5A; --amber:#B77B12; --red:#B23A3A;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--navy);font-size:14px}
+  .wrap{max-width:1180px;margin:0 auto;padding:26px 20px 60px}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand img{height:26px}
+  h1{font-size:20px;font-weight:700}
+  .tag{font-size:12px;color:var(--muted)}
+  .btn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:9px 15px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+  .btn:hover{background:var(--navy-2)}
+  .btn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--border)}
+  .btn.ghost:hover{border-color:var(--navy)}
+
+  /* LOGIN */
+  .overlay{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:999}
+  .login{background:#fff;border-radius:16px;padding:36px;width:340px;max-width:90vw;text-align:center}
+  .login img{height:26px;margin-bottom:16px}
+  .login h2{font-size:19px;margin-bottom:4px}
+  .login p{font-size:12.5px;color:var(--muted);margin-bottom:20px}
+  .login input{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:8px;margin-bottom:10px;font-size:14px;font-family:inherit;outline:none}
+  .login input:focus{border-color:var(--navy)}
+  .err{color:var(--red);font-size:12.5px;margin-top:10px;min-height:16px}
+
+  .controls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:18px}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .field input,.field select{padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff}
+  .field input:focus,.field select:focus{border-color:var(--navy)}
+  .spacer{flex:1}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+  .chip{padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;background:#fff;font-size:12.5px;cursor:pointer;font-family:inherit;color:var(--muted)}
+  .chip:hover{border-color:var(--navy)}
+  .chip.on{border-color:var(--navy);color:var(--navy);background:#F3F4FA;font-weight:600}
+
+  .seccion{margin-bottom:26px}
+  .seccion > h2{font-size:15px;margin-bottom:4px}
+  .seccion > .sub{font-size:12.5px;color:var(--muted);margin-bottom:12px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:15px 16px}
+  .kpi .lab{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px}
+  .kpi .val{font-size:27px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+  .kpi .sub{font-size:12px;color:var(--muted);margin-top:5px}
+  .delta{font-size:12px;font-weight:600;margin-top:6px;display:inline-block}
+  .up{color:var(--green)} .down{color:var(--red)} .flat{color:var(--muted)}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-top:12px}
+  .card h3{font-size:14px;margin-bottom:3px}
+  .card .hint{font-size:12.5px;color:var(--muted);margin-bottom:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
+  th{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-weight:600;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:none}
+  td.num,th.num{text-align:right}
+  .bar{height:7px;border-radius:4px;background:#EDEEF4;overflow:hidden;min-width:60px}
+  .bar > i{display:block;height:100%;background:var(--navy);border-radius:4px}
+  .avisos{background:#FCF3E0;border:1px solid #EAD9A8;color:#8A6206;font-size:12.5px;padding:12px 15px;border-radius:10px;margin-top:18px}
+  .avisos ul{margin:6px 0 0 16px}
+  .avisos li{margin-bottom:3px}
+  .loading{text-align:center;color:var(--muted);padding:50px;font-size:13px}
+  .foot{font-size:11.5px;color:var(--muted);margin-top:26px;text-align:center}
+  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  html.embed .wrap{padding-top:20px}
+  html.embed header{display:none}
+</style>
+</head>
+<body>
+
+<div class="overlay" id="overlay">
+  <div class="login">
+    <img src="https://wearedomma.com/cdn/shop/files/Vector_06860792-3ad3-4c55-896f-7e93d3a52205.png?v=1771481473&width=400" alt="DOMMA">
+    <h2>Acciones de Carme</h2>
+    <p>Panel interno · acceso admin DOMMA</p>
+    <input type="email" id="email" placeholder="tu@wearedomma.com" autocomplete="username">
+    <input type="password" id="pass" placeholder="Contraseña" autocomplete="current-password">
+    <button class="btn" onclick="login()" style="width:100%">Acceder</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<div class="wrap" id="app" style="display:none">
+  <header>
+    <div class="brand">
+      <img src="https://wearedomma.com/cdn/shop/files/Vector_06860792-3ad3-4c55-896f-7e93d3a52205.png?v=1771481473&width=400" alt="DOMMA">
+      <div>
+        <h1>Acciones de Carme</h1>
+        <div class="tag">Repesca de bajas y rescate de fallos de pago · <span id="gen"></span></div>
+      </div>
+    </div>
+    <button class="btn ghost" onclick="logout()">Salir</button>
+  </header>
+
+  <div class="presets" id="presets"></div>
+
+  <div class="controls">
+    <div class="field"><label>Desde</label><input type="date" id="desde"></div>
+    <div class="field"><label>Hasta</label><input type="date" id="hasta"></div>
+    <div class="field"><label>Agrupar por</label>
+      <select id="gran"><option value="dia">Día</option><option value="semana" selected>Semana</option><option value="mes">Mes</option></select>
+    </div>
+    <div class="field"><label>Madurez mínima</label>
+      <select id="madurez">
+        <option value="0">Sin filtro</option>
+        <option value="14">14 días</option>
+        <option value="30">30 días</option>
+      </select>
+    </div>
+    <button class="btn" onclick="load()">Aplicar</button>
+    <div class="spacer"></div>
+    <button class="btn ghost" onclick="load(true)" title="Recalcula contra Monday y Appstle (tarda ~2 min)">↻ Recalcular</button>
+  </div>
+
+  <div id="cuerpo"><div class="loading">Cargando…</div></div>
+
+  <div class="foot">Panel interno DOMMA · worker <code>gestorsubs-domma</code> · tableros Monday + Appstle en vivo</div>
+</div>
+
+<script>
+const API = 'https://gestorsubs-domma.cristina-ed1.workers.dev/metricas-carme';
+const AUTH_API = 'https://domma-pro-api.cristina-ed1.workers.dev';
+
+if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
+(function(){ const m = location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token', decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
+let token = localStorage.getItem('domma_analytics_token') || '';
+
+const d2s = d => d.toISOString().slice(0,10);
+const hoy = () => d2s(new Date());
+const addD = (s,n) => { const d=new Date(s+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d2s(d); };
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nn = v => (v==null?'—':v);
+const pc = v => (v==null?'—':v+'%');
+
+function login(){
+  const email=document.getElementById('email').value.trim(), pass=document.getElementById('pass').value;
+  const err=document.getElementById('loginErr'); err.textContent='';
+  fetch(AUTH_API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})})
+    .then(r=>r.json()).then(d=>{
+      const role=d.role||(d.user&&d.user.role);
+      if(d.token&&role==='admin'){ token=d.token; localStorage.setItem('domma_analytics_token',token); arrancar(); }
+      else if(d.token){ err.textContent='Tu usuario no tiene acceso admin'; }
+      else { err.textContent='Credenciales incorrectas'; }
+    }).catch(()=>{ err.textContent='No se pudo conectar'; });
+}
+function logout(){ localStorage.removeItem('domma_analytics_token'); location.reload(); }
+
+const PRESETS=[
+  {k:'7d',  t:'Últimos 7 días',  f:()=>({desde:addD(hoy(),-6),  hasta:hoy(), gran:'dia'})},
+  {k:'30d', t:'Últimos 30 días', f:()=>({desde:addD(hoy(),-29), hasta:hoy(), gran:'semana'})},
+  {k:'mes', t:'Mes actual',      f:()=>{const h=hoy(); return {desde:h.slice(0,8)+'01', hasta:h, gran:'semana'};}},
+  {k:'prev',t:'Mes anterior',    f:()=>{const d=new Date(); const fin=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),0)); const ini=new Date(Date.UTC(fin.getUTCFullYear(),fin.getUTCMonth(),1)); return {desde:d2s(ini),hasta:d2s(fin),gran:'semana'};}},
+  {k:'90d', t:'Últimos 90 días', f:()=>({desde:addD(hoy(),-89), hasta:hoy(), gran:'mes'})},
+];
+function pintarPresets(){
+  document.getElementById('presets').innerHTML = PRESETS.map(p=>`<button class="chip" data-k="${p.k}" onclick="usarPreset('${p.k}')">${p.t}</button>`).join('');
+}
+function usarPreset(k){
+  const p=PRESETS.find(x=>x.k===k); if(!p) return;
+  const v=p.f();
+  document.getElementById('desde').value=v.desde;
+  document.getElementById('hasta').value=v.hasta;
+  document.getElementById('gran').value=v.gran;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.k===k));
+  load();
+}
+
+function delta(a,b){
+  if(a==null||b==null) return '<span class="delta flat">sin comparativa</span>';
+  const d=Math.round((a-b)*10)/10;
+  if(!isFinite(d)||d===0) return '<span class="delta flat">= que el periodo anterior</span>';
+  const cls=d>0?'up':'down';
+  return `<span class="delta ${cls}">${d>0?'▲':'▼'} ${Math.abs(d)} vs periodo anterior</span>`;
+}
+
+async function load(refresh){
+  const cuerpo=document.getElementById('cuerpo');
+  cuerpo.innerHTML=`<div class="loading">${refresh?'Recalculando contra Monday y Appstle… puede tardar ~2 minutos':'Cargando…'}</div>`;
+  const q=new URLSearchParams({
+    desde:document.getElementById('desde').value,
+    hasta:document.getElementById('hasta').value,
+    granularidad:document.getElementById('gran').value,
+    madurez:document.getElementById('madurez').value,
+  });
+  if(refresh) q.set('refresh','1');
+  try{
+    const r=await fetch(API+'?'+q.toString());
+    const d=await r.json();
+    if(d.error){ cuerpo.innerHTML=`<div class="card"><h3>No hay datos todavía</h3><p class="hint">${esc(d.error)} — ${esc(d.pista||'')}. Pulsa «Recalcular».</p></div>`; return; }
+    render(d);
+  }catch(e){ cuerpo.innerHTML=`<div class="card"><h3>Error de conexión</h3><p class="hint">${esc(e.message)}</p></div>`; }
+}
+
+function render(d){
+  const a=d.actual, p=d.anterior;
+  document.getElementById('gen').textContent='datos de '+new Date(d.generado).toLocaleString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+
+  const kpi=(lab,val,sub,dl)=>`<div class="kpi"><div class="lab">${lab}</div><div class="val">${val}</div>${sub?`<div class="sub">${sub}</div>`:''}${dl||''}</div>`;
+
+  const bajas=`
+    <div class="seccion">
+      <h2>Solicitudes de baja · repesca</h2>
+      <div class="sub">Solicitudes recibidas en el periodo y cuántas siguen con la suscripción viva hoy en Appstle.</div>
+      <div class="kpis">
+        ${kpi('Solicitudes', a.bajas.solicitudes, `${p.bajas.solicitudes} en el periodo anterior`)}
+        ${kpi('Intentos de retención', a.bajas.intentos_retencion, `${pc(a.bajas.pct_intentos)} de las solicitudes`, delta(a.bajas.pct_intentos,p.bajas.pct_intentos))}
+        ${kpi('Repescadas', a.bajas.repescadas, `de ${a.bajas.intentos_retencion} intentos`, delta(a.bajas.pct_exito_intento,p.bajas.pct_exito_intento))}
+        ${kpi('Éxito del intento', pc(a.bajas.pct_exito_intento), `frente a ${pc(a.bajas.pct_vivas_total)} del total`)}
+      </div>
+    </div>`;
+
+  const fallos=`
+    <div class="seccion">
+      <h2>Fallos de pago · rescate</h2>
+      <div class="sub">Fichas creadas en el periodo y cuántas acabaron cobrando. «≤30 días» cruza la fecha del fallo con la del cobro: es la única comparable entre meses.</div>
+      <div class="kpis">
+        ${kpi('Fallos', a.fallos.fichas, `${a.fallos.importe_en_riesgo.toLocaleString('es-ES')} € en riesgo`)}
+        ${kpi('Rescatados', a.fallos.rescatados, `${pc(a.fallos.pct_rescate)} del total`, delta(a.fallos.pct_rescate,p.fallos.pct_rescate))}
+        ${kpi('Rescatados ≤30 días', a.fallos.rescatados_30d, pc(a.fallos.pct_rescate_30d), delta(a.fallos.pct_rescate_30d,p.fallos.pct_rescate_30d))}
+        ${kpi('Sin tocar', a.fallos.sin_tocar, `${pc(a.fallos.pct_sin_tocar)} siguen en «Pendiente contact»`)}
+      </div>
+    </div>`;
+
+  const maxB=Math.max(1,...d.series.map(s=>s.bajas.solicitudes));
+  const maxF=Math.max(1,...d.series.map(s=>s.fallos.fichas));
+  const filas=d.series.map(s=>`<tr>
+      <td><b>${esc(s.periodo)}</b></td>
+      <td class="num">${s.bajas.solicitudes}</td>
+      <td class="num">${s.bajas.intentos_retencion}</td>
+      <td class="num">${s.bajas.repescadas}</td>
+      <td class="num">${pc(s.bajas.pct_exito_intento)}</td>
+      <td style="width:90px"><div class="bar"><i style="width:${Math.round(100*s.bajas.solicitudes/maxB)}%"></i></div></td>
+      <td class="num">${s.fallos.fichas}</td>
+      <td class="num">${s.fallos.rescatados}</td>
+      <td class="num">${pc(s.fallos.pct_rescate)}</td>
+      <td class="num">${s.fallos.sin_tocar}</td>
+      <td style="width:90px"><div class="bar"><i style="width:${Math.round(100*s.fallos.fichas/maxF)}%"></i></div></td>
+    </tr>`).join('');
+
+  const tabla=`
+    <div class="card">
+      <h3>Evolución por periodo</h3>
+      <p class="hint">Agrupado por ${document.getElementById('gran').selectedOptions[0].text.toLowerCase()}.</p>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr>
+          <th>Periodo</th>
+          <th class="num">Solicit.</th><th class="num">Intentos</th><th class="num">Repesc.</th><th class="num">% éxito</th><th></th>
+          <th class="num">Fallos</th><th class="num">Rescat.</th><th class="num">% resc.</th><th class="num">Sin tocar</th><th></th>
+        </tr></thead>
+        <tbody>${filas||'<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px">Sin datos en el periodo</td></tr>'}</tbody>
+      </table>
+      </div>
+    </div>`;
+
+  const comp=`
+    <div class="card">
+      <h3>Comparativa con el periodo anterior</h3>
+      <p class="hint">${esc(p.ventana.desde)} → ${esc(p.ventana.hasta)}, misma duración.</p>
+      <table>
+        <thead><tr><th>Métrica</th><th class="num">Actual</th><th class="num">Anterior</th><th class="num">Dif.</th></tr></thead>
+        <tbody>
+          ${[
+            ['Solicitudes de baja',a.bajas.solicitudes,p.bajas.solicitudes],
+            ['Intentos de retención',a.bajas.intentos_retencion,p.bajas.intentos_retencion],
+            ['Repescadas',a.bajas.repescadas,p.bajas.repescadas],
+            ['Fallos de pago',a.fallos.fichas,p.fallos.fichas],
+            ['Rescatados',a.fallos.rescatados,p.fallos.rescatados],
+            ['Rescatados ≤30 días',a.fallos.rescatados_30d,p.fallos.rescatados_30d],
+            ['Fallos sin tocar',a.fallos.sin_tocar,p.fallos.sin_tocar],
+          ].map(([l,x,y])=>`<tr><td>${l}</td><td class="num"><b>${x}</b></td><td class="num">${y}</td><td class="num">${x-y>0?'+':''}${x-y}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  const avisos=`<div class="avisos"><b>Cómo leer esto</b><ul>${d.avisos.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
+
+  document.getElementById('cuerpo').innerHTML = bajas + fallos + tabla + comp + avisos;
+}
+
+function arrancar(){
+  document.getElementById('overlay').style.display='none';
+  document.getElementById('app').style.display='block';
+  pintarPresets();
+  usarPreset('30d');
+}
+document.getElementById('pass').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+if(token) arrancar();
+</script>
+</body>
+</html>

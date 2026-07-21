@@ -82,6 +82,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button class="sb-item" data-view="quiz" onclick="nav('quiz',this)"><span class="ic">🧬</span> Datos Quiz</button>
       <button class="sb-item" data-view="luna" onclick="nav('luna',this)"><span class="ic">🌙</span> Dashboard LUNA</button>
       <button class="sb-item" data-view="bajas" onclick="nav('bajas',this)"><span class="ic">🔄</span> Gestión suscripciones</button>
+      <button class="sb-item" data-view="carme" onclick="nav('carme',this)"><span class="ic">📞</span> Acciones de Carme</button>
     </nav>
     <div class="sb-spacer"></div>
     <div class="sb-user">
@@ -100,7 +101,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script>
 const AUTH_API='https://domma-pro-api.cristina-ed1.workers.dev';
-const VIEWS={ metrics:'/metrics?embed=1', quiz:'/quiz', luna:'/luna', bajas:'/bajas?embed=1' };
+const VIEWS={ metrics:'/metrics?embed=1', quiz:'/quiz', luna:'/luna', bajas:'/bajas?embed=1', carme:'/carme?embed=1' };
 let token=localStorage.getItem('domma_analytics_token');
 
 function showApp(){
