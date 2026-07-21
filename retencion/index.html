@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
 <title>DOMMA — Acciones retención</title>
 <style>
   :root{
     --navy:#1C296A; --navy-2:#2C3A85; --bg:#F8F7F5; --card:#fff;
-    --border:#e6e6ea; --muted:#6B6B6B; --green:#1E7A5A; --amber:#B77B12; --red:#B23A3A;
+    --border:#e6e6ea; --line:#EFEDE8; --muted:#6B6B6B; --track:#EFEDF0;
+    --green:#1E7A5A; --amber:#B77B12; --red:#B23A3A;
   }
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--navy);font-size:14px}
@@ -21,6 +23,7 @@
   .btn:hover{background:var(--navy-2)}
   .btn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--border)}
   .btn.ghost:hover{border-color:var(--navy)}
+  .muted{color:var(--muted)}
 
   /* LOGIN */
   .overlay{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:999}
@@ -42,16 +45,46 @@
   .cmp-check input{width:14px;height:14px;accent-color:var(--navy);cursor:pointer}
   .cmp-wrap select:disabled{opacity:.45;cursor:not-allowed}
 
-  .seccion{margin-bottom:26px}
-  .seccion > h2{font-size:15px;margin-bottom:4px}
-  .seccion > .sub{font-size:12.5px;color:var(--muted);margin-bottom:12px}
+  /* Pestañas */
+  .tabs{display:flex;gap:4px;border-bottom:1.5px solid var(--border);margin-bottom:22px;flex-wrap:wrap}
+  .tab{background:none;border:none;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;
+    padding:10px 14px;font-size:13.5px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit;
+    display:flex;align-items:center;gap:7px}
+  .tab:hover{color:var(--navy)}
+  .tab.on{color:var(--navy);border-bottom-color:var(--navy)}
+  .badge{background:var(--red);color:#fff;font-size:10.5px;font-weight:700;border-radius:20px;padding:1px 6px;min-width:17px;text-align:center}
+  .badge.calm{background:var(--track);color:var(--muted)}
+
+  /* Titular */
+  .titular{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--navy);
+    border-radius:12px;padding:16px 18px;margin-bottom:18px;font-size:14.5px;line-height:1.55}
+  .titular .sub{font-size:12.5px;color:var(--muted);margin-top:6px}
+
+  .sect{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:26px 0 10px}
+  .sect:first-child{margin-top:0}
+
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
   .kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:15px 16px}
   .kpi .lab{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px}
   .kpi .val{font-size:27px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
   .kpi .sub{font-size:12px;color:var(--muted);margin-top:5px}
-  .delta{font-size:12px;font-weight:600;margin-top:6px;display:inline-block}
+  .kpi.hero{background:linear-gradient(135deg,#1C296A,#2C3A85);border-color:#1C296A;color:#fff}
+  .kpi.hero .lab,.kpi.hero .sub{color:#C9CEEA}
+  .delta{font-size:12px;font-weight:650;margin-top:6px;display:inline-block}
   .up{color:var(--green)} .down{color:var(--red)} .flat{color:var(--muted)}
+  .kpi.hero .up{color:#8FE3BE} .kpi.hero .down{color:#FFB4AC} .kpi.hero .flat{color:#C9CEEA}
+
+  /* Tarjetas de acción */
+  .todo{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .act{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:15px 16px;
+    cursor:pointer;text-align:left;font-family:inherit;color:inherit;transition:border-color .12s,box-shadow .12s}
+  .act:hover{border-color:var(--navy);box-shadow:0 2px 12px rgba(28,41,106,.07)}
+  .act .lab{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px}
+  .act .val{font-size:27px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+  .act .sub{font-size:12px;color:var(--muted);margin-top:5px}
+  .act .go{font-size:12px;font-weight:650;color:var(--navy);margin-top:9px;display:block}
+  .act.alert{border-color:#E9BFBA;background:#FEF7F6} .act.alert .val{color:var(--red)}
+  .act.ok .val{color:var(--green)}
 
   .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-top:12px}
   .card h3{font-size:14px;margin-bottom:3px}
@@ -68,7 +101,7 @@
   .avisos li{margin-bottom:3px}
   .loading{text-align:center;color:var(--muted);padding:50px;font-size:13px}
   .foot{font-size:11.5px;color:var(--muted);margin-top:26px;text-align:center}
-  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}.todo{grid-template-columns:1fr}}
   html.embed .wrap{padding-top:20px}
   html.embed header{display:none}
 </style>
@@ -107,6 +140,7 @@
         <option value="mes">Mes actual</option>
         <option value="prev">Mes anterior</option>
         <option value="90d">Últimos 90 días</option>
+        <option value="ytd">Lo que va de año</option>
         <option value="custom">Personalizado</option>
       </select>
     </div>
@@ -127,7 +161,7 @@
       <select id="cmpModo" onchange="toggleCmp()">
         <option value="anterior" selected>Periodo anterior</option>
         <option value="anio">Mismo periodo del año anterior</option>
-        <option value="personalizado">Personalizado</option>
+        <option value="personalizado">Periodo concreto…</option>
       </select>
     </div>
     <div class="field cmp-cust" id="cmpCust" style="display:none"><label>Comp. desde</label><input type="date" id="cmpDesde"></div>
@@ -135,6 +169,12 @@
     <button class="btn" onclick="load()">Aplicar</button>
     <div class="spacer"></div>
     <button class="btn ghost" onclick="load(true)" title="Recalcula contra Monday y Appstle (tarda ~2 min)">↻ Recalcular</button>
+  </div>
+
+  <div class="tabs" id="tabs" style="display:none">
+    <button class="tab on" data-t="resumen" onclick="setTab('resumen',this)">Resumen</button>
+    <button class="tab"    data-t="bajas"   onclick="setTab('bajas',this)">Solicitudes de baja</button>
+    <button class="tab"    data-t="fallos"  onclick="setTab('fallos',this)">Fallos de pago <span class="badge calm" id="bdgFallos">0</span></button>
   </div>
 
   <div id="cuerpo"><div class="loading">Cargando…</div></div>
@@ -149,13 +189,14 @@ const AUTH_API = 'https://domma-pro-api.cristina-ed1.workers.dev';
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
 (function(){ const m = location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token', decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
 let token = localStorage.getItem('domma_analytics_token') || '';
+let TAB = 'resumen', PANES = {};
 
 const d2s = d => d.toISOString().slice(0,10);
 const hoy = () => d2s(new Date());
 const addD = (s,n) => { const d=new Date(s+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d2s(d); };
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const nn = v => (v==null?'—':v);
-const pc = v => (v==null?'—':v+'%');
+const pc  = v => (v==null?'—':v+'%');
+const eur = v => (v||0).toLocaleString('es-ES')+' €';
 
 function login(){
   const email=document.getElementById('email').value.trim(), pass=document.getElementById('pass').value;
@@ -170,18 +211,20 @@ function login(){
 }
 function logout(){ localStorage.removeItem('domma_analytics_token'); location.reload(); }
 
-const PRESETS=[
-  {k:'7d',  t:'Últimos 7 días',  f:()=>({desde:addD(hoy(),-6),  hasta:hoy(), gran:'dia'})},
-  {k:'30d', t:'Últimos 30 días', f:()=>({desde:addD(hoy(),-29), hasta:hoy(), gran:'semana'})},
-  {k:'mes', t:'Mes actual',      f:()=>{const h=hoy(); return {desde:h.slice(0,8)+'01', hasta:h, gran:'semana'};}},
-  {k:'prev',t:'Mes anterior',    f:()=>{const d=new Date(); const fin=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),0)); const ini=new Date(Date.UTC(fin.getUTCFullYear(),fin.getUTCMonth(),1)); return {desde:d2s(ini),hasta:d2s(fin),gran:'semana'};}},
-  {k:'90d', t:'Últimos 90 días', f:()=>({desde:addD(hoy(),-89), hasta:hoy(), gran:'mes'})},
-];
+// ── Rango: mismos presets que /bajas, para que las dos pestañas se manejen igual ──
+const PRESETS={
+  '7d':  ()=>({desde:addD(hoy(),-6),  hasta:hoy(), gran:'dia'}),
+  '30d': ()=>({desde:addD(hoy(),-29), hasta:hoy(), gran:'semana'}),
+  'mes': ()=>{ const h=hoy(); return {desde:h.slice(0,8)+'01', hasta:h, gran:'semana'}; },
+  'prev':()=>{ const d=new Date(); const fin=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),0));
+               const ini=new Date(Date.UTC(fin.getUTCFullYear(),fin.getUTCMonth(),1)); return {desde:d2s(ini),hasta:d2s(fin),gran:'semana'}; },
+  '90d': ()=>({desde:addD(hoy(),-89), hasta:hoy(), gran:'mes'}),
+  'ytd': ()=>({desde:hoy().slice(0,4)+'-01-01', hasta:hoy(), gran:'mes'}),
+};
 function usarPreset(k){
   document.getElementById('rango').value=k;
   if(k==='custom') return; // el usuario pone las fechas a mano y pulsa Aplicar
-  const p=PRESETS.find(x=>x.k===k); if(!p) return;
-  const v=p.f();
+  const v=PRESETS[k]();
   document.getElementById('desde').value=v.desde;
   document.getElementById('hasta').value=v.hasta;
   document.getElementById('gran').value=v.gran;
@@ -200,18 +243,28 @@ function toggleCmp(){
   document.getElementById('cmpCust2').style.display=cust?'flex':'none';
 }
 
-function delta(a,b){
-  if(a==null||b==null) return ''; // comparación desactivada: sin ruido en la tarjeta
-  const d=Math.round((a-b)*10)/10;
-  if(!isFinite(d)||d===0) return '<span class="delta flat">= que el periodo anterior</span>';
-  const cls=d>0?'up':'down';
-  // Son puntos porcentuales (diferencia entre dos tasas), no un % de variación.
-  return `<span class="delta ${cls}" title="Diferencia en puntos porcentuales entre la tasa de este periodo y la del comparado">${d>0?'▲':'▼'} ${Math.abs(d).toString().replace('.',',')} pp vs comparado</span>`;
+// La ventana comparada la calcula el worker; aquí solo se le pone nombre.
+function etiquetaCmp(){
+  if(!document.getElementById('cmpOn').checked) return '';
+  return {anterior:'el periodo anterior', anio:'el año pasado', personalizado:'el periodo elegido'}[document.getElementById('cmpModo').value] || 'el periodo comparado';
+}
+let ETIQ = 'el periodo anterior';
+
+// ── Delta: «mejor» depende de la métrica (más fallos es peor, más rescates es mejor) ──
+function delta(actual, previo, opts){
+  if(actual==null || previo==null) return '';
+  const o=opts||{};
+  const d=Math.round((actual-previo)*10)/10;
+  if(!isFinite(d) || d===0) return `<span class="delta flat">= que ${ETIQ}</span>`;
+  const bien = o.masEsMejor===false ? d<0 : d>0;
+  return `<span class="delta ${bien?'up':'down'}">${d>0?'▲':'▼'} ${Math.abs(d)}${o.pp?' pp':''} vs ${ETIQ}</span>`;
 }
 
 async function load(refresh){
   const cuerpo=document.getElementById('cuerpo');
+  cuerpo.style.display='block';
   cuerpo.innerHTML=`<div class="loading">${refresh?'Recalculando contra Monday y Appstle… puede tardar ~2 minutos':'Cargando…'}</div>`;
+  document.getElementById('tabs').style.display='none';
   const q=new URLSearchParams({
     desde:document.getElementById('desde').value,
     hasta:document.getElementById('hasta').value,
@@ -226,12 +279,22 @@ async function load(refresh){
     q.set('comp_hasta',document.getElementById('cmpHasta').value||'');
   }
   if(refresh) q.set('refresh','1');
+  ETIQ = etiquetaCmp();
   try{
     const r=await fetch(API+'?'+q.toString());
     const d=await r.json();
     if(d.error){ cuerpo.innerHTML=`<div class="card"><h3>No hay datos todavía</h3><p class="hint">${esc(d.error)} — ${esc(d.pista||'')}. Pulsa «Recalcular».</p></div>`; return; }
     render(d);
   }catch(e){ cuerpo.innerHTML=`<div class="card"><h3>Error de conexión</h3><p class="hint">${esc(e.message)}</p></div>`; }
+}
+
+function setTab(t, el){
+  TAB=t;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on', b.dataset.t===t));
+  const c=document.getElementById('cuerpo');
+  c.style.display='block';
+  c.innerHTML = PANES[t] || '';
+  if(el) el.blur();
 }
 
 function render(d){
@@ -243,94 +306,93 @@ function render(d){
                       ventana:{desde:'',hasta:''}};
   document.getElementById('gen').textContent='datos de '+new Date(d.generado).toLocaleString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
 
-  const kpi=(lab,val,sub,dl)=>`<div class="kpi"><div class="lab">${lab}</div><div class="val">${val}</div>${sub?`<div class="sub">${sub}</div>`:''}${dl||''}</div>`;
+  const kpi=(cls,lab,val,sub,dl)=>`<div class="kpi ${cls||''}"><div class="lab">${lab}</div><div class="val">${val}</div>${sub?`<div class="sub">${sub}</div>`:''}${dl||''}</div>`;
+  const sinIntento = a.bajas.solicitudes - a.bajas.intentos_retencion;
 
-  const bajas=`
-    <div class="seccion">
-      <h2>Solicitudes de baja · repesca</h2>
-      <div class="sub">Clientas que pidieron la baja en el periodo y cuántas siguen con la suscripción viva hoy en Appstle.</div>
-      <div class="kpis">
-        ${kpi('Solicitudes', a.bajas.solicitudes, hayCmp?`${p.bajas.solicitudes} en el periodo comparado`:'Clientas que pidieron darse de baja')}
-        ${kpi('Marcadas «Retener»', a.bajas.intentos_retencion, `${pc(a.bajas.pct_intentos)} de las solicitudes · ficha con Flujo interno = Retener`, delta(a.bajas.pct_intentos,p.bajas.pct_intentos))}
-        ${kpi('Repescadas', a.bajas.repescadas, `de ${a.bajas.intentos_retencion} marcadas, siguen vivas hoy`, delta(a.bajas.pct_exito_intento,p.bajas.pct_exito_intento))}
-        ${kpi('Se quedan si se marca', pc(a.bajas.pct_exito_intento), `frente a ${pc(a.bajas.pct_vivas_total)} del total de solicitudes`)}
-      </div>
-      <div class="avisos" style="margin-top:12px">
-        <b>«Marcadas Retener» no significa «se ha llamado».</b> Es la etiqueta que alguien pone en la ficha, y se suele poner
-        cuando ya se conoce el desenlace — así que parte de ese ${pc(a.bajas.pct_exito_intento)} puede ser efecto de etiquetar
-        lo que ya iba bien. Para medir el trabajo real hay que rellenar la columna <b>Llamada 1</b> del tablero de bajas,
-        hoy vacía en todas las fichas.
-      </div>
+  // ── Titular: las dos palancas del panel, en una frase ──
+  const titular = `<div class="titular">
+      Llegaron <b>${a.bajas.solicitudes}</b> solicitud${a.bajas.solicitudes===1?'':'es'} de baja: intentamos retener <b>${a.bajas.intentos_retencion}</b>
+      y ${a.bajas.repescadas===1?'sigue':'siguen'} con nosotras <b style="color:var(--green)">${a.bajas.repescadas}</b>.
+      En paralelo, <b>${a.fallos.fichas}</b> fallo${a.fallos.fichas===1?'':'s'} de pago ${a.fallos.fichas===1?'puso':'pusieron'} <b>${eur(a.fallos.importe_en_riesgo)}</b> en riesgo
+      y recuperamos <b style="color:var(--green)">${a.fallos.rescatados}</b>${a.fallos.sin_tocar?`, con <b style="color:var(--red)">${a.fallos.sin_tocar}</b> todavía sin tocar`:''}.
+      <div class="sub">Periodo: ${esc(document.getElementById('desde').value)} → ${esc(document.getElementById('hasta').value)}${hayCmp?` · comparado con ${esc(p.ventana.desde)} → ${esc(p.ventana.hasta)}`:' · sin comparación'}</div>
     </div>`;
 
-  const fallos=`
-    <div class="seccion">
-      <h2>Fallos de pago · rescate</h2>
-      <div class="sub">Fichas creadas en el periodo y cuántas acabaron cobrando. «≤30 días» cruza la fecha del fallo con la del cobro: es la única comparable entre meses.</div>
-      <div class="kpis">
-        ${kpi('Fallos', a.fallos.fichas, `${a.fallos.importe_en_riesgo.toLocaleString('es-ES')} € en riesgo`)}
-        ${kpi('Rescatados', a.fallos.rescatados, `${pc(a.fallos.pct_rescate)} del total`, delta(a.fallos.pct_rescate,p.fallos.pct_rescate))}
-        ${kpi('Rescatados ≤30 días', a.fallos.rescatados_30d, pc(a.fallos.pct_rescate_30d), delta(a.fallos.pct_rescate_30d,p.fallos.pct_rescate_30d))}
-        ${kpi('Sin tocar', a.fallos.sin_tocar, `${pc(a.fallos.pct_sin_tocar)} siguen en «Pendiente contact»`)}
-      </div>
-    </div>`;
+  const avisos=`<div class="avisos"><b>Cómo leer esto</b><ul>${(d.avisos||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
 
-  const maxB=Math.max(1,...d.series.map(s=>s.bajas.solicitudes));
-  const maxF=Math.max(1,...d.series.map(s=>s.fallos.fichas));
-  const filas=d.series.map(s=>`<tr>
-      <td><b>${esc(s.periodo)}</b></td>
-      <td class="num">${s.bajas.solicitudes}</td>
-      <td class="num">${s.bajas.intentos_retencion}</td>
-      <td class="num">${s.bajas.repescadas}</td>
-      <td class="num">${pc(s.bajas.pct_exito_intento)}</td>
-      <td style="width:90px"><div class="bar"><i style="width:${Math.round(100*s.bajas.solicitudes/maxB)}%"></i></div></td>
-      <td class="num">${s.fallos.fichas}</td>
-      <td class="num">${s.fallos.rescatados}</td>
-      <td class="num">${pc(s.fallos.pct_rescate)}</td>
-      <td class="num">${s.fallos.sin_tocar}</td>
-      <td style="width:90px"><div class="bar"><i style="width:${Math.round(100*s.fallos.fichas/maxF)}%"></i></div></td>
-    </tr>`).join('');
+  // ══════════ RESUMEN: los 4 números que mueven la aguja + qué atender ══════════
+  PANES.resumen = titular + `
+    <div class="sect">Cómo vamos${hayCmp?` · comparado con ${ETIQ}`:''}</div>
+    <div class="kpis">
+      ${kpi('hero','Éxito del intento', pc(a.bajas.pct_exito_intento), `de las ${a.bajas.intentos_retencion} que intentamos retener`, delta(a.bajas.pct_exito_intento,p.bajas.pct_exito_intento,{pp:true}))}
+      ${kpi('','Repescadas', a.bajas.repescadas, 'siguen con la suscripción viva', delta(a.bajas.repescadas,p.bajas.repescadas))}
+      ${kpi('','Rescate de pagos ≤30 días', pc(a.fallos.pct_rescate_30d), `${a.fallos.rescatados_30d} de ${a.fallos.fichas} fallos`, delta(a.fallos.pct_rescate_30d,p.fallos.pct_rescate_30d,{pp:true}))}
+      ${kpi('','Dinero en riesgo', eur(a.fallos.importe_en_riesgo), 'de los fallos del periodo')}
+    </div>
 
-  const tabla=`
-    <div class="card">
-      <h3>Evolución por periodo</h3>
-      <p class="hint">Agrupado por ${document.getElementById('gran').selectedOptions[0].text.toLowerCase()}.</p>
-      <div style="overflow-x:auto">
-      <table>
-        <thead><tr>
-          <th>Periodo</th>
-          <th class="num">Solicit.</th><th class="num">Intentos</th><th class="num">Repesc.</th><th class="num">% éxito</th><th></th>
-          <th class="num">Fallos</th><th class="num">Rescat.</th><th class="num">% resc.</th><th class="num">Sin tocar</th><th></th>
-        </tr></thead>
-        <tbody>${filas||'<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px">Sin datos en el periodo</td></tr>'}</tbody>
-      </table>
-      </div>
-    </div>`;
+    <div class="sect">Qué hay que atender</div>
+    <div class="todo">
+      <button class="act ${a.fallos.sin_tocar?'alert':'ok'}" onclick="setTab('fallos')">
+        <div class="lab">Fallos sin tocar</div><div class="val">${a.fallos.sin_tocar}</div>
+        <div class="sub">${a.fallos.sin_tocar?`${pc(a.fallos.pct_sin_tocar)} siguen en «Pendiente contact» — nadie los ha llamado`:'ningún fallo sin gestionar 👌'}</div>
+        <span class="go">Ver fallos de pago →</span></button>
+      <button class="act ${sinIntento>0?'alert':'ok'}" onclick="setTab('bajas')">
+        <div class="lab">Bajas sin intento</div><div class="val">${sinIntento}</div>
+        <div class="sub">${sinIntento>0?`se fueron sin que nadie intentara retenerlas · intentamos con el ${pc(a.bajas.pct_intentos)}`:'intentamos retener a todas 👌'}</div>
+        <span class="go">Ver solicitudes de baja →</span></button>
+    </div>` + avisos;
 
-  const etiquetaCmp={anterior:'Periodo anterior',anio:'Mismo periodo del año anterior',personalizado:'Periodo personalizado'}[d.comparacion?.modo]||'Periodo comparado';
-  const comp=!hayCmp?'':`
-    <div class="card">
-      <h3>Comparativa · ${esc(etiquetaCmp)}</h3>
-      <p class="hint">${esc(p.ventana.desde)} → ${esc(p.ventana.hasta)}</p>
-      <table>
-        <thead><tr><th>Métrica</th><th class="num">Actual</th><th class="num">Anterior</th><th class="num">Dif.</th></tr></thead>
-        <tbody>
-          ${[
-            ['Solicitudes de baja',a.bajas.solicitudes,p.bajas.solicitudes],
-            ['Intentos de retención',a.bajas.intentos_retencion,p.bajas.intentos_retencion],
-            ['Repescadas',a.bajas.repescadas,p.bajas.repescadas],
-            ['Fallos de pago',a.fallos.fichas,p.fallos.fichas],
-            ['Rescatados',a.fallos.rescatados,p.fallos.rescatados],
-            ['Rescatados ≤30 días',a.fallos.rescatados_30d,p.fallos.rescatados_30d],
-            ['Fallos sin tocar',a.fallos.sin_tocar,p.fallos.sin_tocar],
-          ].map(([l,x,y])=>`<tr><td>${l}</td><td class="num"><b>${x}</b></td><td class="num">${y}</td><td class="num">${x-y>0?'+':''}${x-y}</td></tr>`).join('')}
-        </tbody>
-      </table>
-    </div>`;
+  // Badge: los fallos sin tocar son dinero esperando una llamada.
+  const bdg=document.getElementById('bdgFallos');
+  bdg.textContent=a.fallos.sin_tocar||0;
+  bdg.className='badge'+(a.fallos.sin_tocar?'':' calm');
 
-  const avisos=`<div class="avisos"><b>Cómo leer esto</b><ul>${d.avisos.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
+  // ══════════ Evolución: una tabla por tema, no las dos mezcladas en 11 columnas ══════════
+  const granTxt=document.getElementById('gran').selectedOptions[0].text.toLowerCase();
+  const serie=(d.series||[]);
+  const tabla=(titulo,hint,cols,peso)=>{
+    const max=Math.max(1,...serie.map(peso));
+    return `<div class="card">
+      <h3>${titulo}</h3><p class="hint">${hint} Agrupado por ${granTxt}.</p>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>Periodo</th>${cols.map(c=>`<th class="num">${c.t}</th>`).join('')}<th></th></tr></thead>
+        <tbody>${serie.length?serie.map(s=>`<tr><td><b>${esc(s.periodo)}</b></td>
+          ${cols.map(c=>`<td class="num">${c.f(s)}</td>`).join('')}
+          <td style="width:90px"><div class="bar"><i style="width:${Math.round(100*peso(s)/max)}%"></i></div></td></tr>`).join('')
+          :`<tr><td colspan="${cols.length+2}" style="text-align:center;color:var(--muted);padding:24px">Sin datos en el periodo</td></tr>`}</tbody>
+      </table></div></div>`;
+  };
 
-  document.getElementById('cuerpo').innerHTML = bajas + fallos + tabla + comp + avisos;
+  // ══════════ TAB: SOLICITUDES DE BAJA ══════════
+  PANES.bajas = `
+    <div class="sect">Solicitudes de baja · repesca${hayCmp?` · comparado con ${ETIQ}`:''}</div>
+    <div class="kpis">
+      ${kpi('','Solicitudes', a.bajas.solicitudes, 'recibidas en el periodo', delta(a.bajas.solicitudes,p.bajas.solicitudes,{masEsMejor:false}))}
+      ${kpi('','Intentos de retención', a.bajas.intentos_retencion, `${pc(a.bajas.pct_intentos)} de las solicitudes`, delta(a.bajas.pct_intentos,p.bajas.pct_intentos,{pp:true}))}
+      ${kpi('','Repescadas', a.bajas.repescadas, `de ${a.bajas.intentos_retencion} intentos`, delta(a.bajas.repescadas,p.bajas.repescadas))}
+      ${kpi('hero','Éxito del intento', pc(a.bajas.pct_exito_intento), `frente a ${pc(a.bajas.pct_vivas_total)} del total`, delta(a.bajas.pct_exito_intento,p.bajas.pct_exito_intento,{pp:true}))}
+    </div>
+    ${tabla('Evolución de las bajas','Cuántas solicitudes llegan, en cuántas intervenimos y cuántas se quedan.',
+      [{t:'Solicitudes',f:s=>s.bajas.solicitudes},{t:'Intentos',f:s=>s.bajas.intentos_retencion},
+       {t:'Repescadas',f:s=>s.bajas.repescadas},{t:'% éxito',f:s=>pc(s.bajas.pct_exito_intento)}],
+      s=>s.bajas.solicitudes)}` + avisos;
+
+  // ══════════ TAB: FALLOS DE PAGO ══════════
+  PANES.fallos = `
+    <div class="sect">Fallos de pago · rescate${hayCmp?` · comparado con ${ETIQ}`:''}</div>
+    <div class="kpis">
+      ${kpi('','Fallos', a.fallos.fichas, `${eur(a.fallos.importe_en_riesgo)} en riesgo`, delta(a.fallos.fichas,p.fallos.fichas,{masEsMejor:false}))}
+      ${kpi('','Rescatados', a.fallos.rescatados, `${pc(a.fallos.pct_rescate)} del total`, delta(a.fallos.pct_rescate,p.fallos.pct_rescate,{pp:true}))}
+      ${kpi('hero','Rescatados ≤30 días', pc(a.fallos.pct_rescate_30d), `${a.fallos.rescatados_30d} fichas · la única cifra comparable entre meses`, delta(a.fallos.pct_rescate_30d,p.fallos.pct_rescate_30d,{pp:true}))}
+      ${kpi('','Sin tocar', a.fallos.sin_tocar, `${pc(a.fallos.pct_sin_tocar)} siguen en «Pendiente contact»`, delta(a.fallos.sin_tocar,p.fallos.sin_tocar,{masEsMejor:false}))}
+    </div>
+    ${tabla('Evolución de los fallos de pago','Fichas creadas y cuántas acabaron cobrando.',
+      [{t:'Fallos',f:s=>s.fallos.fichas},{t:'Rescatados',f:s=>s.fallos.rescatados},
+       {t:'% rescate',f:s=>pc(s.fallos.pct_rescate)},{t:'Sin tocar',f:s=>s.fallos.sin_tocar}],
+      s=>s.fallos.fichas)}` + avisos;
+
+  document.getElementById('tabs').style.display='flex';
+  setTab(TAB);
 }
 
 function arrancar(){
@@ -339,6 +401,7 @@ function arrancar(){
   usarPreset('30d');
 }
 document.getElementById('pass').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+document.getElementById('email').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
 if(token) arrancar();
 </script>
 </body>
