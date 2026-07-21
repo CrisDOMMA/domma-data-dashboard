@@ -141,6 +141,34 @@
   .chip{font-size:12px;padding:5px 12px;border:1.5px solid var(--border);border-radius:20px;background:#fff;cursor:pointer;color:var(--muted)}
   .chip.on{border-color:var(--navy);color:var(--navy);background:#F3F4FA;font-weight:600}
   .empty{text-align:center;color:var(--muted);font-size:13px;padding:30px 10px}
+
+  /* Ficha de producto */
+  .row.clic{cursor:pointer;border-radius:6px;padding:3px 5px;margin:0 -5px 8px}
+  .row.clic:hover{background:#F5F4F1}
+  .row.clic.sel{background:#F3F4FA}
+  .ficha{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px}
+  .ficha .fh{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:2px}
+  .ficha h3{font-size:15px;font-weight:650;margin:0}
+  .ficha .cerrar{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;font-weight:600}
+  .ficha .cerrar:hover{color:var(--navy)}
+  .lectura{background:#F3F4FA;border-radius:9px;padding:12px 14px;font-size:13.5px;line-height:1.5;margin:12px 0 4px}
+  .aviso-n{background:#FCF3E0;border:1px solid #EAD9A8;color:#8A6206;font-size:12.5px;padding:10px 13px;border-radius:9px;margin:12px 0 4px}
+  .fcols{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:16px}
+  .fcols h4{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+  .frow{margin-bottom:12px}
+  .frow .ft{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;gap:10px}
+  .frow .ft .fl{font-weight:550;text-transform:capitalize}
+  .frow .ft .fv{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted)}
+  .frow .ft .fv b{color:var(--text);font-weight:650}
+  /* Barra del producto sobre la marca de la media: se ve de un vistazo si se desvía */
+  .fbar{position:relative;height:10px;background:var(--track);border-radius:6px;overflow:visible}
+  .fbar > u{position:absolute;left:0;top:0;height:100%;background:var(--navy);border-radius:6px;display:block}
+  .fbar > s{position:absolute;top:-3px;width:2px;height:16px;background:#9AA0B8;border-radius:1px}
+  .dev{font-size:11.5px;font-weight:650;margin-left:6px}
+  .dev.mas{color:var(--red)} .dev.menos{color:var(--green)} .dev.igual{color:var(--muted)}
+  .flegend{font-size:11.5px;color:var(--muted);margin-top:14px;display:flex;align-items:center;gap:7px}
+  .flegend s{display:inline-block;width:2px;height:11px;background:#9AA0B8;text-decoration:none}
+  @media(max-width:860px){.fcols{grid-template-columns:1fr;gap:18px}}
   .foot{font-size:11.5px;color:var(--muted);margin-top:24px;text-align:center}
   .banner{background:#FCF3E0;border:1px solid #EAD9A8;color:#8A6206;font-size:12.5px;padding:9px 14px;border-radius:9px;margin-bottom:16px}
   .loading{text-align:center;color:var(--muted);padding:50px;font-size:13px}
@@ -260,7 +288,7 @@
     <div class="grid">
       <div class="card">
         <h3>Por producto</h3>
-        <p class="hint">Qué productos generan más bajas.</p>
+        <p class="hint">Cuántas bajas trae cada producto. <b>Pincha uno</b> para ver su ficha: cuándo se van y por qué, comparado con la media.</p>
         <div id="productos"></div>
       </div>
       <div class="card">
@@ -269,6 +297,8 @@
         <div id="fricciones"></div>
       </div>
     </div>
+
+    <div id="ficha"></div>
   </div>
 
   <!-- ══════════ TAB: A QUIÉN LLAMO ══════════ -->
@@ -559,7 +589,9 @@ function render(){
     val: `<em>${r.total}</em> ${antes(pp2,r.producto)}`,
     segs: [['salvado',r.salvado||0],['solicitud',r.solicitud||0],['baja',r.baja||0],['otro', r.total-((r.salvado||0)+(r.solicitud||0)+(r.baja||0))]],
     total: r.total,
+    key: r.producto,          // hace la fila clicable → abre su ficha
   }));
+  if(FICHA) dibujarFicha(FICHA);  // si había una ficha abierta, se refresca con el nuevo periodo
 
   const fr = d.fricciones || [];
   if(fr.length) renderStacked('fricciones', fr, r=>({lbl:r.motivo, val:`<em>${r.n}</em>`, segs:[['solicitud',r.n]], total:r.n}));
@@ -599,9 +631,98 @@ function renderStacked(id, arr, map){
     const m = map(r);
     const w = (m.total/max)*100; // ancho relativo respecto al mayor
     const inner = m.segs.map(([cls,v])=> v>0 ? `<div class="seg ${cls}" style="width:${(v/m.total)*100}%"></div>`:'').join('');
-    return `<div class="row"><div class="top"><span class="lbl">${esc(m.lbl)}</span><span class="val">${m.val}</span></div>
+    const clic = m.key!=null ? ` clic${FICHA===m.key?' sel':''}" data-k="${esc(m.key)}` : '';
+    return `<div class="row${clic}"><div class="top"><span class="lbl">${esc(m.lbl)}</span><span class="val">${m.val}</span></div>
       <div class="bar" style="width:${Math.max(w,8)}%">${inner}</div></div>`;
   }).join('');
+  el.onclick = e => { const f = e.target.closest('.row.clic'); if(f) verFicha(f.dataset.k); };
+}
+
+// ── Ficha de producto: cuándo se van y por qué, comparado con la media ──
+let FICHA = null;
+const ORDEN_TEN = ['<1m','1-2m','3-4m','5-6m','>6m','(sin dato)'];
+
+function cerrarFicha(){ FICHA=null; document.getElementById('ficha').innerHTML=''; render(); }
+
+// Pinchar alterna; volver a pinchar el mismo producto la cierra.
+function verFicha(nombre){
+  if(FICHA === nombre) return cerrarFicha();
+  FICHA = nombre;
+  dibujarFicha(nombre);
+  document.getElementById('ficha').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+// Dibujar es aparte de alternar: así render() puede refrescar la ficha abierta
+// al cambiar de periodo sin cerrarla.
+function dibujarFicha(nombre){
+  const p = (DATA.por_producto||[]).find(x=>x.producto===nombre);
+  const box = document.getElementById('ficha');
+  if(!p){ FICHA=null; box.innerHTML=''; return; }   // ese producto no aparece en el nuevo periodo
+
+  // Distribuciones globales (la media contra la que se compara)
+  const globTen = {}; let globTenN = 0;
+  (DATA.por_tenure||[]).forEach(t=>{ globTen[t.bucket]=t.total; globTenN+=t.total; });
+  const globMot = {}; let globMotN = 0;
+  (DATA.por_motivo||[]).forEach(t=>{ globMot[t.motivo]=t.total; globMotN+=t.total; });
+
+  // Una barra = % dentro del producto; la marca gris = ese mismo % en la media.
+  const barras = (obj, glob, globN, orden) => {
+    const n = Object.values(obj||{}).reduce((a,b)=>a+b,0);
+    if(!n) return '<div class="empty">Sin datos.</div>';
+    const claves = orden ? orden.filter(k=>obj[k]) : Object.keys(obj).sort((a,b)=>obj[b]-obj[a]);
+    const maxPct = Math.max(...claves.map(k=>100*obj[k]/n), ...claves.map(k=>globN?100*(glob[k]||0)/globN:0), 1);
+    return claves.map(k=>{
+      const pct = 100*obj[k]/n;
+      const gp  = globN ? 100*(glob[k]||0)/globN : null;
+      const dv  = gp==null ? null : pct-gp;
+      const cls = dv==null ? '' : (Math.abs(dv)<3 ? 'igual' : (dv>0 ? 'mas' : 'menos'));
+      const txt = dv==null ? '' : `<span class="dev ${cls}">${dv>0?'+':''}${dv.toFixed(1)}pp</span>`;
+      return `<div class="frow">
+        <div class="ft"><span class="fl">${esc(k)}</span>
+          <span class="fv"><b>${pct.toFixed(0)}%</b> · ${obj[k]}${txt}</span></div>
+        <div class="fbar"><u style="width:${(pct/maxPct)*100}%"></u>${gp==null?'':`<s style="left:calc(${(gp/maxPct)*100}% - 1px)"></s>`}</div>
+      </div>`;
+    }).join('');
+  };
+
+  // Lectura: la desviación que más manda, dicha en castellano.
+  const nTen = Object.values(p.tenure||{}).reduce((a,b)=>a+b,0);
+  const pronto = ((p.tenure||{})['<1m']||0) + ((p.tenure||{})['1-2m']||0);
+  const prontoPct = nTen ? 100*pronto/nTen : 0;
+  const gPronto = globTenN ? 100*(((globTen['<1m']||0)+(globTen['1-2m']||0))/globTenN) : 0;
+  const dPronto = prontoPct - gPronto;
+
+  const nMot = Object.values(p.motivos||{}).reduce((a,b)=>a+b,0);
+  let topMot=null, topDev=0;
+  Object.entries(p.motivos||{}).forEach(([k,v])=>{
+    if(k==='(sin motivo)' || !globMotN) return;
+    const dv = 100*v/nMot - 100*(globMot[k]||0)/globMotN;
+    if(dv > topDev){ topDev = dv; topMot = k; }
+  });
+
+  const pocos = p.total < 30;
+  const lectura = `<div class="lectura">
+      De las <b>${p.total}</b> sesiones con <b>${esc(nombre)}</b>,
+      el <b>${prontoPct.toFixed(0)}%</b> son de clientas con menos de 2 meses de suscripción
+      ${Math.abs(dPronto)<5 ? '— en línea con la media.'
+        : dPronto>0 ? `— <b style="color:var(--red)">${dPronto.toFixed(0)} puntos por encima de la media</b>: este producto las pierde pronto.`
+                    : `— <b style="color:var(--green)">${Math.abs(dPronto).toFixed(0)} puntos por debajo de la media</b>: aguanta mejor que el resto.`}
+      ${topMot && topDev>=3 ? ` El motivo que más se dispara es <b>${esc(topMot)}</b> (+${topDev.toFixed(0)}pp sobre la media).` : ''}
+    </div>`;
+
+  box.innerHTML = `<div class="ficha">
+      <div class="fh"><h3>Ficha · ${esc(nombre)}</h3>
+        <button class="cerrar" onclick="cerrarFicha()">Cerrar ✕</button></div>
+      <p class="hint" style="margin:0">El <b>número</b> de bajas depende de cuánto vende cada producto; lo comparable es <b>la forma</b>. Por eso todo son % dentro del producto, con la media marcada.</p>
+      ${pocos ? `<div class="aviso-n"><b>Solo ${p.total} sesiones.</b> Con tan pocos casos la forma se mueve mucho por azar: tómalo como pista, no como conclusión.</div>` : ''}
+      ${lectura}
+      <div class="fcols">
+        <div><h4>Cuándo se van</h4>${barras(p.tenure, globTen, globTenN, ORDEN_TEN)}</div>
+        <div><h4>Por qué se van</h4>${barras(p.motivos, globMot, globMotN, null)}</div>
+      </div>
+      <div class="flegend"><s></s> la marca gris es la media de todos los productos</div>
+    </div>`;
+  document.querySelectorAll('#productos .row.clic').forEach(r=>r.classList.toggle('sel', r.dataset.k===nombre));
 }
 
 function renderLista(){
