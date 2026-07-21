@@ -43,23 +43,63 @@
   .err{color:var(--red);font-size:13px;margin-top:10px;min-height:16px}
 
   /* Controls */
-  .controls{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin:18px 0 22px;
+  .controls{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:18px 0 18px;
     background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
   .field{display:flex;flex-direction:column;gap:5px}
   .field label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
-  .field input,.field select{padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;background:#fff}
+  .field input,.field select{padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;background:#fff;font-size:13px}
   .field input:focus,.field select:focus{border-color:var(--navy)}
-  .toggle{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text);cursor:pointer;user-select:none}
+  .toggle{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text);cursor:pointer;user-select:none;padding-bottom:9px}
   .spacer{flex:1}
+  .cmp-check{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
+  .cmp-check input{width:14px;height:14px;accent-color:var(--navy);cursor:pointer}
+  .cmp-wrap select:disabled{opacity:.45;cursor:not-allowed}
+
+  /* Tabs internas */
+  .tabs{display:flex;gap:4px;border-bottom:1.5px solid var(--border);margin-bottom:22px;flex-wrap:wrap}
+  .tab{background:none;border:none;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;
+    padding:10px 14px;font-size:13.5px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit;
+    display:flex;align-items:center;gap:7px}
+  .tab:hover{color:var(--text)}
+  .tab.on{color:var(--navy);border-bottom-color:var(--navy)}
+  .badge{background:var(--red);color:#fff;font-size:10.5px;font-weight:700;border-radius:20px;padding:1px 6px;min-width:17px;text-align:center}
+  .badge.calm{background:var(--track);color:var(--muted)}
+
+  /* Titular */
+  .titular{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--navy);
+    border-radius:12px;padding:16px 18px;margin-bottom:18px;font-size:14.5px;line-height:1.55}
+  .titular b{font-weight:650}
+  .titular .sub{font-size:12.5px;color:var(--muted);margin-top:6px}
+
+  /* Section titles */
+  .sect{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:26px 0 10px}
+  .sect:first-child{margin-top:0}
 
   /* KPIs */
-  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:22px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:6px}
   .kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:15px 16px}
-  .kpi .n{font-size:26px;font-weight:700;letter-spacing:-.02em}
-  .kpi .l{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.3}
+  .kpi .l{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+  .kpi .n{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+  .kpi .s{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.35}
   .kpi.hero{background:linear-gradient(135deg,#1C296A,#2C3A85);border-color:#1C296A;color:#fff}
-  .kpi.hero .l{color:#C9CEEA}
+  .kpi.hero .l{color:#C9CEEA} .kpi.hero .s{color:#C9CEEA}
   .kpi .n.green{color:var(--green)} .kpi .n.red{color:var(--red)} .kpi .n.amber{color:var(--amber)}
+  .delta{font-size:12px;font-weight:650;margin-top:7px;display:inline-block}
+  .delta.up{color:var(--green)} .delta.down{color:var(--red)} .delta.flat{color:var(--muted)}
+  .kpi.hero .delta.up{color:#8FE3BE} .kpi.hero .delta.down{color:#FFB4AC} .kpi.hero .delta.flat{color:#C9CEEA}
+
+  /* Tarjetas de acción (qué atender) */
+  .todo{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .act{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:15px 16px;
+    cursor:pointer;text-align:left;font-family:inherit;transition:border-color .12s,box-shadow .12s}
+  .act:hover{border-color:var(--navy);box-shadow:0 2px 12px rgba(28,41,106,.07)}
+  .act .l{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+  .act .n{font-size:28px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+  .act .s{font-size:12px;color:var(--muted);margin-top:6px}
+  .act .go{font-size:12px;font-weight:650;color:var(--navy);margin-top:9px;display:block}
+  .act.alert{border-color:#E9BFBA;background:#FEF7F6}
+  .act.alert .n{color:var(--red)}
+  .act.ok .n{color:var(--green)}
 
   /* Cards */
   .grid{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;margin-bottom:16px}
@@ -69,9 +109,10 @@
 
   /* Bar rows */
   .row{margin-bottom:11px}
-  .row .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+  .row .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;gap:10px}
   .row .top .lbl{font-weight:550;text-transform:capitalize}
-  .row .top .val{color:var(--muted);font-variant-numeric:tabular-nums}
+  .row .top .val{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .row .top .val em{font-style:normal;font-weight:650}
   .bar{height:9px;background:var(--track);border-radius:6px;overflow:hidden;display:flex}
   .seg{height:100%}
   .seg.salvado{background:var(--green)} .seg.baja{background:var(--red)}
@@ -79,6 +120,7 @@
   .legend{display:flex;gap:16px;font-size:11.5px;color:var(--muted);margin-top:12px;flex-wrap:wrap}
   .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:middle}
   .i-salvado{background:var(--green)} .i-baja{background:var(--red)} .i-solicitud{background:var(--amber)} .i-otro{background:#B9BCCB}
+  .cmpv{font-size:11.5px;color:var(--muted);margin-left:6px}
 
   /* Table */
   table{width:100%;border-collapse:collapse;font-size:13px}
@@ -101,7 +143,8 @@
   .empty{text-align:center;color:var(--muted);font-size:13px;padding:30px 10px}
   .foot{font-size:11.5px;color:var(--muted);margin-top:24px;text-align:center}
   .banner{background:#FCF3E0;border:1px solid #EAD9A8;color:#8A6206;font-size:12.5px;padding:9px 14px;border-radius:9px;margin-bottom:16px}
-  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
+  .loading{text-align:center;color:var(--muted);padding:50px;font-size:13px}
+  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.todo{grid-template-columns:1fr}}
   /* Embebido en el Data Hub: el shell ya aporta cabecera/logout */
   html.embed .wrap{padding-top:20px}
   html.embed header{display:none}
@@ -137,97 +180,145 @@
 
   <div class="banner" id="testBanner" style="display:none">Mostrando también <b>datos de prueba</b> (modo prueba del equipo). Desmarca «Incluir pruebas» para ver solo clientas reales.</div>
 
+  <!-- CONTROL ÚNICO: mismo patrón que «Acciones retención» -->
   <div class="controls">
+    <div class="field"><label>Rango</label>
+      <select id="rango" onchange="usarPreset(this.value)">
+        <option value="7d">Últimos 7 días</option>
+        <option value="30d" selected>Últimos 30 días</option>
+        <option value="mes">Mes actual</option>
+        <option value="prev">Mes anterior</option>
+        <option value="90d">Últimos 90 días</option>
+        <option value="ytd">Lo que va de año</option>
+        <option value="todo">Todo el histórico</option>
+        <option value="custom">Personalizado</option>
+      </select>
+    </div>
     <div class="field"><label>Desde</label><input type="date" id="desde"></div>
     <div class="field"><label>Hasta</label><input type="date" id="hasta"></div>
-    <label class="toggle"><input type="checkbox" id="incTest"> Incluir pruebas</label>
-    <button class="btn ghost" onclick="load()">Aplicar</button>
+    <div class="field cmp-wrap">
+      <label class="cmp-check"><input type="checkbox" id="cmpOn" checked onchange="toggleCmp()"> Comparar con</label>
+      <select id="cmpModo" onchange="toggleCmp()">
+        <option value="anterior" selected>Periodo anterior</option>
+        <option value="anio">Mismo periodo del año anterior</option>
+        <option value="personalizado">Periodo concreto…</option>
+      </select>
+    </div>
+    <div class="field cmp-cust" id="cmpCust" style="display:none"><label>Comp. desde</label><input type="date" id="cmpDesde"></div>
+    <div class="field cmp-cust" id="cmpCust2" style="display:none"><label>Comp. hasta</label><input type="date" id="cmpHasta"></div>
+    <label class="toggle"><input type="checkbox" id="incTest" onchange="load()"> Incluir pruebas</label>
+    <button class="btn" onclick="load()">Aplicar</button>
     <div class="spacer"></div>
     <button class="btn ghost" onclick="exportCsv()">⬇ Exportar CSV</button>
   </div>
 
-  <div class="kpis" id="kpis"></div>
+  <!-- PESTAÑAS: un trabajo por pestaña -->
+  <div class="tabs">
+    <button class="tab on" data-t="resumen"  onclick="setTab('resumen',this)">Resumen</button>
+    <button class="tab"    data-t="porque"   onclick="setTab('porque',this)">Por qué se van</button>
+    <button class="tab"    data-t="llamar"   onclick="setTab('llamar',this)">A quién llamo <span class="badge calm" id="bdgLlamar">0</span></button>
+    <button class="tab"    data-t="clientas" onclick="setTab('clientas',this)">Buscar clienta</button>
+  </div>
 
-  <div class="grid">
-    <div class="card">
-      <h3>Por qué se van y a quién salvamos</h3>
-      <p class="hint">Cada barra = un motivo de baja. Verde = retenida (pausa/cambio/espaciar), ámbar = solicitud pendiente, rojo = baja efectiva.</p>
-      <div id="motivos"></div>
-      <div class="legend">
-        <span><i class="i-salvado"></i>Salvada</span>
-        <span><i class="i-solicitud"></i>Solicitud pendiente</span>
-        <span><i class="i-baja"></i>Baja efectiva</span>
-        <span><i class="i-otro"></i>Derivada / sin acción</span>
+  <div id="cuerpo"><div class="loading">Cargando…</div></div>
+
+  <!-- ══════════ TAB: RESUMEN ══════════ -->
+  <div class="tabpane" id="tab-resumen" style="display:none">
+    <div class="titular" id="titular"></div>
+
+    <div class="sect" id="sectComo">Cómo vamos</div>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="sect">Qué hay que atender</div>
+    <div class="todo" id="todo"></div>
+
+    <div class="sect">Repesca real</div>
+    <div class="card" id="repescaBox"></div>
+  </div>
+
+  <!-- ══════════ TAB: POR QUÉ SE VAN ══════════ -->
+  <div class="tabpane" id="tab-porque" style="display:none">
+    <div class="grid">
+      <div class="card">
+        <h3>Por qué se van y a quién salvamos</h3>
+        <p class="hint">Cada barra = un motivo de baja. Verde = retenida (pausa/cambio/espaciar), ámbar = solicitud pendiente, rojo = baja efectiva.</p>
+        <div id="motivos"></div>
+        <div class="legend">
+          <span><i class="i-salvado"></i>Salvada</span>
+          <span><i class="i-solicitud"></i>Solicitud pendiente</span>
+          <span><i class="i-baja"></i>Baja efectiva</span>
+          <span><i class="i-otro"></i>Derivada / sin acción</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Por antigüedad</h3>
+        <p class="hint">Dónde se concentra la fuga según meses de suscripción.</p>
+        <div id="tenure"></div>
       </div>
     </div>
-    <div class="card">
-      <h3>Por antigüedad</h3>
-      <p class="hint">Dónde se concentra la fuga según meses de suscripción.</p>
-      <div id="tenure"></div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Por producto</h3>
+        <p class="hint">Qué productos generan más bajas.</p>
+        <div id="productos"></div>
+      </div>
+      <div class="card">
+        <h3>Fricciones</h3>
+        <p class="hint">Veces que el flujo le dijo «no» a una clienta. Si esto sube, las reglas aprietan de más y conviene revisarlas.</p>
+        <div id="fricciones"></div>
+      </div>
     </div>
   </div>
 
-  <div class="grid">
-    <div class="card">
-      <h3>Por producto</h3>
-      <p class="hint">Qué productos generan más bajas.</p>
-      <div id="productos"></div>
+  <!-- ══════════ TAB: A QUIÉN LLAMO ══════════ -->
+  <div class="tabpane" id="tab-llamar" style="display:none">
+    <div class="card tablecard" style="margin-bottom:16px">
+      <h3>Solicitudes de baja pendientes <span class="muted" id="solCount"></span></h3>
+      <p class="hint">Se cierran solas: cuando el contrato aparece cancelado en Appstle, la solicitud desaparece de aquí. Nadie tiene que marcar nada. En <b>rojo</b>, las que pasan de las 72 h que le prometemos a la clienta.</p>
+      <div class="tablewrap" style="max-height:340px">
+        <table>
+          <thead><tr><th>Esperando</th><th>Clienta</th><th>Motivo</th><th>Estado del plan</th><th>Contactar</th></tr></thead>
+          <tbody id="solBody"></tbody>
+        </table>
+      </div>
     </div>
-    <div class="card">
-      <h3>Reactivaciones (repesca real)</h3>
-      <p class="hint">Clientas que volvieron a activar su plan. Se actualiza con el sync automático de Appstle (cada 6 h).</p>
-      <div id="repescaBox"></div>
-    </div>
-  </div>
 
-  <div class="card tablecard">
-    <h3>Lista de repesca <span class="muted" id="listaCount"></span></h3>
-    <p class="hint">Clientas para recontactar: bajas, solicitudes pendientes, pausas (repesca futura) y casos derivados.</p>
-    <div class="filters" id="listaFilters"></div>
-    <div class="tablewrap">
-      <table>
-        <thead><tr><th>Fecha</th><th>Clienta</th><th>Estado</th><th>Motivo</th><th>Antigüedad</th><th>Productos</th><th>Contactar</th></tr></thead>
-        <tbody id="listaBody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="card tablecard" style="margin-bottom:16px">
-    <h3>Solicitudes de baja pendientes <span class="muted" id="solCount"></span></h3>
-    <p class="hint">Se cierran solas: cuando el contrato aparece cancelado en Appstle, la solicitud desaparece de aquí. Nadie tiene que marcar nada. En <b>rojo</b>, las que pasan de las 72 h que le prometemos a la clienta.</p>
-    <div class="tablewrap" style="max-height:340px">
-      <table>
-        <thead><tr><th>Esperando</th><th>Clienta</th><th>Motivo</th><th>Estado del plan</th><th>Contactar</th></tr></thead>
-        <tbody id="solBody"></tbody>
-      </table>
+    <div class="card tablecard">
+      <h3>Lista de repesca <span class="muted" id="listaCount"></span></h3>
+      <p class="hint">Clientas para recontactar: bajas, solicitudes pendientes, pausas (repesca futura) y casos derivados.</p>
+      <div class="filters" id="listaFilters"></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Clienta</th><th>Estado</th><th>Motivo</th><th>Antigüedad</th><th>Productos</th><th>Contactar</th></tr></thead>
+          <tbody id="listaBody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
-  <div class="card" style="margin-bottom:16px">
-    <h3>Fricciones</h3>
-    <p class="hint">Veces que el flujo le dijo «no» a una clienta. Si esto sube, las reglas están apretando de más y conviene revisarlas.</p>
-    <div id="fricciones"></div>
-  </div>
-
-  <div class="card tablecard" style="padding-bottom:20px">
-    <h3>Buscar una clienta</h3>
-    <p class="hint">Por email: sus fichas, sus planes y <b>todos sus contratos con el estado</b>. Resuelve los «no me aparece mi suscripción» — se ve si está cancelada, pausada o en otra ficha.</p>
-    <div class="filters">
-      <input id="cliEmail" type="email" placeholder="email de la clienta…" style="flex:1;min-width:240px;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;outline:none;font-size:13px">
-      <button class="btn ghost" onclick="buscarClienta()">Buscar</button>
+  <!-- ══════════ TAB: BUSCAR CLIENTA ══════════ -->
+  <div class="tabpane" id="tab-clientas" style="display:none">
+    <div class="card tablecard" style="padding-bottom:20px;margin-bottom:16px">
+      <h3>Buscar una clienta</h3>
+      <p class="hint">Por email: sus fichas, sus planes y <b>todos sus contratos con el estado</b>. Resuelve los «no me aparece mi suscripción» — se ve si está cancelada, pausada o en otra ficha.</p>
+      <div class="filters">
+        <input id="cliEmail" type="email" placeholder="email de la clienta…" style="flex:1;min-width:240px;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;outline:none;font-size:13px">
+        <button class="btn ghost" onclick="buscarClienta()">Buscar</button>
+      </div>
+      <div id="cliRes" style="padding:0 18px"></div>
     </div>
-    <div id="cliRes" style="padding:0 18px"></div>
-  </div>
 
-  <div class="card tablecard">
-    <h3>Repositorio de acciones <span class="muted" id="repoCount"></span></h3>
-    <p class="hint">Todas las acciones —altas, bajas, cambios, pausas— con nombre y apellidos. Busca por nombre, email o ID de clienta.</p>
-    <div class="filters"><input id="repoSearch" placeholder="Buscar por nombre, email o ID…" style="flex:1;min-width:240px;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;outline:none;font-size:13px"></div>
-    <div class="tablewrap">
-      <table>
-        <thead><tr><th>Fecha</th><th>Clienta</th><th>Acción</th><th>Producto</th><th>Motivo</th><th>Origen</th></tr></thead>
-        <tbody id="repoBody"></tbody>
-      </table>
+    <div class="card tablecard">
+      <h3>Repositorio de acciones <span class="muted" id="repoCount"></span></h3>
+      <p class="hint">Todas las acciones —altas, bajas, cambios, pausas— con nombre y apellidos. Busca por nombre, email o ID de clienta.</p>
+      <div class="filters"><input id="repoSearch" placeholder="Buscar por nombre, email o ID…" style="flex:1;min-width:240px;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;outline:none;font-size:13px"></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Clienta</th><th>Acción</th><th>Producto</th><th>Motivo</th><th>Origen</th></tr></thead>
+          <tbody id="repoBody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -238,7 +329,7 @@
 const API = 'https://domma-bajas.cristina-ed1.workers.dev';
 const AUTH_API = 'https://domma-pro-api.cristina-ed1.workers.dev'; // mismo login que /metrics
 const WA = '34613152397';
-let DATA = null, listaFilter = 'todo';
+let DATA = null, PREV = null, listaFilter = 'todo', TAB = 'resumen';
 // Embebido dentro del Data Hub (iframe) → ocultar cabecera propia
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
 
@@ -255,7 +346,7 @@ function login(){
     .then(r => r.json())
     .then(d => {
       const role = d.role || (d.user && d.user.role);
-      if(d.token && role === 'admin'){ token = d.token; localStorage.setItem('domma_analytics_token', token); load(); }
+      if(d.token && role === 'admin'){ token = d.token; localStorage.setItem('domma_analytics_token', token); arrancar(); }
       else if(d.token){ err.textContent = 'Tu usuario no tiene acceso admin'; }
       else { err.textContent = 'Credenciales incorrectas'; }
     })
@@ -263,14 +354,71 @@ function login(){
 }
 function logout(){ localStorage.removeItem('domma_analytics_token'); location.reload(); }
 
-function money(n){ return (n||0).toLocaleString('es-ES'); }
-function pct(x){ return (x*100).toFixed(0)+'%'; }
-function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const money = n => (n||0).toLocaleString('es-ES');
+const pct   = x => (x==null ? '—' : (x*100).toFixed(0)+'%');
+const esc   = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const d2s   = d => d.toISOString().slice(0,10);
+const hoy   = () => d2s(new Date());
+const addD  = (s,n) => { const d=new Date(s+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d2s(d); };
+const diasEntre = (a,b) => Math.round((new Date(b+'T00:00:00Z') - new Date(a+'T00:00:00Z'))/86400000);
 
-async function api(path, extra){
+// ── Rango: desplegable de presets (mismo juego que «Acciones retención») ──
+const PRESETS = {
+  '7d':  ()=>({desde:addD(hoy(),-6),  hasta:hoy()}),
+  '30d': ()=>({desde:addD(hoy(),-29), hasta:hoy()}),
+  'mes': ()=>{ const h=hoy(); return {desde:h.slice(0,8)+'01', hasta:h}; },
+  'prev':()=>{ const d=new Date(); const fin=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),0));
+               const ini=new Date(Date.UTC(fin.getUTCFullYear(),fin.getUTCMonth(),1)); return {desde:d2s(ini),hasta:d2s(fin)}; },
+  '90d': ()=>({desde:addD(hoy(),-89), hasta:hoy()}),
+  'ytd': ()=>({desde:hoy().slice(0,4)+'-01-01', hasta:hoy()}),
+  'todo':()=>({desde:'', hasta:''}),
+};
+function usarPreset(k){
+  document.getElementById('rango').value = k;
+  if(k === 'custom') return;              // pone las fechas a mano y pulsa Aplicar
+  const v = PRESETS[k]();
+  document.getElementById('desde').value = v.desde;
+  document.getElementById('hasta').value = v.hasta;
+  toggleCmp();
+  load();
+}
+// Tocar las fechas a mano pasa el desplegable a «Personalizado».
+['desde','hasta'].forEach(id => document.getElementById(id)
+  .addEventListener('change', () => { document.getElementById('rango').value = 'custom'; }));
+
+function toggleCmp(){
+  const on   = document.getElementById('cmpOn').checked;
+  const modo = document.getElementById('cmpModo').value;
+  const todo = !document.getElementById('desde').value || !document.getElementById('hasta').value;
+  document.getElementById('cmpOn').disabled  = todo;   // sin rango no hay con qué comparar
+  document.getElementById('cmpModo').disabled = !on || todo;
+  const cust = on && !todo && modo === 'personalizado';
+  document.getElementById('cmpCust').style.display  = cust ? 'flex' : 'none';
+  document.getElementById('cmpCust2').style.display = cust ? 'flex' : 'none';
+}
+
+// Ventana de comparación, calculada en el navegador → dos llamadas al mismo endpoint.
+function ventanaCmp(){
+  if(!document.getElementById('cmpOn').checked) return null;
+  const desde = document.getElementById('desde').value, hasta = document.getElementById('hasta').value;
+  if(!desde || !hasta) return null;                       // «todo el histórico»: nada que comparar
+  const modo = document.getElementById('cmpModo').value;
+  if(modo === 'personalizado'){
+    const a = document.getElementById('cmpDesde').value, b = document.getElementById('cmpHasta').value;
+    return (a && b) ? {desde:a, hasta:b, etiqueta:'el periodo elegido'} : null;
+  }
+  if(modo === 'anio'){
+    const menos1 = s => { const d=new Date(s+'T00:00:00Z'); d.setUTCFullYear(d.getUTCFullYear()-1); return d2s(d); };
+    return {desde:menos1(desde), hasta:menos1(hasta), etiqueta:'el año pasado'};
+  }
+  const dias = diasEntre(desde, hasta) + 1;               // periodo anterior de la misma longitud
+  return {desde: addD(desde, -dias), hasta: addD(desde, -1), etiqueta:'el periodo anterior'};
+}
+
+async function api(path, extra, ventana){
   const body = {
-    desde: document.getElementById('desde').value || null,
-    hasta: document.getElementById('hasta').value || null,
+    desde: (ventana ? ventana.desde : document.getElementById('desde').value) || null,
+    hasta: (ventana ? ventana.hasta : document.getElementById('hasta').value) || null,
     incluir_test: document.getElementById('incTest').checked,
     ...(extra || {}),
   };
@@ -278,99 +426,178 @@ async function api(path, extra){
 }
 
 async function load(){
+  const cuerpo = document.getElementById('cuerpo');
+  cuerpo.style.display = 'block';
+  cuerpo.innerHTML = '<div class="loading">Cargando…</div>';
+  document.querySelectorAll('.tabpane').forEach(p => p.style.display='none');
   try{
-    const r = await api('/api/dashboard');
+    const cmp = ventanaCmp();
+    const [r, rp] = await Promise.all([ api('/api/dashboard'), cmp ? api('/api/dashboard', null, cmp) : null ]);
     if(r.status === 401 || r.status === 403){
       if(token){ logout(); } else { document.getElementById('loginErr').textContent = 'Sesión no válida'; }
       return;
     }
-    if(!r.ok){ document.getElementById('loginErr').textContent = 'Error del servidor'; return; }
+    if(!r.ok){ cuerpo.innerHTML = '<div class="loading">Error del servidor.</div>'; return; }
     document.getElementById('overlay').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     DATA = await r.json();
+    PREV = (rp && rp.ok) ? await rp.json() : null;
+    PREV_ETIQ = cmp ? cmp.etiqueta : '';
+    PREV_VENT = cmp;
+    cuerpo.style.display = 'none';
     render();
-  }catch(e){ document.getElementById('loginErr').textContent = 'No se pudo conectar'; }
+    setTab(TAB);
+  }catch(e){
+    if(!DATA) document.getElementById('loginErr').textContent = 'No se pudo conectar';
+    cuerpo.innerHTML = '<div class="loading">No se pudo conectar.</div>';
+  }
+}
+let PREV_ETIQ = '', PREV_VENT = null;
+
+// ── Delta: «mejor» depende de la métrica (más bajas es peor, más retenidas es mejor) ──
+function delta(actual, previo, opts){
+  if(previo == null || actual == null) return '';
+  const o = opts || {};
+  if(o.pp){                                                  // puntos porcentuales
+    const d = Math.round((actual - previo) * 1000) / 10;
+    if(d === 0) return `<span class="delta flat">= que ${PREV_ETIQ}</span>`;
+    const bien = o.masEsMejor === false ? d < 0 : d > 0;
+    return `<span class="delta ${bien?'up':'down'}">${d>0?'▲':'▼'} ${Math.abs(d).toFixed(1)} pp vs ${PREV_ETIQ}</span>`;
+  }
+  const d = actual - previo;
+  if(d === 0) return `<span class="delta flat">= que ${PREV_ETIQ}</span>`;
+  const p = previo ? Math.round(Math.abs(d)/previo*100) : null;
+  const bien = o.masEsMejor === false ? d < 0 : d > 0;
+  return `<span class="delta ${bien?'up':'down'}">${d>0?'▲':'▼'} ${Math.abs(d)}${p!=null?` (${p}%)`:''} vs ${PREV_ETIQ}</span>`;
 }
 
 function render(){
-  const d = DATA;
+  const d = DATA, k = d.kpis, p = PREV ? PREV.kpis : null;
   document.getElementById('gen').textContent = new Date(d.generated_at).toLocaleString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
   document.getElementById('testBanner').style.display = d.filtros.incluir_test ? 'block' : 'none';
 
-  // KPIs
-  const k = d.kpis;
-  document.getElementById('kpis').innerHTML = [
-    ['hero', pct(k.save_rate), 'Save rate<br><span style="font-size:11px">de las que deciden</span>', ''],
-    ['', money(k.sesiones), 'Sesiones', ''],
-    ['', money(k.salvados), 'Retenidas', 'green'],
-    ['', money(k.bajas), 'Bajas efectivas', 'red'],
-    ['', money(k.solicitudes), 'Solicitudes pendientes', 'amber'],
-    ['', money(k.derivadas), 'Derivadas a Marta', ''],
-  ].map(([cls,n,l,nc])=>`<div class="kpi ${cls}"><div class="n ${nc}">${n}</div><div class="l">${l}</div></div>`).join('');
+  // ── Titular en castellano: qué ha pasado, en una frase ──
+  const decidieron = (k.salvados||0) + (k.bajas||0) + (k.solicitudes||0);
+  const topMotivo  = (d.por_motivo||[]).slice().sort((a,b)=>b.total-a.total)[0];
+  const rangoTxt   = d.filtros.desde && d.filtros.hasta
+    ? `${d.filtros.desde} → ${d.filtros.hasta}` : 'todo el histórico';
+  document.getElementById('titular').innerHTML = k.sesiones
+    ? `<b>${money(k.sesiones)}</b> mujer${k.sesiones===1?'':'es'} ${k.sesiones===1?'entró':'entraron'} en el flujo. De las <b>${money(decidieron)}</b> que llegaron a decidir,
+       <b style="color:var(--green)">${money(k.salvados)}</b> se quedaron y <b style="color:var(--red)">${money(k.bajas)}</b> se fueron.
+       ${topMotivo ? `El motivo que más pesa es <b>${esc(topMotivo.motivo)}</b> (${topMotivo.total} caso${topMotivo.total===1?'':'s'}, salvamos el ${pct(topMotivo.save_rate)}).` : ''}
+       <div class="sub">Periodo: ${rangoTxt}${PREV_VENT?` · comparado con ${PREV_VENT.desde} → ${PREV_VENT.hasta}`:' · sin comparación'}</div>`
+    : `<b>Nadie ha usado el flujo en este periodo.</b> Prueba a ampliar el rango arriba.
+       <div class="sub">Periodo: ${rangoTxt}</div>`;
 
-  // Motivos (barras apiladas)
+  document.getElementById('sectComo').textContent = PREV ? `Cómo vamos · comparado con ${PREV_ETIQ}` : 'Cómo vamos';
+
+  // ── 4 KPIs (no 6): los que responden «¿vamos mejor o peor?» ──
+  const kpi = (cls,l,n,nc,s,dl) => `<div class="kpi ${cls}"><div class="l">${l}</div><div class="n ${nc||''}">${n}</div>${s?`<div class="s">${s}</div>`:''}${dl||''}</div>`;
+  document.getElementById('kpis').innerHTML = [
+    kpi('hero','Save rate', pct(k.save_rate), '', 'de las que llegan a decidir', delta(k.save_rate, p&&p.save_rate, {pp:true})),
+    kpi('','Entraron en el flujo', money(k.sesiones), '', 'sesiones', delta(k.sesiones, p&&p.sesiones)),
+    kpi('','Retenidas', money(k.salvados), 'green', 'pausa, cambio o espaciar', delta(k.salvados, p&&p.salvados)),
+    kpi('','Bajas efectivas', money(k.bajas), 'red', 'plan cancelado', delta(k.bajas, p&&p.bajas, {masEsMejor:false})),
+  ].join('');
+
+  // ── Qué hay que atender: cola de trabajo, clicable ──
+  const sol   = d.solicitudes || {resueltas:0, pendientes:[]};
+  const tarde = sol.pendientes.filter(s => s.fuera_de_plazo).length;
+  const fricN = (d.fricciones||[]).reduce((a,x)=>a+(x.n||0),0);
+  const rep   = (d.repesca && d.repesca.lista) ? d.repesca.lista.length : 0;
+  document.getElementById('todo').innerHTML = [
+    `<button class="act ${tarde?'alert':'ok'}" onclick="setTab('llamar')">
+       <div class="l">Fuera de plazo</div><div class="n">${tarde}</div>
+       <div class="s">${tarde ? `solicitud${tarde===1?'':'es'} que ${tarde===1?'pasa':'pasan'} de las 72 h prometidas` : 'ninguna solicitud pasa de 72 h 👌'}</div>
+       <span class="go">Ver solicitudes →</span></button>`,
+    `<button class="act" onclick="setTab('llamar')">
+       <div class="l">Para recontactar</div><div class="n">${rep}</div>
+       <div class="s">${sol.pendientes.length} pendiente${sol.pendientes.length===1?'':'s'} · ${money(k.derivadas)} derivada${k.derivadas===1?'':'s'} a Marta</div>
+       <span class="go">Abrir lista de repesca →</span></button>`,
+    `<button class="act ${fricN?'':'ok'}" onclick="setTab('porque')">
+       <div class="l">Fricciones</div><div class="n">${fricN}</div>
+       <div class="s">${fricN ? 'veces que el flujo dijo «no» — revisa si las reglas aprietan' : 'ninguna clienta se topó con un bloqueo 👌'}</div>
+       <span class="go">Ver por qué →</span></button>`,
+  ].join('');
+
+  // ── Repesca real: clientas que volvieron (viene del sync de Appstle, no del flujo) ──
+  const rp = d.repesca || {};
+  document.getElementById('repescaBox').innerHTML = rp.webhooks_total
+    ? `<div style="display:flex;gap:28px;align-items:baseline;flex-wrap:wrap">
+         <div><div style="font-size:30px;font-weight:700;color:var(--green);line-height:1">${money(rp.reactivaciones)}</div>
+              <div class="hint" style="margin:6px 0 0">clientas que volvieron a activar su plan</div></div>
+         <div class="hint" style="margin:0">De ${money(rp.webhooks_total)} acciones detectadas en Appstle. Se actualiza con el sync automático cada 6 h — incluye a quien actúa por su cuenta, sin pasar por nuestro flujo.</div>
+       </div>`
+    : `<div class="empty">Aún sin reactivaciones registradas.<br>Aparecerán aquí cuando una clienta vuelva a activar su plan.</div>`;
+
+  // Badge de la pestaña «A quién llamo»
+  const bdg = document.getElementById('bdgLlamar');
+  bdg.textContent = tarde || sol.pendientes.length || 0;
+  bdg.className = 'badge' + (tarde ? '' : ' calm');
+
+  // ── Análisis (pestaña «Por qué se van»), con el dato del periodo comparado al lado ──
+  const prevMap = (arr, key) => { const m={}; (arr||[]).forEach(r=>m[r[key]]=r.total); return m; };
+  const pm = PREV ? prevMap(PREV.por_motivo,'motivo')   : null;
+  const pt = PREV ? prevMap(PREV.por_tenure,'bucket')   : null;
+  const pp2= PREV ? prevMap(PREV.por_producto,'producto'): null;
+  const antes = (map,key) => map && map[key]!=null ? `<span class="cmpv">(antes ${map[key]})</span>` : '';
+
   renderStacked('motivos', d.por_motivo, r=>({
     lbl: r.motivo,
-    val: `${r.total} · save ${pct(r.save_rate)}`,
+    val: `<em>${r.total}</em> · salvamos ${pct(r.save_rate)} ${antes(pm,r.motivo)}`,
     segs: [['salvado',r.salvado],['solicitud',r.solicitud],['baja',r.baja],['otro',(r.derivada||0)+(r.sin_accion||0)]],
     total: r.total,
   }));
-
-  // Tenure
   renderStacked('tenure', d.por_tenure, r=>({
     lbl: r.bucket,
-    val: `${r.total}`,
+    val: `<em>${r.total}</em> ${antes(pt,r.bucket)}`,
     segs: [['salvado',r.salvado],['solicitud',r.solicitud||0],['baja',r.baja],['otro', r.total-(r.salvado+(r.solicitud||0)+r.baja)]],
     total: r.total,
   }));
-
-  // Productos
   renderStacked('productos', d.por_producto, r=>({
     lbl: r.producto,
-    val: `${r.total}`,
+    val: `<em>${r.total}</em> ${antes(pp2,r.producto)}`,
     segs: [['salvado',r.salvado||0],['solicitud',r.solicitud||0],['baja',r.baja||0],['otro', r.total-((r.salvado||0)+(r.solicitud||0)+(r.baja||0))]],
     total: r.total,
   }));
 
-  // Repesca real
-  const rp = d.repesca;
-  document.getElementById('repescaBox').innerHTML = rp.webhooks_total
-    ? `<div style="display:flex;gap:26px;align-items:baseline"><div><div style="font-size:30px;font-weight:700;color:var(--green)">${money(rp.reactivaciones)}</div><div class="hint" style="margin:0">reactivaciones</div></div>
-       <div class="hint" style="margin:0">${rp.webhooks_total} eventos Appstle recibidos</div></div>`
-    : `<div class="empty">Aún sin reactivaciones registradas.<br>Aparecerán aquí cuando una clienta vuelva a activar su plan.</div>`;
+  const fr = d.fricciones || [];
+  if(fr.length) renderStacked('fricciones', fr, r=>({lbl:r.motivo, val:`<em>${r.n}</em>`, segs:[['solicitud',r.n]], total:r.n}));
+  else document.getElementById('fricciones').innerHTML = '<div class="empty">Ninguna clienta se ha topado con un bloqueo. 👌</div>';
 
-  // Solicitudes pendientes (se resuelven solas contra el estado real en Appstle)
-  const sol = d.solicitudes || {resueltas:0, pendientes:[]};
+  // ── Solicitudes pendientes: las que van tarde, primero ──
   document.getElementById('solCount').textContent =
     `· ${sol.pendientes.length} pendiente${sol.pendientes.length===1?'':'s'}${sol.resueltas?` · ${sol.resueltas} ya resuelta${sol.resueltas===1?'':'s'}`:''}`;
-  const sb = document.getElementById('solBody');
-  sb.innerHTML = sol.pendientes.length ? sol.pendientes.map(s=>{
-    const tarde = s.fuera_de_plazo;
-    return `<tr>
-      <td style="white-space:nowrap"><b style="color:${tarde?'var(--red)':'var(--ink)'}">${s.dias===0?'hoy':s.dias+' día'+(s.dias===1?'':'s')}</b>${tarde?'<div style="font-size:11px;color:var(--red)">pasa de 72h</div>':''}</td>
+  const orden = sol.pendientes.slice().sort((a,b)=>(b.fuera_de_plazo?1:0)-(a.fuera_de_plazo?1:0) || (b.dias||0)-(a.dias||0));
+  document.getElementById('solBody').innerHTML = orden.length ? orden.map(s=>`<tr>
+      <td style="white-space:nowrap"><b style="color:${s.fuera_de_plazo?'var(--red)':'inherit'}">${s.dias===0?'hoy':s.dias+' día'+(s.dias===1?'':'s')}</b>${s.fuera_de_plazo?'<div style="font-size:11px;color:var(--red)">pasa de 72h</div>':''}</td>
       <td>${s.nombre?esc(s.nombre):'<span class="muted">—</span>'}${s.email?`<div class="muted" style="font-size:11px">${esc(s.email)}</div>`:''}${s.es_test?' <span class="pill test">prueba</span>':''}</td>
       <td>${esc(s.motivo||'—')}</td>
       <td>${s.estado_actual==='active'?'<span class="pill pausa">sigue activo</span>':`<span class="pill coach">${esc(s.estado_actual)}</span>`}</td>
       <td><div class="actions">${s.email?`<a href="mailto:${esc(s.email)}?subject=${encodeURIComponent('DOMMA · tu solicitud')}">Email</a>`:''}<a href="https://wa.me/${WA}" target="_blank" rel="noopener">WhatsApp</a></div></td>
-    </tr>`;
-  }).join('') : '<tr><td colspan="5"><div class="empty">Ninguna solicitud pendiente. 👌</div></td></tr>';
-
-  // Fricciones: dónde el flujo dice "no"
-  const fr = d.fricciones || [];
-  if(fr.length) renderStacked('fricciones', fr, r=>({lbl:r.motivo, val:String(r.n), segs:[['solicitud',r.n]], total:r.n}));
-  else document.getElementById('fricciones').innerHTML = '<div class="empty">Ninguna clienta se ha topado con un bloqueo. 👌</div>';
+    </tr>`).join('') : '<tr><td colspan="5"><div class="empty">Ninguna solicitud pendiente. 👌</div></td></tr>';
 
   renderLista();
   loadRepo((document.getElementById('repoSearch').value || '').trim());
 }
 
+function setTab(t, el){
+  TAB = t;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  document.querySelectorAll('.tabpane').forEach(p => p.style.display = 'none');
+  const pane = document.getElementById('tab-'+t);
+  if(pane && DATA) pane.style.display = 'block';
+  if(el) el.blur();
+}
+
 function renderStacked(id, arr, map){
   const el = document.getElementById(id);
   if(!arr || !arr.length){ el.innerHTML = '<div class="empty">Sin datos en este periodo.</div>'; return; }
-  const max = Math.max(...arr.map(r=>map(r).total), 1);
-  el.innerHTML = arr.map(r=>{
+  const ord = arr.slice().sort((a,b)=>map(b).total-map(a).total);   // el que más pesa, arriba
+  const max = Math.max(...ord.map(r=>map(r).total), 1);
+  el.innerHTML = ord.map(r=>{
     const m = map(r);
-    const w = (m.total/max)*100; // ancho relativo de la barra respecto al mayor motivo
+    const w = (m.total/max)*100; // ancho relativo respecto al mayor
     const inner = m.segs.map(([cls,v])=> v>0 ? `<div class="seg ${cls}" style="width:${(v/m.total)*100}%"></div>`:'').join('');
     return `<div class="row"><div class="top"><span class="lbl">${esc(m.lbl)}</span><span class="val">${m.val}</span></div>
       <div class="bar" style="width:${Math.max(w,8)}%">${inner}</div></div>`;
@@ -379,7 +606,6 @@ function renderStacked(id, arr, map){
 
 function renderLista(){
   const all = (DATA.repesca.lista)||[];
-  // filtros
   const counts = {todo:all.length, baja:0, solicitud_baja:0, pausa:0, gate:0};
   all.forEach(x=>{ const key = x.estado==='coach'?'gate':x.estado; if(counts[key]!==undefined) counts[key]++; });
   const defs = [['todo','Todas'],['baja','Bajas'],['solicitud_baja','Solicitudes'],['pausa','Pausas'],['gate','Derivadas']];
@@ -446,7 +672,7 @@ async function buscarClienta(){
         </tr>`).join('');
       return `<div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:12px">
         ${cabecera}
-        <div class="scroller" style="margin-top:10px"><table>
+        <div style="overflow-x:auto;margin-top:10px"><table>
           <thead><tr><th>Estado</th><th>Productos</th><th>Frecuencia</th><th>Próxima</th><th>Contrato</th></tr></thead>
           <tbody>${filas||'<tr><td colspan="5" class="muted">Sin contratos</td></tr>'}</tbody>
         </table></div></div>`;
@@ -497,10 +723,15 @@ async function exportCsv(){
   a.click(); URL.revokeObjectURL(a.href);
 }
 
+function arrancar(){
+  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  usarPreset('30d');   // arranca con un rango sensato, no con «todo»
+}
 document.getElementById('pass').addEventListener('keydown',e=>{ if(e.key==='Enter') login(); });
 document.getElementById('email').addEventListener('keydown',e=>{ if(e.key==='Enter') login(); });
 // sesión recordada (o SSO desde el hub)
-if(token){ load(); }
+if(token){ arrancar(); }
 </script>
 </body>
 </html>
