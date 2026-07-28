@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>DOMMA — Acciones retención</title>
+<title>DOMMA — Fallos de pago</title>
 <style>
   :root{
     --navy:#1C296A; --navy-2:#2C3A85; --bg:#F8F7F5; --card:#fff;
@@ -75,9 +75,9 @@
   .kpi.hero .up{color:#8FE3BE} .kpi.hero .down{color:#FFB4AC} .kpi.hero .flat{color:#C9CEEA}
 
   /* Tarjetas de acción */
-  .todo{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .todo{display:grid;grid-template-columns:1fr;gap:12px}
   .act{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:15px 16px;
-    cursor:pointer;text-align:left;font-family:inherit;color:inherit;transition:border-color .12s,box-shadow .12s}
+    cursor:pointer;text-align:left;font-family:inherit;color:inherit;transition:border-color .12s,box-shadow .12s;width:100%}
   .act:hover{border-color:var(--navy);box-shadow:0 2px 12px rgba(28,41,106,.07)}
   .act .lab{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px}
   .act .val{font-size:27px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
@@ -90,9 +90,10 @@
   .card h3{font-size:14px;margin-bottom:3px}
   .card .hint{font-size:12.5px;color:var(--muted);margin-bottom:12px}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
-  th{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-weight:600;white-space:nowrap}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums;vertical-align:top}
+  th{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-weight:600;white-space:nowrap;cursor:default}
   tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#FCFBFA}
   td.num,th.num{text-align:right}
   .bar{height:7px;border-radius:4px;background:#EDEEF4;overflow:hidden;min-width:60px}
   .bar > i{display:block;height:100%;background:var(--navy);border-radius:4px}
@@ -101,7 +102,29 @@
   .avisos li{margin-bottom:3px}
   .loading{text-align:center;color:var(--muted);padding:50px;font-size:13px}
   .foot{font-size:11.5px;color:var(--muted);margin-top:26px;text-align:center}
-  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}.todo{grid-template-columns:1fr}}
+
+  /* Listado individual */
+  .listbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+  .listbar input,.listbar select{padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff}
+  .listbar input:focus,.listbar select:focus{border-color:var(--navy)}
+  .listbar .count{font-size:12.5px;color:var(--muted);margin-left:auto}
+  .pill{display:inline-block;font-size:11px;font-weight:650;border-radius:20px;padding:2px 9px;white-space:nowrap}
+  .pill.red{background:#FBE9E7;color:var(--red)}
+  .pill.amber{background:#FBF1DD;color:var(--amber)}
+  .pill.green{background:#E4F3EC;color:var(--green)}
+  .pill.grey{background:var(--track);color:var(--muted)}
+  .pill.navy{background:#E7EAF6;color:var(--navy)}
+  .who{font-weight:600}
+  .who.none{color:var(--muted);font-weight:400}
+  .dias{font-weight:700}
+  .dias.warn{color:var(--amber)} .dias.bad{color:var(--red)}
+  .cli .em{font-size:11.5px;color:var(--muted);display:block}
+  .acts a{color:var(--navy);text-decoration:none;font-weight:600;font-size:12.5px;margin-right:10px;white-space:nowrap}
+  .acts a:hover{text-decoration:underline}
+  .th-sort{cursor:pointer}
+  .th-sort:hover{color:var(--navy)}
+
+  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}}
   html.embed .wrap{padding-top:20px}
   html.embed header{display:none}
 </style>
@@ -111,8 +134,8 @@
 <div class="overlay" id="overlay">
   <div class="login">
     <img src="https://wearedomma.com/cdn/shop/files/Vector_06860792-3ad3-4c55-896f-7e93d3a52205.png?v=1771481473&width=400" alt="DOMMA">
-    <h2>Acciones retención</h2>
-    <p>Panel interno · acceso admin DOMMA</p>
+    <h2>Fallos de pago</h2>
+    <p>Panel interno · rescate de cobros fallidos</p>
     <input type="email" id="email" placeholder="tu@wearedomma.com" autocomplete="username">
     <input type="password" id="pass" placeholder="Contraseña" autocomplete="current-password">
     <button class="btn" onclick="login()" style="width:100%">Acceder</button>
@@ -125,8 +148,8 @@
     <div class="brand">
       <img src="https://wearedomma.com/cdn/shop/files/Vector_06860792-3ad3-4c55-896f-7e93d3a52205.png?v=1771481473&width=400" alt="DOMMA">
       <div>
-        <h1>Acciones retención</h1>
-        <div class="tag">Repesca de bajas y rescate de fallos de pago · <span id="gen"></span></div>
+        <h1>Fallos de pago</h1>
+        <div class="tag">Rescate y seguimiento de cobros fallidos · <span id="gen"></span></div>
       </div>
     </div>
     <button class="btn ghost" onclick="logout()">Salir</button>
@@ -149,13 +172,6 @@
     <div class="field"><label>Agrupar por</label>
       <select id="gran"><option value="dia">Día</option><option value="semana" selected>Semana</option><option value="mes">Mes</option></select>
     </div>
-    <div class="field"><label>Madurez mínima</label>
-      <select id="madurez">
-        <option value="0">Sin filtro</option>
-        <option value="14">14 días</option>
-        <option value="30">30 días</option>
-      </select>
-    </div>
     <div class="field cmp-wrap">
       <label class="cmp-check"><input type="checkbox" id="cmpOn" checked onchange="toggleCmp()"> Comparar con</label>
       <select id="cmpModo" onchange="toggleCmp()">
@@ -173,23 +189,30 @@
 
   <div class="tabs" id="tabs" style="display:none">
     <button class="tab on" data-t="resumen" onclick="setTab('resumen',this)">Resumen</button>
-    <button class="tab"    data-t="bajas"   onclick="setTab('bajas',this)">Solicitudes de baja</button>
-    <button class="tab"    data-t="fallos"  onclick="setTab('fallos',this)">Fallos de pago <span class="badge calm" id="bdgFallos">0</span></button>
+    <button class="tab"    data-t="listado" onclick="setTab('listado',this)">Listado · a quién llamar <span class="badge calm" id="bdgList">0</span></button>
   </div>
 
   <div id="cuerpo"><div class="loading">Cargando…</div></div>
 
-  <div class="foot">Panel interno DOMMA · worker <code>gestorsubs-domma</code> · tableros Monday + Appstle en vivo</div>
+  <div class="foot">Panel interno DOMMA · worker <code>gestorsubs-domma</code> · tablero Monday de fallos + Appstle en vivo</div>
 </div>
 
 <script>
-const API = 'https://gestorsubs-domma.cristina-ed1.workers.dev/metricas-retencion';
+const API_METRICAS = 'https://gestorsubs-domma.cristina-ed1.workers.dev/metricas-retencion';
+// Listado individual: /failures-since lee Appstle en vivo (~5s), filtra por día de
+// forma nativa y da desenlace real por fallo. Se prefiere a /board-items, que
+// reescanea todo el tablero Monday (1-3 min y a veces revienta) y cuyo campo de
+// agente está vacío en el 100% de las fichas.
+const API_ITEMS = 'https://gestorsubs-domma.cristina-ed1.workers.dev/failures-since';
 const AUTH_API = 'https://domma-pro-api.cristina-ed1.workers.dev';
 
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
 (function(){ const m = location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token', decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
 let token = localStorage.getItem('domma_analytics_token') || '';
 let TAB = 'resumen', PANES = {};
+let ITEMS = [];               // fichas individuales del periodo
+let FILTRO = 'abiertas';      // filtro de estado del listado
+let ORDEN = 'dias';           // columna de orden del listado
 
 const d2s = d => d.toISOString().slice(0,10);
 const hoy = () => d2s(new Date());
@@ -204,14 +227,14 @@ function login(){
   fetch(AUTH_API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})})
     .then(r=>r.json()).then(d=>{
       const role=d.role||(d.user&&d.user.role);
-      if(d.token&&role==='admin'){ token=d.token; localStorage.setItem('domma_analytics_token',token); arrancar(); }
-      else if(d.token){ err.textContent='Tu usuario no tiene acceso admin'; }
+      if(d.token&&(role==='admin'||role==='retencion')){ token=d.token; localStorage.setItem('domma_analytics_token',token); arrancar(); }
+      else if(d.token){ err.textContent='Tu usuario no tiene acceso a este panel'; }
       else { err.textContent='Credenciales incorrectas'; }
     }).catch(()=>{ err.textContent='No se pudo conectar'; });
 }
 function logout(){ localStorage.removeItem('domma_analytics_token'); location.reload(); }
 
-// ── Rango: mismos presets que /bajas, para que las dos pestañas se manejen igual ──
+// ── Rango: mismos presets que /bajas, para que los paneles se manejen igual ──
 const PRESETS={
   '7d':  ()=>({desde:addD(hoy(),-6),  hasta:hoy(), gran:'dia'}),
   '30d': ()=>({desde:addD(hoy(),-29), hasta:hoy(), gran:'semana'}),
@@ -223,14 +246,13 @@ const PRESETS={
 };
 function usarPreset(k){
   document.getElementById('rango').value=k;
-  if(k==='custom') return; // el usuario pone las fechas a mano y pulsa Aplicar
+  if(k==='custom') return;
   const v=PRESETS[k]();
   document.getElementById('desde').value=v.desde;
   document.getElementById('hasta').value=v.hasta;
   document.getElementById('gran').value=v.gran;
   load();
 }
-// Tocar las fechas a mano pasa el desplegable a "Personalizado".
 ['desde','hasta'].forEach(id=>document.getElementById(id)
   .addEventListener('change',()=>{document.getElementById('rango').value='custom';}));
 
@@ -243,14 +265,13 @@ function toggleCmp(){
   document.getElementById('cmpCust2').style.display=cust?'flex':'none';
 }
 
-// La ventana comparada la calcula el worker; aquí solo se le pone nombre.
 function etiquetaCmp(){
   if(!document.getElementById('cmpOn').checked) return '';
   return {anterior:'el periodo anterior', anio:'el año pasado', personalizado:'el periodo elegido'}[document.getElementById('cmpModo').value] || 'el periodo comparado';
 }
 let ETIQ = 'el periodo anterior';
 
-// ── Delta: «mejor» depende de la métrica (más fallos es peor, más rescates es mejor) ──
+// ── Delta: «más fallos es peor, más rescates es mejor» ──
 function delta(actual, previo, opts){
   if(actual==null || previo==null) return '';
   const o=opts||{};
@@ -265,11 +286,12 @@ async function load(refresh){
   cuerpo.style.display='block';
   cuerpo.innerHTML=`<div class="loading">${refresh?'Recalculando contra Monday y Appstle… puede tardar ~2 minutos':'Cargando…'}</div>`;
   document.getElementById('tabs').style.display='none';
+
+  const desde=document.getElementById('desde').value, hasta=document.getElementById('hasta').value;
   const q=new URLSearchParams({
-    desde:document.getElementById('desde').value,
-    hasta:document.getElementById('hasta').value,
+    desde, hasta,
     granularidad:document.getElementById('gran').value,
-    madurez:document.getElementById('madurez').value,
+    madurez:'0',
   });
   const cmpOn=document.getElementById('cmpOn').checked;
   const cmpModo=document.getElementById('cmpModo').value;
@@ -280,12 +302,66 @@ async function load(refresh){
   }
   if(refresh) q.set('refresh','1');
   ETIQ = etiquetaCmp();
+
+  // Dos fuentes en paralelo: agregados (metricas-retencion) + fichas individuales (failures-since).
+  const qi=new URLSearchParams({desde, hasta});
   try{
-    const r=await fetch(API+'?'+q.toString());
-    const d=await r.json();
-    if(d.error){ cuerpo.innerHTML=`<div class="card"><h3>No hay datos todavía</h3><p class="hint">${esc(d.error)} — ${esc(d.pista||'')}. Pulsa «Recalcular».</p></div>`; return; }
-    render(d);
+    const [rm, ri] = await Promise.all([
+      fetch(API_METRICAS+'?'+q.toString()).then(r=>r.json()).catch(e=>({error:e.message})),
+      fetch(API_ITEMS+'?'+qi.toString()).then(r=>r.json()).catch(e=>({error:e.message})),
+    ]);
+    if(rm.error && !rm.actual){
+      cuerpo.innerHTML=`<div class="card"><h3>No hay datos todavía</h3><p class="hint">${esc(rm.error)} — ${esc(rm.pista||'')}. Pulsa «Recalcular».</p></div>`;
+      return;
+    }
+    ITEMS = normalizarItems(ri);
+    render(rm, ri);
   }catch(e){ cuerpo.innerHTML=`<div class="card"><h3>Error de conexión</h3><p class="hint">${esc(e.message)}</p></div>`; }
+}
+
+// ── /failures-since → fichas planas y ordenables ──
+function normalizarItems(ri){
+  if(!ri || !Array.isArray(ri.detalle)) return [];
+  const hoyMs = Date.parse(hoy()+'T00:00:00Z');
+  return ri.detalle.map(it=>{
+    const fecha = (it.primer_fallo||'').slice(0,10);
+    const dias = fecha ? Math.max(0, Math.round((hoyMs - Date.parse(fecha+'T00:00:00Z'))/86400000)) : null;
+    const importe = parseFloat(String(it.importe||'').replace(',', '.')) || 0;
+    return {
+      id: it.contract_id,
+      nombre: limpiarNombre(it.nombre),
+      email: (it.email||'').trim(),
+      phone: (it.telefono||'').trim(),
+      desenlace: (it.desenlace||'').trim() || 'abierta',
+      tipo: it.tipo==='dunning_skipped' ? 'Dunning skipped' : 'Fallo pago',
+      intentos: it.intentos_en_ventana ?? null,
+      ultimo_pago: it.ultimo_pago_ok || null,
+      importe, fecha, dias,
+    };
+  });
+}
+
+// ── Clasificación del desenlace para píldora y filtro «abiertas» ──
+function estadoCat(desenlace){
+  const e = (desenlace||'').toLowerCase();
+  if(e==='abierta')    return {cat:'abierta',    cls:'red',   txt:'Abierta',    abierta:true};
+  if(e==='recuperada') return {cat:'recuperada', cls:'green', txt:'Recuperada', abierta:false};
+  if(e==='baja')       return {cat:'baja',       cls:'grey',  txt:'Se dio de baja', abierta:false};
+  if(e==='pausada')    return {cat:'pausada',    cls:'amber', txt:'Pausada',    abierta:false};
+  return {cat:'otro', cls:'grey', txt:desenlace||'—', abierta:true};
+}
+
+// Appstle guarda algunos nombres con el escape unicode roto (ñ → "u00f1",
+// á → "u00e1"): decodifica esas secuencias sueltas. Defensivo: solo toca
+// "u00XX" con XX hex, que no aparece en nombres reales.
+function limpiarNombre(s){
+  return String(s||'').trim().replace(/u00([0-9a-fA-F]{2})/g,(m,h)=>String.fromCharCode(parseInt(h,16)));
+}
+function waLink(phone){
+  let p=String(phone||'').replace(/\D/g,'');
+  if(!p) return '';
+  if(p.length===9) p='34'+p;
+  return 'https://wa.me/'+p;
 }
 
 function setTab(t, el){
@@ -293,103 +369,130 @@ function setTab(t, el){
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on', b.dataset.t===t));
   const c=document.getElementById('cuerpo');
   c.style.display='block';
-  c.innerHTML = PANES[t] || '';
+  if(t==='listado') c.innerHTML = renderListado();
+  else c.innerHTML = PANES[t] || '';
   if(el) el.blur();
 }
 
-function render(d){
+// Controles del listado (viven dentro del pane, se re-renderiza al vuelo)
+function setFiltro(v){ FILTRO=v; document.getElementById('cuerpo').innerHTML=renderListado(); }
+function setOrden(v){ ORDEN=(ORDEN===v)? v : v; document.getElementById('cuerpo').innerHTML=renderListado(); }
+
+function renderListado(){
+  let filas = ITEMS.slice();
+  if(FILTRO==='abiertas') filas = filas.filter(f=>estadoCat(f.desenlace).abierta);
+  else if(FILTRO!=='todas') filas = filas.filter(f=>estadoCat(f.desenlace).cat===FILTRO);
+
+  filas.sort((a,b)=>{
+    if(ORDEN==='importe') return (b.importe||0)-(a.importe||0);
+    if(ORDEN==='estado')  return a.desenlace.localeCompare(b.desenlace);
+    return (b.dias||0)-(a.dias||0); // dias (defecto)
+  });
+
+  const opt=(v,txt)=>`<option value="${v}"${FILTRO===v?' selected':''}>${txt}</option>`;
+  const bar=`<div class="listbar">
+      <select onchange="setFiltro(this.value)">
+        ${opt('abiertas','Abiertas · a llamar')}
+        ${opt('recuperada','Recuperadas')}
+        ${opt('baja','Se dieron de baja')}
+        ${opt('pausada','Pausadas')}
+        ${opt('todas','Todas')}
+      </select>
+      <select onchange="setOrden(this.value)">
+        <option value="dias"${ORDEN==='dias'?' selected':''}>Ordenar: días esperando</option>
+        <option value="importe"${ORDEN==='importe'?' selected':''}>Ordenar: importe</option>
+        <option value="estado"${ORDEN==='estado'?' selected':''}>Ordenar: desenlace</option>
+      </select>
+      <span class="count">${filas.length} fallo${filas.length===1?'':'s'} · periodo ${esc(document.getElementById('desde').value)} → ${esc(document.getElementById('hasta').value)}</span>
+    </div>`;
+
+  if(!ITEMS.length) return `<div class="sect">Listado de fallos</div>${bar}<div class="card"><p class="hint">No hay fallos de pago en este periodo (o Appstle no respondió). Prueba a ampliar el rango.</p></div>`;
+
+  const rows = filas.map(f=>{
+    const sc=estadoCat(f.desenlace);
+    const dCls = f.dias>=14?'bad':(f.dias>=7?'warn':'');
+    const wa=waLink(f.phone);
+    const acts=[
+      f.email?`<a href="mailto:${esc(f.email)}?subject=${encodeURIComponent('DOMMA · tu suscripción')}">Email</a>`:'',
+      wa?`<a href="${wa}" target="_blank" rel="noopener">WhatsApp</a>`:'',
+    ].filter(Boolean).join('') || '<span class="muted">sin contacto</span>';
+    const intxt = f.intentos!=null ? `${f.intentos} intento${f.intentos===1?'':'s'}` : '';
+    return `<tr>
+      <td class="cli"><b>${f.nombre?esc(f.nombre):(f.email?esc(f.email):'<span class="muted">sin datos</span>')}</b>${f.nombre&&f.email?`<span class="em">${esc(f.email)}</span>`:''}<span class="em">${esc(f.tipo)}${intxt?' · '+intxt:''}</span></td>
+      <td><span class="pill ${sc.cls}">${esc(sc.txt)}</span></td>
+      <td class="num"><b>${eur(f.importe)}</b></td>
+      <td class="num"><span class="dias ${dCls}">${f.dias==null?'—':f.dias+' d'}</span></td>
+      <td>${f.fecha?esc(f.fecha):'—'}</td>
+      <td class="acts">${acts}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="sect">Listado de fallos · a quién llamar</div>${bar}
+    <div class="card" style="margin-top:8px">
+      <p class="hint">Cada fallo del periodo, con su desenlace, importe en riesgo y días desde el primer intento fallido. «Días» ≥7 en ámbar, ≥14 en rojo. <b>«Abiertas» son las que siguen sin cobrar</b> — la lista de llamadas de Carme. Fuente: Appstle en vivo.</p>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>Clienta</th><th>Desenlace</th><th class="num">Importe</th><th class="num">Días</th><th>1er fallo</th><th>Contactar</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Sin fallos con este filtro</td></tr>`}</tbody>
+      </table></div>
+    </div>`;
+}
+
+function render(d, ri){
   const a=d.actual;
   const hayCmp=!!d.anterior;
-  // Sin comparación activa: objeto de nulos para que deltas y subtítulos se apaguen solos.
-  const p=d.anterior||{bajas:{solicitudes:null,intentos_retencion:null,pct_intentos:null,repescadas:null,pct_exito_intento:null},
-                      fallos:{fichas:null,rescatados:null,pct_rescate:null,rescatados_30d:null,pct_rescate_30d:null,sin_tocar:null},
-                      ventana:{desde:'',hasta:''}};
+  const p=d.anterior||{fallos:{fichas:null,rescatados:null,pct_rescate:null,rescatados_30d:null,pct_rescate_30d:null,sin_tocar:null},ventana:{desde:'',hasta:''}};
   document.getElementById('gen').textContent='datos de '+new Date(d.generado).toLocaleString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
 
   const kpi=(cls,lab,val,sub,dl)=>`<div class="kpi ${cls||''}"><div class="lab">${lab}</div><div class="val">${val}</div>${sub?`<div class="sub">${sub}</div>`:''}${dl||''}</div>`;
-  const sinIntento = a.bajas.solicitudes - a.bajas.intentos_retencion;
 
-  // ── Titular: las dos palancas del panel, en una frase ──
+  // ── Titular: solo fallos de pago ──
   const titular = `<div class="titular">
-      Llegaron <b>${a.bajas.solicitudes}</b> solicitud${a.bajas.solicitudes===1?'':'es'} de baja: intentamos retener <b>${a.bajas.intentos_retencion}</b>
-      y ${a.bajas.repescadas===1?'sigue':'siguen'} con nosotras <b style="color:var(--green)">${a.bajas.repescadas}</b>.
-      En paralelo, <b>${a.fallos.fichas}</b> fallo${a.fallos.fichas===1?'':'s'} de pago ${a.fallos.fichas===1?'puso':'pusieron'} <b>${eur(a.fallos.importe_en_riesgo)}</b> en riesgo
-      y recuperamos <b style="color:var(--green)">${a.fallos.rescatados}</b>${a.fallos.sin_tocar?`, con <b style="color:var(--red)">${a.fallos.sin_tocar}</b> todavía sin tocar`:''}.
+      Entraron <b>${a.fallos.fichas}</b> fallo${a.fallos.fichas===1?'':'s'} de pago que ${a.fallos.fichas===1?'puso':'pusieron'} <b>${eur(a.fallos.importe_en_riesgo)}</b> en riesgo;
+      recuperamos <b style="color:var(--green)">${a.fallos.rescatados}</b>${a.fallos.sin_tocar?`, con <b style="color:var(--red)">${a.fallos.sin_tocar}</b> todavía sin tocar`:' y no queda ninguno sin tocar 👌'}.
       <div class="sub">Periodo: ${esc(document.getElementById('desde').value)} → ${esc(document.getElementById('hasta').value)}${hayCmp?` · comparado con ${esc(p.ventana.desde)} → ${esc(p.ventana.hasta)}`:' · sin comparación'}</div>
     </div>`;
 
   const avisos=`<div class="avisos"><b>Cómo leer esto</b><ul>${(d.avisos||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
 
-  // ══════════ RESUMEN: los 4 números que mueven la aguja + qué atender ══════════
+  // ══════════ RESUMEN ══════════
   PANES.resumen = titular + `
     <div class="sect">Cómo vamos${hayCmp?` · comparado con ${ETIQ}`:''}</div>
     <div class="kpis">
-      ${kpi('hero','Éxito del intento', pc(a.bajas.pct_exito_intento), `de las ${a.bajas.intentos_retencion} que intentamos retener`, delta(a.bajas.pct_exito_intento,p.bajas.pct_exito_intento,{pp:true}))}
-      ${kpi('','Repescadas', a.bajas.repescadas, 'siguen con la suscripción viva', delta(a.bajas.repescadas,p.bajas.repescadas))}
-      ${kpi('','Rescate de pagos ≤30 días', pc(a.fallos.pct_rescate_30d), `${a.fallos.rescatados_30d} de ${a.fallos.fichas} fallos`, delta(a.fallos.pct_rescate_30d,p.fallos.pct_rescate_30d,{pp:true}))}
-      ${kpi('','Dinero en riesgo', eur(a.fallos.importe_en_riesgo), 'de los fallos del periodo')}
+      ${kpi('hero','Rescate ≤30 días', pc(a.fallos.pct_rescate_30d), `${a.fallos.rescatados_30d} de ${a.fallos.fichas} fallos · la única cifra comparable entre meses`, delta(a.fallos.pct_rescate_30d,p.fallos.pct_rescate_30d,{pp:true}))}
+      ${kpi('','Fallos', a.fallos.fichas, `${eur(a.fallos.importe_en_riesgo)} en riesgo`, delta(a.fallos.fichas,p.fallos.fichas,{masEsMejor:false}))}
+      ${kpi('','Rescatados', a.fallos.rescatados, `${pc(a.fallos.pct_rescate)} del total`, delta(a.fallos.rescatados,p.fallos.rescatados))}
+      ${kpi('','Sin tocar', a.fallos.sin_tocar, `${pc(a.fallos.pct_sin_tocar)} en «Pendiente contact»`, delta(a.fallos.sin_tocar,p.fallos.sin_tocar,{masEsMejor:false}))}
     </div>
 
     <div class="sect">Qué hay que atender</div>
     <div class="todo">
-      <button class="act ${a.fallos.sin_tocar?'alert':'ok'}" onclick="setTab('fallos')">
+      <button class="act ${a.fallos.sin_tocar?'alert':'ok'}" onclick="setTab('listado')">
         <div class="lab">Fallos sin tocar</div><div class="val">${a.fallos.sin_tocar}</div>
         <div class="sub">${a.fallos.sin_tocar?`${pc(a.fallos.pct_sin_tocar)} siguen en «Pendiente contact» — nadie los ha llamado`:'ningún fallo sin gestionar 👌'}</div>
-        <span class="go">Ver fallos de pago →</span></button>
-      <button class="act ${sinIntento>0?'alert':'ok'}" onclick="setTab('bajas')">
-        <div class="lab">Bajas sin intento</div><div class="val">${sinIntento}</div>
-        <div class="sub">${sinIntento>0?`se fueron sin que nadie intentara retenerlas · intentamos con el ${pc(a.bajas.pct_intentos)}`:'intentamos retener a todas 👌'}</div>
-        <span class="go">Ver solicitudes de baja →</span></button>
+        <span class="go">Ver el listado y a quién llamar →</span></button>
     </div>` + avisos;
 
-  // Badge: los fallos sin tocar son dinero esperando una llamada.
-  const bdg=document.getElementById('bdgFallos');
-  bdg.textContent=a.fallos.sin_tocar||0;
-  bdg.className='badge'+(a.fallos.sin_tocar?'':' calm');
+  // Badge del listado: fallos abiertos = dinero esperando una llamada.
+  const abiertas=ITEMS.filter(f=>estadoCat(f.desenlace).abierta).length;
+  const bdg=document.getElementById('bdgList');
+  bdg.textContent=abiertas;
+  bdg.className='badge'+(abiertas?'':' calm');
 
-  // ══════════ Evolución: una tabla por tema, no las dos mezcladas en 11 columnas ══════════
+  // ── Evolución de los fallos ──
   const granTxt=document.getElementById('gran').selectedOptions[0].text.toLowerCase();
   const serie=(d.series||[]);
-  const tabla=(titulo,hint,cols,peso)=>{
-    const max=Math.max(1,...serie.map(peso));
-    return `<div class="card">
-      <h3>${titulo}</h3><p class="hint">${hint} Agrupado por ${granTxt}.</p>
+  const max=Math.max(1,...serie.map(s=>s.fallos.fichas));
+  const cols=[{t:'Fallos',f:s=>s.fallos.fichas},{t:'Rescatados',f:s=>s.fallos.rescatados},
+              {t:'% rescate',f:s=>pc(s.fallos.pct_rescate)},{t:'Sin tocar',f:s=>s.fallos.sin_tocar}];
+  PANES.resumen += `<div class="card">
+      <h3>Evolución de los fallos de pago</h3><p class="hint">Fichas creadas y cuántas acabaron cobrando. Agrupado por ${granTxt}.</p>
       <div style="overflow-x:auto"><table>
         <thead><tr><th>Periodo</th>${cols.map(c=>`<th class="num">${c.t}</th>`).join('')}<th></th></tr></thead>
         <tbody>${serie.length?serie.map(s=>`<tr><td><b>${esc(s.periodo)}</b></td>
           ${cols.map(c=>`<td class="num">${c.f(s)}</td>`).join('')}
-          <td style="width:90px"><div class="bar"><i style="width:${Math.round(100*peso(s)/max)}%"></i></div></td></tr>`).join('')
+          <td style="width:90px"><div class="bar"><i style="width:${Math.round(100*s.fallos.fichas/max)}%"></i></div></td></tr>`).join('')
           :`<tr><td colspan="${cols.length+2}" style="text-align:center;color:var(--muted);padding:24px">Sin datos en el periodo</td></tr>`}</tbody>
       </table></div></div>`;
-  };
-
-  // ══════════ TAB: SOLICITUDES DE BAJA ══════════
-  PANES.bajas = `
-    <div class="sect">Solicitudes de baja · repesca${hayCmp?` · comparado con ${ETIQ}`:''}</div>
-    <div class="kpis">
-      ${kpi('','Solicitudes', a.bajas.solicitudes, 'recibidas en el periodo', delta(a.bajas.solicitudes,p.bajas.solicitudes,{masEsMejor:false}))}
-      ${kpi('','Intentos de retención', a.bajas.intentos_retencion, `${pc(a.bajas.pct_intentos)} de las solicitudes`, delta(a.bajas.pct_intentos,p.bajas.pct_intentos,{pp:true}))}
-      ${kpi('','Repescadas', a.bajas.repescadas, `de ${a.bajas.intentos_retencion} intentos`, delta(a.bajas.repescadas,p.bajas.repescadas))}
-      ${kpi('hero','Éxito del intento', pc(a.bajas.pct_exito_intento), `frente a ${pc(a.bajas.pct_vivas_total)} del total`, delta(a.bajas.pct_exito_intento,p.bajas.pct_exito_intento,{pp:true}))}
-    </div>
-    ${tabla('Evolución de las bajas','Cuántas solicitudes llegan, en cuántas intervenimos y cuántas se quedan.',
-      [{t:'Solicitudes',f:s=>s.bajas.solicitudes},{t:'Intentos',f:s=>s.bajas.intentos_retencion},
-       {t:'Repescadas',f:s=>s.bajas.repescadas},{t:'% éxito',f:s=>pc(s.bajas.pct_exito_intento)}],
-      s=>s.bajas.solicitudes)}` + avisos;
-
-  // ══════════ TAB: FALLOS DE PAGO ══════════
-  PANES.fallos = `
-    <div class="sect">Fallos de pago · rescate${hayCmp?` · comparado con ${ETIQ}`:''}</div>
-    <div class="kpis">
-      ${kpi('','Fallos', a.fallos.fichas, `${eur(a.fallos.importe_en_riesgo)} en riesgo`, delta(a.fallos.fichas,p.fallos.fichas,{masEsMejor:false}))}
-      ${kpi('','Rescatados', a.fallos.rescatados, `${pc(a.fallos.pct_rescate)} del total`, delta(a.fallos.pct_rescate,p.fallos.pct_rescate,{pp:true}))}
-      ${kpi('hero','Rescatados ≤30 días', pc(a.fallos.pct_rescate_30d), `${a.fallos.rescatados_30d} fichas · la única cifra comparable entre meses`, delta(a.fallos.pct_rescate_30d,p.fallos.pct_rescate_30d,{pp:true}))}
-      ${kpi('','Sin tocar', a.fallos.sin_tocar, `${pc(a.fallos.pct_sin_tocar)} siguen en «Pendiente contact»`, delta(a.fallos.sin_tocar,p.fallos.sin_tocar,{masEsMejor:false}))}
-    </div>
-    ${tabla('Evolución de los fallos de pago','Fichas creadas y cuántas acabaron cobrando.',
-      [{t:'Fallos',f:s=>s.fallos.fichas},{t:'Rescatados',f:s=>s.fallos.rescatados},
-       {t:'% rescate',f:s=>pc(s.fallos.pct_rescate)},{t:'Sin tocar',f:s=>s.fallos.sin_tocar}],
-      s=>s.fallos.fichas)}` + avisos;
 
   document.getElementById('tabs').style.display='flex';
   setTab(TAB);
