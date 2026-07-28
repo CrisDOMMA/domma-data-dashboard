@@ -169,9 +169,6 @@
     </div>
     <div class="field"><label>Desde</label><input type="date" id="desde"></div>
     <div class="field"><label>Hasta</label><input type="date" id="hasta"></div>
-    <div class="field"><label>Agrupar por</label>
-      <select id="gran"><option value="dia">Día</option><option value="semana" selected>Semana</option><option value="mes">Mes</option></select>
-    </div>
     <div class="field cmp-wrap">
       <label class="cmp-check"><input type="checkbox" id="cmpOn" checked onchange="toggleCmp()"> Comparar con</label>
       <select id="cmpModo" onchange="toggleCmp()">
@@ -184,7 +181,7 @@
     <div class="field cmp-cust" id="cmpCust2" style="display:none"><label>Comp. hasta</label><input type="date" id="cmpHasta"></div>
     <button class="btn" onclick="load()">Aplicar</button>
     <div class="spacer"></div>
-    <button class="btn ghost" onclick="load(true)" title="Recalcula contra Monday y Appstle (tarda ~2 min)">↻ Recalcular</button>
+    <button class="btn ghost" onclick="load()" title="Vuelve a leer Appstle en vivo">↻ Actualizar</button>
   </div>
 
   <div class="tabs" id="tabs" style="display:none">
@@ -194,15 +191,14 @@
 
   <div id="cuerpo"><div class="loading">Cargando…</div></div>
 
-  <div class="foot">Panel interno DOMMA · worker <code>gestorsubs-domma</code> · tablero Monday de fallos + Appstle en vivo</div>
+  <div class="foot">Panel interno DOMMA · worker <code>gestorsubs-domma</code> · datos de Appstle en vivo</div>
 </div>
 
 <script>
-const API_METRICAS = 'https://gestorsubs-domma.cristina-ed1.workers.dev/metricas-retencion';
-// Listado individual: /failures-since lee Appstle en vivo (~5s), filtra por día de
-// forma nativa y da desenlace real por fallo. Se prefiere a /board-items, que
-// reescanea todo el tablero Monday (1-3 min y a veces revienta) y cuyo campo de
-// agente está vacío en el 100% de las fichas.
+// TODA la página lee de Appstle en vivo vía /failures-since (~5s, filtra por día
+// de forma nativa). Se prefiere a Monday /board-items (reescanea todo el tablero,
+// 1-3 min, y su campo de agente está vacío al 100%) y a /metricas-retencion, para
+// que el Resumen y el Listado cuadren: una sola fuente.
 const API_ITEMS = 'https://gestorsubs-domma.cristina-ed1.workers.dev/failures-since';
 const AUTH_API = 'https://domma-pro-api.cristina-ed1.workers.dev';
 
@@ -219,7 +215,13 @@ const hoy = () => d2s(new Date());
 const addD = (s,n) => { const d=new Date(s+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d2s(d); };
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const pc  = v => (v==null?'—':v+'%');
-const eur = v => (v||0).toLocaleString('es-ES')+' €';
+// Formato es-ES determinista (no depende del ICU del navegador): 5671 -> "5.671 €",
+// 39.2 -> "39,2 €", 29 -> "29 €".
+const eur = v => {
+  const [ent,dec] = (Math.round((v||0)*100)/100).toFixed(2).split('.');
+  const miles = ent.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  return (dec==='00' ? miles : miles+','+dec.replace(/0$/,'')) + ' €';
+};
 
 function login(){
   const email=document.getElementById('email').value.trim(), pass=document.getElementById('pass').value;
@@ -250,8 +252,40 @@ function usarPreset(k){
   const v=PRESETS[k]();
   document.getElementById('desde').value=v.desde;
   document.getElementById('hasta').value=v.hasta;
-  document.getElementById('gran').value=v.gran;
   load();
+}
+
+// Ventana comparada, calculada en el navegador (failures-since no compara solo).
+function compWindow(desde, hasta, modo){
+  if(modo==='personalizado'){
+    return {desde:document.getElementById('cmpDesde').value||'', hasta:document.getElementById('cmpHasta').value||''};
+  }
+  if(modo==='anio'){
+    const shift=s=>{const d=new Date(s+'T00:00:00Z'); d.setUTCFullYear(d.getUTCFullYear()-1); return d2s(d);};
+    return {desde:shift(desde), hasta:shift(hasta)};
+  }
+  // 'anterior': mismo nº de días justo antes del periodo actual.
+  const dias=Math.round((Date.parse(hasta+'T00:00:00Z')-Date.parse(desde+'T00:00:00Z'))/86400000)+1;
+  const ph=addD(desde,-1), pd=addD(ph,-(dias-1));
+  return {desde:pd, hasta:ph};
+}
+
+// Resume un payload de /failures-since en las cifras del panel. Solo la consulta
+// base (rápida, ~5s): NO se usa ?recuperadas=1 (escanea miles de SUCCESS, lento y
+// variable). Por eso no se muestra un % de rescate aquí — la recuperación real,
+// que la cola viva de Appstle no permite contar (al pagar, el fallo desaparece),
+// vive en el dashboard de cohortes/BI. En riesgo = suma del importe de las abiertas.
+function resumir(fs){
+  if(!fs) return null;
+  const de=fs.desenlace||{};
+  const total=fs.contratos_con_fallo||0;
+  const abiertas=(de.abierta&&de.abierta.n)||0;
+  const bajas=(de.baja&&de.baja.n)||0;
+  const pausadas=(de.pausada&&de.pausada.n)||0;
+  const enRiesgo=(fs.detalle||[]).filter(x=>x.desenlace==='abierta').reduce((s,x)=>s+(parseFloat(x.importe)||0),0);
+  return {total, abiertas, bajas, pausadas, enRiesgo:Math.round(enRiesgo),
+    pctAbiertas: total?Math.round(1000*abiertas/total)/10:null,
+    pctBajas: total?Math.round(1000*bajas/total)/10:null};
 }
 ['desde','hasta'].forEach(id=>document.getElementById(id)
   .addEventListener('change',()=>{document.getElementById('rango').value='custom';}));
@@ -281,41 +315,37 @@ function delta(actual, previo, opts){
   return `<span class="delta ${bien?'up':'down'}">${d>0?'▲':'▼'} ${Math.abs(d)}${o.pp?' pp':''} vs ${ETIQ}</span>`;
 }
 
-async function load(refresh){
+const fsURL = (desde,hasta,extra)=>API_ITEMS+'?'+new URLSearchParams(Object.assign({desde,hasta},extra||{})).toString();
+const getJSON = u => fetch(u).then(r=>r.json()).catch(e=>({error:e.message}));
+
+async function load(){
   const cuerpo=document.getElementById('cuerpo');
   cuerpo.style.display='block';
-  cuerpo.innerHTML=`<div class="loading">${refresh?'Recalculando contra Monday y Appstle… puede tardar ~2 minutos':'Cargando…'}</div>`;
+  cuerpo.innerHTML=`<div class="loading">Cargando desde Appstle…</div>`;
   document.getElementById('tabs').style.display='none';
 
   const desde=document.getElementById('desde').value, hasta=document.getElementById('hasta').value;
-  const q=new URLSearchParams({
-    desde, hasta,
-    granularidad:document.getElementById('gran').value,
-    madurez:'0',
-  });
   const cmpOn=document.getElementById('cmpOn').checked;
   const cmpModo=document.getElementById('cmpModo').value;
-  q.set('comparar', cmpOn?cmpModo:'ninguna');
-  if(cmpOn&&cmpModo==='personalizado'){
-    q.set('comp_desde',document.getElementById('cmpDesde').value||'');
-    q.set('comp_hasta',document.getElementById('cmpHasta').value||'');
-  }
-  if(refresh) q.set('refresh','1');
   ETIQ = etiquetaCmp();
 
-  // Dos fuentes en paralelo: agregados (metricas-retencion) + fichas individuales (failures-since).
-  const qi=new URLSearchParams({desde, hasta});
+  // Solo Appstle base (rápido): actual [+ comparación]. Una sola fuente que el
+  // Listado y el Resumen comparten, para que las cifras cuadren.
+  const calls = [ getJSON(fsURL(desde,hasta)) ];
+  let cmp=null;
+  if(cmpOn){
+    cmp = compWindow(desde,hasta,cmpModo);
+    if(cmp.desde && cmp.hasta) calls.push(getJSON(fsURL(cmp.desde,cmp.hasta)));
+    else cmp=null;
+  }
   try{
-    const [rm, ri] = await Promise.all([
-      fetch(API_METRICAS+'?'+q.toString()).then(r=>r.json()).catch(e=>({error:e.message})),
-      fetch(API_ITEMS+'?'+qi.toString()).then(r=>r.json()).catch(e=>({error:e.message})),
-    ]);
-    if(rm.error && !rm.actual){
-      cuerpo.innerHTML=`<div class="card"><h3>No hay datos todavía</h3><p class="hint">${esc(rm.error)} — ${esc(rm.pista||'')}. Pulsa «Recalcular».</p></div>`;
+    const [fsA, fsP] = await Promise.all(calls);
+    if(!fsA || fsA.error){
+      cuerpo.innerHTML=`<div class="card"><h3>No se pudo leer Appstle</h3><p class="hint">${esc(fsA&&fsA.error||'sin respuesta')}. Prueba a «Actualizar».</p></div>`;
       return;
     }
-    ITEMS = normalizarItems(ri);
-    render(rm, ri);
+    ITEMS = normalizarItems(fsA);
+    render(fsA, fsP, cmp);
   }catch(e){ cuerpo.innerHTML=`<div class="card"><h3>Error de conexión</h3><p class="hint">${esc(e.message)}</p></div>`; }
 }
 
@@ -437,60 +467,62 @@ function renderListado(){
     </div>`;
 }
 
-function render(d, ri){
-  const a=d.actual;
-  const hayCmp=!!d.anterior;
-  const p=d.anterior||{fallos:{fichas:null,rescatados:null,pct_rescate:null,rescatados_30d:null,pct_rescate_30d:null,sin_tocar:null},ventana:{desde:'',hasta:''}};
-  document.getElementById('gen').textContent='datos de '+new Date(d.generado).toLocaleString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+function render(fsA, fsP, cmp){
+  const a=resumir(fsA);
+  const p=cmp?resumir(fsP):null;
+  const hayCmp=!!p;
+  document.getElementById('gen').textContent='datos de '+new Date(fsA.generado||Date.parse(hoy())).toLocaleString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
 
   const kpi=(cls,lab,val,sub,dl)=>`<div class="kpi ${cls||''}"><div class="lab">${lab}</div><div class="val">${val}</div>${sub?`<div class="sub">${sub}</div>`:''}${dl||''}</div>`;
+  const pAbi=p?p.abiertas:null, pRie=p?p.enRiesgo:null, pTot=p?p.total:null, pBaj=p?p.bajas:null;
 
-  // ── Titular: solo fallos de pago ──
+  // ── Titular ──
   const titular = `<div class="titular">
-      Entraron <b>${a.fallos.fichas}</b> fallo${a.fallos.fichas===1?'':'s'} de pago que ${a.fallos.fichas===1?'puso':'pusieron'} <b>${eur(a.fallos.importe_en_riesgo)}</b> en riesgo;
-      recuperamos <b style="color:var(--green)">${a.fallos.rescatados}</b>${a.fallos.sin_tocar?`, con <b style="color:var(--red)">${a.fallos.sin_tocar}</b> todavía sin tocar`:' y no queda ninguno sin tocar 👌'}.
-      <div class="sub">Periodo: ${esc(document.getElementById('desde').value)} → ${esc(document.getElementById('hasta').value)}${hayCmp?` · comparado con ${esc(p.ventana.desde)} → ${esc(p.ventana.hasta)}`:' · sin comparación'}</div>
+      En el periodo hay <b style="color:var(--red)">${a.abiertas}</b> fallo${a.abiertas===1?'':'s'} de pago sin cobrar (a llamar), con <b>${eur(a.enRiesgo)}</b> en riesgo;
+      <b>${a.bajas}</b> acabaron en baja${a.pausadas?` y <b>${a.pausadas}</b> en pausa`:''}.
+      <div class="sub">Periodo: ${esc(document.getElementById('desde').value)} → ${esc(document.getElementById('hasta').value)}${hayCmp?` · comparado con ${esc(cmp.desde)} → ${esc(cmp.hasta)}`:' · sin comparación'}</div>
     </div>`;
 
-  const avisos=`<div class="avisos"><b>Cómo leer esto</b><ul>${(d.avisos||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
+  const avisos=`<div class="avisos"><b>Cómo leer esto</b><ul>
+      <li><b>«Abiertas»</b> = fallos que siguen sin cobrar. Es la lista de llamadas de Carme y cuadra exactamente con la pestaña «Listado».</li>
+      <li>Todo sale de <b>Appstle en vivo</b>, una sola fuente para Resumen y Listado — por eso las cifras casan.</li>
+      <li>El <b>% de rescate</b> histórico no se muestra aquí: la cola de Appstle es viva (al pagar, el fallo desaparece), así que la recuperación real se mide en el dashboard de cohortes/BI, no aquí.</li>
+    </ul></div>`;
 
   // ══════════ RESUMEN ══════════
   PANES.resumen = titular + `
     <div class="sect">Cómo vamos${hayCmp?` · comparado con ${ETIQ}`:''}</div>
     <div class="kpis">
-      ${kpi('hero','Rescate ≤30 días', pc(a.fallos.pct_rescate_30d), `${a.fallos.rescatados_30d} de ${a.fallos.fichas} fallos · la única cifra comparable entre meses`, delta(a.fallos.pct_rescate_30d,p.fallos.pct_rescate_30d,{pp:true}))}
-      ${kpi('','Fallos', a.fallos.fichas, `${eur(a.fallos.importe_en_riesgo)} en riesgo`, delta(a.fallos.fichas,p.fallos.fichas,{masEsMejor:false}))}
-      ${kpi('','Rescatados', a.fallos.rescatados, `${pc(a.fallos.pct_rescate)} del total`, delta(a.fallos.rescatados,p.fallos.rescatados))}
-      ${kpi('','Sin tocar', a.fallos.sin_tocar, `${pc(a.fallos.pct_sin_tocar)} en «Pendiente contact»`, delta(a.fallos.sin_tocar,p.fallos.sin_tocar,{masEsMejor:false}))}
+      ${kpi('hero','Abiertas · a llamar', a.abiertas, `${pc(a.pctAbiertas)} de ${a.total} fallos · ${eur(a.enRiesgo)} en riesgo`, delta(a.abiertas,pAbi,{masEsMejor:false}))}
+      ${kpi('','Dinero en riesgo', eur(a.enRiesgo), 'suma de las abiertas', delta(a.enRiesgo,pRie,{masEsMejor:false}))}
+      ${kpi('','Fallos en el periodo', a.total, 'contratos con algún fallo', delta(a.total,pTot,{masEsMejor:false}))}
+      ${kpi('','Acabaron en baja', a.bajas, `${pc(a.pctBajas)} de los fallos`, delta(a.bajas,pBaj,{masEsMejor:false}))}
     </div>
 
     <div class="sect">Qué hay que atender</div>
     <div class="todo">
-      <button class="act ${a.fallos.sin_tocar?'alert':'ok'}" onclick="setTab('listado')">
-        <div class="lab">Fallos sin tocar</div><div class="val">${a.fallos.sin_tocar}</div>
-        <div class="sub">${a.fallos.sin_tocar?`${pc(a.fallos.pct_sin_tocar)} siguen en «Pendiente contact» — nadie los ha llamado`:'ningún fallo sin gestionar 👌'}</div>
+      <button class="act ${a.abiertas?'alert':'ok'}" onclick="setTab('listado')">
+        <div class="lab">Fallos abiertos</div><div class="val">${a.abiertas}</div>
+        <div class="sub">${a.abiertas?`siguen sin cobrar · ${eur(a.enRiesgo)} en riesgo`:'ningún fallo sin cobrar 👌'}</div>
         <span class="go">Ver el listado y a quién llamar →</span></button>
     </div>` + avisos;
 
   // Badge del listado: fallos abiertos = dinero esperando una llamada.
-  const abiertas=ITEMS.filter(f=>estadoCat(f.desenlace).abierta).length;
   const bdg=document.getElementById('bdgList');
-  bdg.textContent=abiertas;
-  bdg.className='badge'+(abiertas?'':' calm');
+  bdg.textContent=a.abiertas;
+  bdg.className='badge'+(a.abiertas?'':' calm');
 
-  // ── Evolución de los fallos ──
-  const granTxt=document.getElementById('gran').selectedOptions[0].text.toLowerCase();
-  const serie=(d.series||[]);
-  const max=Math.max(1,...serie.map(s=>s.fallos.fichas));
-  const cols=[{t:'Fallos',f:s=>s.fallos.fichas},{t:'Rescatados',f:s=>s.fallos.rescatados},
-              {t:'% rescate',f:s=>pc(s.fallos.pct_rescate)},{t:'Sin tocar',f:s=>s.fallos.sin_tocar}];
+  // ── Evolución por semana (de failures-since) ──
+  const serie=(fsA.por_semana||[]).slice().sort((x,y)=>String(x.semana).localeCompare(String(y.semana)));
+  const max=Math.max(1,...serie.map(s=>s.total||0));
+  const cols=[{t:'Fallos',f:s=>s.total},{t:'Abiertas',f:s=>s.abierta},{t:'Baja',f:s=>s.baja}];
   PANES.resumen += `<div class="card">
-      <h3>Evolución de los fallos de pago</h3><p class="hint">Fichas creadas y cuántas acabaron cobrando. Agrupado por ${granTxt}.</p>
+      <h3>Evolución de los fallos</h3><p class="hint">Fallos que entraron cada semana (por fecha del primer intento fallido) y en qué acabaron.</p>
       <div style="overflow-x:auto"><table>
-        <thead><tr><th>Periodo</th>${cols.map(c=>`<th class="num">${c.t}</th>`).join('')}<th></th></tr></thead>
-        <tbody>${serie.length?serie.map(s=>`<tr><td><b>${esc(s.periodo)}</b></td>
+        <thead><tr><th>Semana</th>${cols.map(c=>`<th class="num">${c.t}</th>`).join('')}<th></th></tr></thead>
+        <tbody>${serie.length?serie.map(s=>`<tr><td><b>${esc(s.semana)}</b></td>
           ${cols.map(c=>`<td class="num">${c.f(s)}</td>`).join('')}
-          <td style="width:90px"><div class="bar"><i style="width:${Math.round(100*s.fallos.fichas/max)}%"></i></div></td></tr>`).join('')
+          <td style="width:90px"><div class="bar"><i style="width:${Math.round(100*(s.total||0)/max)}%"></i></div></td></tr>`).join('')
           :`<tr><td colspan="${cols.length+2}" style="text-align:center;color:var(--muted);padding:24px">Sin datos en el periodo</td></tr>`}</tbody>
       </table></div></div>`;
 
