@@ -104,10 +104,27 @@ const AUTH_API='https://domma-pro-api.cristina-ed1.workers.dev';
 const VIEWS={ metrics:'/metrics?embed=1', quiz:'/quiz', luna:'/luna', bajas:'/bajas?embed=1', retencion:'/retencion?embed=1' };
 let token=localStorage.getItem('domma_analytics_token');
 
+// Pestañas permitidas por rol. 'admin' = todas. 'retencion' (equipo comercial/ayuda) = solo
+// Gestión suscripciones + Acciones retención. La seguridad REAL está en los workers (cada
+// endpoint valida el rol del JWT); esto es la capa de UI.
+const ROLE_VIEWS = { retencion: ['bajas','retencion'] };
+function aplicarPermisos(){
+  const role = localStorage.getItem('domma_role') || 'admin';
+  const allowed = ROLE_VIEWS[role]; // undefined para admin → todas
+  document.querySelectorAll('.sb-item').forEach(b=>{
+    const v = b.getAttribute('data-view');
+    b.style.display = (!allowed || allowed.includes(v)) ? '' : 'none';
+  });
+  return allowed ? allowed[0] : 'metrics';
+}
 function showApp(){
   document.getElementById('loginOverlay').style.display='none';
   document.getElementById('app').style.display='flex';
-  load('metrics');
+  const first = aplicarPermisos();
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+  const btn = document.querySelector('.sb-item[data-view="'+first+'"]');
+  if(btn) btn.classList.add('active');
+  load(first);
 }
 function load(view){
   document.getElementById('content').src=VIEWS[view];
@@ -124,18 +141,20 @@ function doLogin(){
   errEl.style.display='none';
   fetch(AUTH_API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})})
     .then(r=>r.json()).then(d=>{
-      if(d.token&&(d.role==='admin'||(d.user&&d.user.role==='admin'))){
+      const role=d.role||(d.user&&d.user.role);
+      if(d.token&&(role==='admin'||role==='retencion')){
         token=d.token;
         localStorage.setItem('domma_analytics_token',token);
+        localStorage.setItem('domma_role',role);
         showApp();
       }else if(d.token){
-        errEl.textContent='Solo administradores pueden acceder';errEl.style.display='block';
+        errEl.textContent='No tienes acceso a este panel';errEl.style.display='block';
       }else{
         errEl.textContent=d.error||'Credenciales incorrectas';errEl.style.display='block';
       }
     }).catch(()=>{errEl.textContent='Error de conexión';errEl.style.display='block';});
 }
-function logout(){localStorage.removeItem('domma_analytics_token');location.reload();}
+function logout(){localStorage.removeItem('domma_analytics_token');localStorage.removeItem('domma_role');location.reload();}
 
 if(token){ showApp(); }
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
