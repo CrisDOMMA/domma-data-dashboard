@@ -121,6 +121,8 @@
   .cli .em{font-size:11.5px;color:var(--muted);display:block}
   .acts a{color:var(--navy);text-decoration:none;font-weight:600;font-size:12.5px;margin-right:10px;white-space:nowrap}
   .acts a:hover{text-decoration:underline}
+  .tel a{color:var(--navy);text-decoration:none;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tel a:hover{text-decoration:underline}
   .th-sort{cursor:pointer}
   .th-sort:hover{color:var(--navy)}
 
@@ -418,6 +420,18 @@ function waLink(phone){
   if(p.length===9) p='34'+p;
   return 'https://wa.me/'+p;
 }
+// Número legible + href para llamar. "+34 645 81 57 75" cuando es 34 + 9 dígitos.
+function telFmt(phone){
+  let p=String(phone||'').replace(/\D/g,'');
+  if(!p) return null;
+  if(p.length===9) p='34'+p;
+  let disp='+'+p;
+  if(p.startsWith('34') && p.length===11){
+    const n=p.slice(2);
+    disp='+34 '+n.slice(0,3)+' '+n.slice(3,5)+' '+n.slice(5,7)+' '+n.slice(7);
+  }
+  return {href:'+'+p, disp};
+}
 
 function setTab(t, el){
   TAB=t;
@@ -469,15 +483,20 @@ function renderListado(){
     const wa=waLink(f.phone);
     const acts=[
       f.email?`<a href="mailto:${esc(f.email)}?subject=${encodeURIComponent('DOMMA · tu suscripción')}">Email</a>`:'',
-      wa?`<a href="${wa}" target="_blank" rel="noopener">WhatsApp${f.telShopify?' <span class="muted" style="font-weight:400" title="Móvil recuperado de Shopify (Appstle no lo traía)">·Shopify</span>':''}</a>`:'',
+      wa?`<a href="${wa}" target="_blank" rel="noopener">WhatsApp</a>`:'',
     ].filter(Boolean).join('') || (ENRIQUECIENDO?'<span class="muted">buscando móvil…</span>':'<span class="muted">sin contacto</span>');
     const intxt = f.intentos!=null ? `${f.intentos} intento${f.intentos===1?'':'s'}` : '';
+    const t = telFmt(f.phone);
+    const telCell = t
+      ? `<a href="tel:${t.href}">${t.disp}</a>${f.telShopify?' <span class="muted" style="font-weight:400" title="Recuperado de Shopify (Appstle no lo traía)">·Shopify</span>':''}`
+      : (ENRIQUECIENDO?'<span class="muted">buscando…</span>':'<span class="muted">—</span>');
     return `<tr>
       <td class="cli"><b>${f.nombre?esc(f.nombre):(f.email?esc(f.email):'<span class="muted">sin datos</span>')}</b>${f.nombre&&f.email?`<span class="em">${esc(f.email)}</span>`:''}<span class="em">${esc(f.tipo)}${intxt?' · '+intxt:''}</span></td>
       <td><span class="pill ${sc.cls}">${esc(sc.txt)}</span></td>
       <td class="num"><b>${eur(f.importe)}</b></td>
       <td class="num"><span class="dias ${dCls}">${f.dias==null?'—':f.dias+' d'}</span></td>
       <td>${f.fecha?esc(f.fecha):'—'}</td>
+      <td class="tel">${telCell}</td>
       <td class="acts">${acts}</td>
     </tr>`;
   }).join('');
@@ -486,8 +505,8 @@ function renderListado(){
     <div class="card" style="margin-top:8px">
       <p class="hint">Cada fallo del periodo, con su desenlace, importe en riesgo y días desde el primer intento fallido. «Días» ≥7 en ámbar, ≥14 en rojo. <b>«Abiertas» son las que siguen sin cobrar</b> — la lista de llamadas de Carme. Fuente: Appstle en vivo.</p>
       <div style="overflow-x:auto"><table>
-        <thead><tr><th>Clienta</th><th>Desenlace</th><th class="num">Importe</th><th class="num">Días</th><th>1er fallo</th><th>Contactar</th></tr></thead>
-        <tbody>${rows || `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Sin fallos con este filtro</td></tr>`}</tbody>
+        <thead><tr><th>Clienta</th><th>Desenlace</th><th class="num">Importe</th><th class="num">Días</th><th>1er fallo</th><th>Teléfono</th><th>Contactar</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Sin fallos con este filtro</td></tr>`}</tbody>
       </table></div>
     </div>`;
 }
