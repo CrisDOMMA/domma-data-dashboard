@@ -200,6 +200,9 @@
 // 1-3 min, y su campo de agente está vacío al 100%) y a /metricas-retencion, para
 // que el Resumen y el Listado cuadren: una sola fuente.
 const API_ITEMS = 'https://gestorsubs-domma.cristina-ed1.workers.dev/failures-since';
+// Appstle no trae el móvil de ~40% de las clientas, pero Shopify sí (100%). Este
+// endpoint lo rellena desde Shopify (cacheado en KV). Solo lectura, no envía nada.
+const API_TEL = 'https://gestorsubs-domma.cristina-ed1.workers.dev/telefonos-shopify';
 const AUTH_API = 'https://domma-pro-api.cristina-ed1.workers.dev';
 
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
@@ -346,8 +349,30 @@ async function load(){
     }
     ITEMS = normalizarItems(fsA);
     render(fsA, fsP, cmp);
+    enriquecerTelefonos();  // en segundo plano: rellena el móvil que Appstle no trae, desde Shopify
   }catch(e){ cuerpo.innerHTML=`<div class="card"><h3>Error de conexión</h3><p class="hint">${esc(e.message)}</p></div>`; }
 }
+
+// Completa el teléfono que falta buscándolo en Shopify (cacheado en KV del worker).
+// Prioriza las abiertas (la lista de llamadas). No bloquea el render: cuando vuelve,
+// re-pinta el listado si está a la vista.
+let ENRIQUECIENDO = false;
+async function enriquecerTelefonos(){
+  const faltan = ITEMS.filter(f=>!f.phone && f.email);
+  if(!faltan.length){ ENRIQUECIENDO=false; if(TAB==='listado') refrescarListado(); return; }
+  faltan.sort((a,b)=>(estadoCat(b.desenlace).abierta?1:0)-(estadoCat(a.desenlace).abierta?1:0));
+  const emails=[...new Set(faltan.map(f=>f.email))].slice(0,80);
+  ENRIQUECIENDO=true; if(TAB==='listado') refrescarListado();
+  try{
+    const r=await fetch(API_TEL+'?'+new URLSearchParams({emails:emails.join(','), max:'80'}));
+    const d=await r.json();
+    const tel=d.telefonos||{};
+    ITEMS.forEach(f=>{ if(!f.phone && f.email && tel[f.email]){ f.phone=tel[f.email]; f.telShopify=true; } });
+  }catch(e){}
+  ENRIQUECIENDO=false;
+  if(TAB==='listado') refrescarListado();
+}
+function refrescarListado(){ const c=document.getElementById('cuerpo'); if(c) c.innerHTML=renderListado(); }
 
 // ── /failures-since → fichas planas y ordenables ──
 function normalizarItems(ri){
@@ -433,7 +458,7 @@ function renderListado(){
         <option value="importe"${ORDEN==='importe'?' selected':''}>Ordenar: importe</option>
         <option value="estado"${ORDEN==='estado'?' selected':''}>Ordenar: desenlace</option>
       </select>
-      <span class="count">${filas.length} fallo${filas.length===1?'':'s'} · periodo ${esc(document.getElementById('desde').value)} → ${esc(document.getElementById('hasta').value)}</span>
+      <span class="count">${filas.length} fallo${filas.length===1?'':'s'} · periodo ${esc(document.getElementById('desde').value)} → ${esc(document.getElementById('hasta').value)}${ENRIQUECIENDO?' · <span style="color:var(--amber)">completando teléfonos desde Shopify…</span>':''}</span>
     </div>`;
 
   if(!ITEMS.length) return `<div class="sect">Listado de fallos</div>${bar}<div class="card"><p class="hint">No hay fallos de pago en este periodo (o Appstle no respondió). Prueba a ampliar el rango.</p></div>`;
@@ -444,8 +469,8 @@ function renderListado(){
     const wa=waLink(f.phone);
     const acts=[
       f.email?`<a href="mailto:${esc(f.email)}?subject=${encodeURIComponent('DOMMA · tu suscripción')}">Email</a>`:'',
-      wa?`<a href="${wa}" target="_blank" rel="noopener">WhatsApp</a>`:'',
-    ].filter(Boolean).join('') || '<span class="muted">sin contacto</span>';
+      wa?`<a href="${wa}" target="_blank" rel="noopener">WhatsApp${f.telShopify?' <span class="muted" style="font-weight:400" title="Móvil recuperado de Shopify (Appstle no lo traía)">·Shopify</span>':''}</a>`:'',
+    ].filter(Boolean).join('') || (ENRIQUECIENDO?'<span class="muted">buscando móvil…</span>':'<span class="muted">sin contacto</span>');
     const intxt = f.intentos!=null ? `${f.intentos} intento${f.intentos===1?'':'s'}` : '';
     return `<tr>
       <td class="cli"><b>${f.nombre?esc(f.nombre):(f.email?esc(f.email):'<span class="muted">sin datos</span>')}</b>${f.nombre&&f.email?`<span class="em">${esc(f.email)}</span>`:''}<span class="em">${esc(f.tipo)}${intxt?' · '+intxt:''}</span></td>
