@@ -748,9 +748,10 @@ function renderLista(){
   body.innerHTML = rows.map(x=>{
     const estado = x.estado==='coach'?'gate':x.estado;
     const waTxt = encodeURIComponent('Hola, te escribo de DOMMA sobre tu suscripción.');
+    const cliTxt = x.nombre ? esc(x.nombre) : (x.email ? esc(x.email) : 'ver suscripción');
     const cli = `${x.customer_id
-      ? `<a href="#" onclick="verSuscripcion('${esc(x.customer_id)}');return false" style="color:var(--navy);font-weight:600;text-decoration:none" title="Ver su suscripción en Shopify/Appstle">${x.email?esc(x.email):'ver suscripción'}</a>`
-      : (x.email?esc(x.email):'<span class="muted">sin email</span>')
+      ? `<a href="#" onclick="verSuscripcion('${esc(x.customer_id)}');return false" style="color:var(--navy);font-weight:600;text-decoration:none" title="Ver su suscripción en Shopify/Appstle">${cliTxt}</a>${x.email&&x.nombre?`<div class="muted" style="font-size:11px">${esc(x.email)}</div>`:''}`
+      : `${x.nombre?esc(x.nombre):(x.email?esc(x.email):'<span class="muted">sin email</span>')}${x.email&&x.nombre?`<div class="muted" style="font-size:11px">${esc(x.email)}</div>`:''}`
     }${x.reactivada?' <span class="pill re">reactivó ✓</span>':''}${x.es_test?' <span class="pill test">prueba</span>':''}`;
     const contacto = [
       x.email?`<a href="mailto:${esc(x.email)}?subject=${encodeURIComponent('DOMMA · tu suscripción')}">Email</a>`:'',
