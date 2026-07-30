@@ -245,6 +245,7 @@
     <button class="tab on" data-t="resumen"  onclick="setTab('resumen',this)">Resumen</button>
     <button class="tab"    data-t="porque"   onclick="setTab('porque',this)">Por qué se van</button>
     <button class="tab"    data-t="llamar"   onclick="setTab('llamar',this)">A quién llamo <span class="badge calm" id="bdgLlamar">0</span></button>
+    <button class="tab"    data-t="movimientos" onclick="setTab('movimientos',this)">Movimientos</button>
     <button class="tab"    data-t="clientas" onclick="setTab('clientas',this)">Buscar clienta</button>
   </div>
 
@@ -339,9 +340,14 @@
       <div id="cliRes" style="padding:0 18px"></div>
     </div>
 
+  </div>
+
+  <!-- ══════════ TAB: MOVIMIENTOS ══════════ -->
+  <div class="tabpane" id="tab-movimientos" style="display:none">
     <div class="card tablecard">
-      <h3>Repositorio de acciones <span class="muted" id="repoCount"></span></h3>
-      <p class="hint">Todas las acciones —altas, bajas, cambios, pausas— con nombre y apellidos. Busca por nombre, email o ID de clienta.</p>
+      <h3>Movimientos de suscripción <span class="muted" id="repoCount"></span></h3>
+      <p class="hint">Todo lo que hacen las clientas —altas, cambios de producto, bajas, pausas, cambios de fecha— con nombre y apellidos. Fuente: flujo propio + sync de Appstle (cada 6 h).</p>
+      <div class="filters" id="repoFilters"></div>
       <div class="filters"><input id="repoSearch" placeholder="Buscar por nombre, email o ID…" style="flex:1;min-width:240px;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;outline:none;font-size:13px"></div>
       <div class="tablewrap">
         <table>
@@ -811,23 +817,43 @@ function repoPill(acc){
   if(a.includes('pausa') || a.includes('espaci')) return 'pausa';
   return 'coach';
 }
+// Movimientos: se cargan todos y se filtran en cliente por tipo (incluye "Cambios de producto").
+let REPO_ACCIONES = [], REPO_FILTER = 'todas';
+const REPO_FILTROS = [
+  ['todas','Todas',              ()=>true],
+  ['producto','Cambios de producto', a=>/producto/i.test(a.accion)],
+  ['alta','Altas',               a=>/alta/i.test(a.accion)],
+  ['baja','Bajas',               a=>/baja/i.test(a.accion)],
+  ['pausa','Pausas',             a=>/pausa|espaciad/i.test(a.accion)],
+  ['fecha','Cambios de fecha',   a=>/fecha/i.test(a.accion)],
+];
 async function loadRepo(q){
   try{
-    const r = await api('/api/dashboard/repositorio', {q: q || null, limit: 300});
+    const r = await api('/api/dashboard/repositorio', {q: q || null, limit: 500});
     if(!r.ok) return;
     const d = await r.json();
-    document.getElementById('repoCount').textContent = d.total ? `· ${d.mostrados}${d.total>d.mostrados?' de '+d.total:''}` : '';
-    const b = document.getElementById('repoBody');
-    if(!d.acciones.length){ b.innerHTML = '<tr><td colspan="6"><div class="empty">Sin acciones para esta búsqueda.</div></td></tr>'; return; }
-    b.innerHTML = d.acciones.map(a=>`<tr>
-      <td class="muted" style="white-space:nowrap">${esc((a.fecha||'').slice(0,16).replace('T',' '))}</td>
-      <td>${a.nombre?esc(a.nombre):'<span class="muted">—</span>'}${a.customer_id?`<div class="muted" style="font-size:11px">id ${esc(a.customer_id)}</div>`:''}${a.es_test?' <span class="pill test">prueba</span>':''}</td>
-      <td><span class="pill ${repoPill(a.accion)}">${esc(a.accion)}</span></td>
-      <td>${esc(a.producto||'—')}</td>
-      <td>${esc(a.motivo||'—')}</td>
-      <td class="muted">${esc(a.origen)}</td>
-    </tr>`).join('');
+    REPO_ACCIONES = d.acciones || [];
+    renderRepo();
   }catch(e){}
+}
+function setRepoFilter(k){ REPO_FILTER = k; renderRepo(); }
+function renderRepo(){
+  const fbox = document.getElementById('repoFilters');
+  if(fbox) fbox.innerHTML = REPO_FILTROS.map(([k,lab,fn])=>
+    `<span class="chip ${REPO_FILTER===k?'on':''}" onclick="setRepoFilter('${k}')">${lab} <b>${REPO_ACCIONES.filter(fn).length}</b></span>`).join('');
+  const fn = (REPO_FILTROS.find(f=>f[0]===REPO_FILTER)||REPO_FILTROS[0])[2];
+  const rows = REPO_ACCIONES.filter(fn);
+  document.getElementById('repoCount').textContent = rows.length ? `· ${rows.length}` : '';
+  const b = document.getElementById('repoBody');
+  if(!rows.length){ b.innerHTML = '<tr><td colspan="6"><div class="empty">Sin movimientos para este filtro.</div></td></tr>'; return; }
+  b.innerHTML = rows.map(a=>`<tr>
+    <td class="muted" style="white-space:nowrap">${esc((a.fecha||'').slice(0,16).replace('T',' '))}</td>
+    <td>${a.nombre?esc(a.nombre):'<span class="muted">—</span>'}${a.customer_id?`<div class="muted" style="font-size:11px">id ${esc(a.customer_id)}</div>`:''}${a.es_test?' <span class="pill test">prueba</span>':''}</td>
+    <td><span class="pill ${repoPill(a.accion)}">${esc(a.accion)}</span></td>
+    <td>${esc(a.producto||'—')}</td>
+    <td>${esc(a.motivo||'—')}</td>
+    <td class="muted">${esc(a.origen)}</td>
+  </tr>`).join('');
 }
 let repoT;
 document.getElementById('repoSearch').addEventListener('input', e=>{ clearTimeout(repoT); repoT = setTimeout(()=>loadRepo(e.target.value.trim()), 300); });
