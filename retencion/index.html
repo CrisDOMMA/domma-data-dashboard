@@ -213,7 +213,7 @@ let token = localStorage.getItem('domma_analytics_token') || '';
 let TAB = 'resumen', PANES = {};
 let ITEMS = [];               // fichas individuales del periodo
 let FILTRO = 'abiertas';      // filtro de estado del listado
-let ORDEN = 'dias';           // columna de orden del listado
+let ORDEN = 'prioridad';      // orden del listado (defecto: importe×días = a quién llamar primero)
 
 const d2s = d => d.toISOString().slice(0,10);
 const hoy = () => d2s(new Date());
@@ -452,10 +452,12 @@ function renderListado(){
   if(FILTRO==='abiertas') filas = filas.filter(f=>estadoCat(f.desenlace).abierta);
   else if(FILTRO!=='todas') filas = filas.filter(f=>estadoCat(f.desenlace).cat===FILTRO);
 
+  const prio = f => (f.importe||0) * Math.max(1, f.dias||0); // € en riesgo × antigüedad
   filas.sort((a,b)=>{
     if(ORDEN==='importe') return (b.importe||0)-(a.importe||0);
+    if(ORDEN==='dias')    return (b.dias||0)-(a.dias||0);
     if(ORDEN==='estado')  return a.desenlace.localeCompare(b.desenlace);
-    return (b.dias||0)-(a.dias||0); // dias (defecto)
+    return prio(b)-prio(a); // prioridad (defecto): importe×días
   });
 
   const opt=(v,txt)=>`<option value="${v}"${FILTRO===v?' selected':''}>${txt}</option>`;
@@ -468,6 +470,7 @@ function renderListado(){
         ${opt('todas','Todas')}
       </select>
       <select onchange="setOrden(this.value)">
+        <option value="prioridad"${ORDEN==='prioridad'?' selected':''}>Ordenar: prioridad (importe×días)</option>
         <option value="dias"${ORDEN==='dias'?' selected':''}>Ordenar: días esperando</option>
         <option value="importe"${ORDEN==='importe'?' selected':''}>Ordenar: importe</option>
         <option value="estado"${ORDEN==='estado'?' selected':''}>Ordenar: desenlace</option>
