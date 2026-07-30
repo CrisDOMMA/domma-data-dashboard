@@ -774,6 +774,14 @@ const estadoPill = (s)=>{ const e=(s||'').toLowerCase();
     : e==='paused' ? '<span class="pill solicitud_baja">pausada</span>'
     : `<span class="pill coach">${esc(s||'—')}</span>`; };
 
+// Desde Movimientos: clic en la clienta → su ficha y suscripción en "Buscar clienta".
+function verClientaDesde(email){
+  if(!email) return;
+  setTab('clientas');
+  const inp=document.getElementById('cliEmail');
+  if(inp){ inp.value=email; buscarClienta(); }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 async function buscarClienta(){
   const email=(document.getElementById('cliEmail').value||'').trim();
   const box=document.getElementById('cliRes');
@@ -848,7 +856,10 @@ function renderRepo(){
   if(!rows.length){ b.innerHTML = '<tr><td colspan="6"><div class="empty">Sin movimientos para este filtro.</div></td></tr>'; return; }
   b.innerHTML = rows.map(a=>`<tr>
     <td class="muted" style="white-space:nowrap">${esc((a.fecha||'').slice(0,16).replace('T',' '))}</td>
-    <td>${a.nombre?esc(a.nombre):'<span class="muted">—</span>'}${a.customer_id?`<div class="muted" style="font-size:11px">id ${esc(a.customer_id)}</div>`:''}${a.es_test?' <span class="pill test">prueba</span>':''}</td>
+    <td>${a.email
+      ? `<a href="#" onclick="verClientaDesde('${esc(a.email)}');return false" style="color:var(--navy);font-weight:600;text-decoration:none" title="Ver su suscripción">${a.nombre?esc(a.nombre):esc(a.email)}</a><div class="muted" style="font-size:11px">${esc(a.email)}</div>`
+      : `${a.nombre?esc(a.nombre):'<span class="muted">—</span>'}${a.customer_id?`<div class="muted" style="font-size:11px">id ${esc(a.customer_id)}</div>`:''}`
+    }${a.es_test?' <span class="pill test">prueba</span>':''}</td>
     <td><span class="pill ${repoPill(a.accion)}">${esc(a.accion)}</span></td>
     <td>${esc(a.producto||'—')}</td>
     <td>${esc(a.motivo||'—')}</td>
