@@ -192,6 +192,8 @@
   .gm-foot-r{display:flex;align-items:center;gap:12px}
   .gm-save{padding:10px 18px}
   .gm-save:disabled{opacity:.45;cursor:not-allowed}
+  .gm-openlink{display:inline-block;margin-top:10px;font-size:12.5px;font-weight:600;color:var(--navy);text-decoration:none;border:1.5px solid var(--border);border-radius:8px;padding:6px 11px}
+  .gm-openlink:hover{border-color:var(--navy);background:#F4F3FA}
   .gm-hist{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
   .tablecard{padding:18px 0 4px}
   .tablecard h3,.tablecard .hint,.tablecard .filters{padding:0 18px}
@@ -363,9 +365,11 @@
 
   <!-- ══════════ TAB: A QUIÉN LLAMO ══════════ -->
   <div class="tabpane" id="tab-llamar" style="display:none">
+    <p class="hint" style="margin:0 0 14px">Tu lista de llamadas. Cada clienta: por qué la llamas, su suscripción <b>a un clic</b> (en el nombre), y <b>Gestionar</b> para dejar registrado cómo fue. En <b>ámbar</b>, las que nadie ha llamado todavía.</p>
+
     <div class="card tablecard" style="margin-bottom:16px">
-      <h3>Solicitudes de baja pendientes <span class="muted" id="solCount"></span></h3>
-      <p class="hint">Se cierran solas: cuando el contrato aparece cancelado en Appstle, la solicitud desaparece de aquí. Nadie tiene que marcar nada. En <b>rojo</b>, las que pasan de las 72 h que le prometemos a la clienta.</p>
+      <h3>1 · Solicitudes de baja <span class="muted" id="solCount"></span></h3>
+      <p class="hint">Han pedido la baja por el flujo y su plan <b>sigue activo</b>. En <b>rojo</b>, las que pasan de las 72 h que le prometemos.</p>
       <div class="tablewrap" style="max-height:340px">
         <table>
           <thead><tr><th>Esperando</th><th>Clienta</th><th>Motivo</th><th>Estado del plan</th><th>Gestión</th><th>Contactar</th></tr></thead>
@@ -374,14 +378,24 @@
       </div>
     </div>
 
-    <div class="card tablecard">
-      <h3>Lista de repesca <span class="muted" id="listaCount"></span></h3>
-      <p class="hint">Clientas para recontactar: bajas, solicitudes pendientes, pausas (repesca futura) y casos derivados.</p>
-      <div class="filters" id="listaFilters"></div>
-      <div class="tablewrap">
+    <div class="card tablecard" style="margin-bottom:16px">
+      <h3>2 · Derivadas a coach <span class="muted" id="derivCount"></span></h3>
+      <p class="hint">El flujo las mandó a una persona (menos de 2 pedidos, salud, «otro», o algo falló). Siguen activas — llamar para acompañar.</p>
+      <div class="tablewrap" style="max-height:340px">
         <table>
-          <thead><tr><th>Fecha</th><th>Clienta</th><th>Estado</th><th>Motivo</th><th>Antigüedad</th><th>Productos</th><th>Contactar</th></tr></thead>
-          <tbody id="listaBody"></tbody>
+          <thead><tr><th>Esperando</th><th>Clienta</th><th>Por qué</th><th>Estado del plan</th><th>Gestión</th><th>Contactar</th></tr></thead>
+          <tbody id="derivBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card tablecard">
+      <h3>Ya resueltas <span class="muted" id="resCount"></span></h3>
+      <p class="hint">Bajas cuyo contrato ya aparece cancelado en Appstle (se cierran solas). Aquí ves <b>si se llamó</b> antes de que se fueran: en <b>rojo</b>, las que se fueron <b>sin gestión registrada</b>.</p>
+      <div class="tablewrap" style="max-height:300px">
+        <table>
+          <thead><tr><th>Fecha</th><th>Clienta</th><th>Motivo</th><th>Gestión</th></tr></thead>
+          <tbody id="resBody"></tbody>
         </table>
       </div>
     </div>
@@ -412,6 +426,18 @@
         <table>
           <thead><tr><th>Fecha</th><th>Clienta</th><th>Acción</th><th>Detalle</th><th>Motivo</th><th>Origen</th></tr></thead>
           <tbody id="repoBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card tablecard" style="margin-top:16px">
+      <h3>Lista de repesca <span class="muted" id="listaCount"></span></h3>
+      <p class="hint">Clientas para <b>recontactar en el futuro</b> (winback): las que ya se fueron, pausas y casos derivados. No es la lista de «llamar ahora» — esa está en «A quién llamo».</p>
+      <div class="filters" id="listaFilters"></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Clienta</th><th>Estado</th><th>Motivo</th><th>Antigüedad</th><th>Productos</th><th>Contactar</th></tr></thead>
+          <tbody id="listaBody"></tbody>
         </table>
       </div>
     </div>
@@ -662,9 +688,8 @@ function render(){
   if(fr.length) renderStacked('fricciones', fr, r=>({lbl:r.motivo, val:`<em>${r.n}</em>`, segs:[['solicitud',r.n]], total:r.n}));
   else document.getElementById('fricciones').innerHTML = '<div class="empty">Ninguna clienta se ha topado con un bloqueo. 👌</div>';
 
-  // ── Solicitudes pendientes: las que van tarde, primero ──
-  document.getElementById('solCount').textContent =
-    `· ${sol.pendientes.length} pendiente${sol.pendientes.length===1?'':'s'}${sol.resueltas?` · ${sol.resueltas} ya resuelta${sol.resueltas===1?'':'s'}`:''}`;
+  // ── BLOQUE 1: Solicitudes de baja pendientes (las que van tarde, primero) ──
+  document.getElementById('solCount').textContent = `· ${sol.pendientes.length} por llamar`;
   const orden = sol.pendientes.slice().sort((a,b)=>(b.fuera_de_plazo?1:0)-(a.fuera_de_plazo?1:0) || (b.dias||0)-(a.dias||0));
   document.getElementById('solBody').innerHTML = orden.length ? orden.map((s,i)=>{
       const uid='gps'+i;
@@ -681,6 +706,38 @@ function render(){
       <td><div class="actions">${tel?`<a href="${tel}" title="Llamar por Ringover">Llamar</a>`:''}<a href="#" onclick="abrirWati('${esc(s.customer_id)}','${esc(s.phone||'')}');return false" title="Abrir su conversación en WATI">WhatsApp</a>${s.email?`<a href="mailto:${esc(s.email)}?subject=${encodeURIComponent('DOMMA · tu solicitud')}">Email</a>`:''}<a href="#" class="gest-toggle" onclick="abrirGestion('${uid}');return false">Gestionar</a></div></td>
     </tr>`;
     }).join('') : '<tr><td colspan="6"><div class="empty">Ninguna solicitud pendiente. 👌</div></td></tr>';
+
+  // ── BLOQUE 2: Derivadas a coach (por llamar) ──
+  const deriv = (d.derivadas||[]).slice().sort((a,b)=>(b.dias||0)-(a.dias||0));
+  document.getElementById('derivCount').textContent = `· ${deriv.length} por llamar`;
+  document.getElementById('derivBody').innerHTML = deriv.length ? deriv.map((s,i)=>{
+      const uid='gpd'+i;
+      const caso={tipo_caso:'baja', customer_id:s.customer_id, contrato:s.contrato, nombre:s.nombre, email:s.email, phone:s.phone, es_test:s.es_test,
+        contexto:`${esc(porQueDeriv(s))} · ${s.dias===0?'hoy':s.dias+' día'+(s.dias===1?'':'s')}`};
+      CASOS[uid]=caso;
+      const lg=ultimaGestion(caso), tel=telHref(s.phone);
+      return `<tr>
+      <td style="white-space:nowrap"><b>${s.dias===0?'hoy':s.dias+' día'+(s.dias===1?'':'s')}</b></td>
+      <td>${s.nombre?`<a href="#" class="cli-link" onclick="verSuscripcion('${esc(s.customer_id)}','${esc(s.contrato||'')}');return false">${esc(s.nombre)}</a>`:(s.email?esc(s.email):'<span class="muted">—</span>')}${s.email&&s.nombre?`<div class="muted" style="font-size:11px">${esc(s.email)}</div>`:''}${s.es_test?' <span class="pill test">prueba</span>':''}</td>
+      <td>${esc(porQueDeriv(s))}</td>
+      <td>${s.estado_actual==='active'?'<span class="pill pausa" title="Estado de la suscripción en Appstle">sigue activo</span>':`<span class="pill coach">${esc(s.estado_actual)}</span>`}</td>
+      <td id="${uid}-gest">${gestPill(lg)}</td>
+      <td><div class="actions">${tel?`<a href="${tel}" title="Llamar por Ringover">Llamar</a>`:''}<a href="#" onclick="abrirWati('${esc(s.customer_id)}','${esc(s.phone||'')}');return false" title="Abrir su conversación en WATI">WhatsApp</a>${s.email?`<a href="mailto:${esc(s.email)}?subject=${encodeURIComponent('DOMMA · tu plan')}">Email</a>`:''}<a href="#" class="gest-toggle" onclick="abrirGestion('${uid}');return false">Gestionar</a></div></td>
+    </tr>`;
+    }).join('') : '<tr><td colspan="6"><div class="empty">Ninguna derivada pendiente. 👌</div></td></tr>';
+
+  // ── BLOQUE 3: Ya resueltas (con estado de llamada) ──
+  const res = sol.resueltas_lista || [];
+  document.getElementById('resCount').textContent = res.length ? `· ${res.length}` : '';
+  document.getElementById('resBody').innerHTML = res.length ? res.map(s=>{
+      const caso={customer_id:s.customer_id, contract_id:s.contrato, nombre:s.nombre, email:s.email, phone:s.phone};
+      return `<tr>
+      <td style="white-space:nowrap">${s.fecha?esc(String(s.fecha).slice(0,10)):'—'}</td>
+      <td>${s.nombre?`<a href="#" class="cli-link" onclick="verSuscripcion('${esc(s.customer_id)}','${esc(s.contrato||'')}');return false">${esc(s.nombre)}</a>`:(s.email?esc(s.email):'—')}${s.email&&s.nombre?`<div class="muted" style="font-size:11px">${esc(s.email)}</div>`:''}</td>
+      <td>${esc(labelMotivo(s.motivo))}</td>
+      <td>${resPill(caso)}</td>
+    </tr>`;
+    }).join('') : '<tr><td colspan="4"><div class="empty">Ninguna baja resuelta en este periodo.</div></td></tr>';
 
   renderLista();
   loadRepo((document.getElementById('repoSearch').value || '').trim());
@@ -919,6 +976,16 @@ function gestLine(g){ const t=RES_TONE[g.resultado]||''; return `<div class="ges
 function histHtml(caso){ const h=histGestiones(caso); if(!h.length) return '<div class="gest-hist-empty">Sin gestiones registradas todavía.</div>'; return '<div class="gest-hist-t">Gestiones anteriores</div>'+h.slice(0,6).map(gestLine).join(''); }
 // Renombra los motivos técnicos a algo accionable en el listado (#5).
 function labelMotivo(m){ const M={gate_2pedidos:'Menos de 2 pedidos · acompañar',min_2_pedidos:'Menos de 2 pedidos · acompañar',min_permanencia:'Aún sin permanencia · acompañar',fallo_pago:'Fallo de pago',coach:'Derivada a coach'}; return M[m]||m||'—'; }
+// «Por qué» de una derivada a coach: usa el comentario técnico si lo hay, si no el motivo.
+function porQueDeriv(s){
+  const CM={min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Tiene un fallo de pago'};
+  const c=(s.comentario||'').trim();
+  const cleg = CM[c] || (c && c.length<=60 ? c : '');
+  const m = labelMotivo(s.motivo);
+  return cleg || (m && m!=='—' ? m : 'Derivada a coach');
+}
+// Estado de llamada de una baja YA resuelta: si hubo gestión la muestra; si no, avisa en rojo.
+function resPill(caso){ const lg=ultimaGestion(caso); return lg ? gestPill(lg) : '<span class="lg-badge bad" title="Se canceló sin ninguna gestión registrada en el panel">se fue sin llamar</span>'; }
 
 // ── Modal de gestión en 2 pasos: 1) ¿Localizada o no?  2) resultado de esa rama ──
 const CASOS = {};
@@ -949,7 +1016,8 @@ function ensureModal(){
 function abrirGestion(uid){
   ensureModal(); const caso=CASOS[uid]; if(!caso) return;
   GM={uid, caso, contacto:null, resultado:null};
-  document.getElementById('gmHead').innerHTML=`<div class="gm-name">${esc(caso.nombre||caso.email||'—')}</div>${caso.email&&caso.nombre?`<div class="gm-sub">${esc(caso.email)}</div>`:''}${caso.contexto?`<div class="gm-sub">${esc(caso.contexto)}</div>`:''}`;
+  const cid=esc(caso.customer_id||''), ctr=esc(caso.contract_id||caso.contrato||'');
+  document.getElementById('gmHead').innerHTML=`<div class="gm-name">${esc(caso.nombre||caso.email||'—')}</div>${caso.email&&caso.nombre?`<div class="gm-sub">${esc(caso.email)}</div>`:''}${caso.contexto?`<div class="gm-sub">${esc(caso.contexto)}</div>`:''}<a href="#" class="gm-openlink" onclick="verSuscripcion('${cid}','${ctr}');return false">Abrir su suscripción en Appstle ↗</a>`;
   const ag=agenteActual();
   document.getElementById('gmAgente').innerHTML=['',...AGENTES].map(a=>`<option value="${esc(a)}"${a===ag?' selected':''}>${a||'— elige —'}</option>`).join('');
   document.querySelectorAll('#gestModal .gm-seg-b').forEach(b=>b.classList.remove('sel'));

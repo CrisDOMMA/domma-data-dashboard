@@ -179,6 +179,8 @@
   .gm-foot-r{display:flex;align-items:center;gap:12px}
   .gm-save{padding:10px 18px}
   .gm-save:disabled{opacity:.45;cursor:not-allowed}
+  .gm-openlink{display:inline-block;margin-top:10px;font-size:12.5px;font-weight:600;color:var(--navy);text-decoration:none;border:1.5px solid var(--border);border-radius:8px;padding:6px 11px}
+  .gm-openlink:hover{border-color:var(--navy);background:#F4F3FA}
   .gm-hist{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
   .tel a{color:var(--navy);text-decoration:none;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
   .tel a:hover{text-decoration:underline}
@@ -594,7 +596,7 @@ function ensureModal(){
 function abrirGestion(uid){
   ensureModal(); const caso=CASOS[uid]; if(!caso) return;
   GM={uid, caso, contacto:null, resultado:null};
-  document.getElementById('gmHead').innerHTML=`<div class="gm-name">${esc(caso.nombre||caso.email||'—')}</div>${caso.email&&caso.nombre?`<div class="gm-sub">${esc(caso.email)}</div>`:''}${caso.contexto?`<div class="gm-sub">${esc(caso.contexto)}</div>`:''}`;
+  document.getElementById('gmHead').innerHTML=`<div class="gm-name">${esc(caso.nombre||caso.email||'—')}</div>${caso.email&&caso.nombre?`<div class="gm-sub">${esc(caso.email)}</div>`:''}${caso.contexto?`<div class="gm-sub">${esc(caso.contexto)}</div>`:''}<a href="#" class="gm-openlink" onclick="verSuscripcion('${esc(caso.customer_id||'')}','${esc(caso.contract_id||'')}');return false">Abrir su suscripción en Appstle ↗</a>`;
   const ag=agenteActual();
   document.getElementById('gmAgente').innerHTML=['',...AGENTES].map(a=>`<option value="${esc(a)}"${a===ag?' selected':''}>${a||'— elige —'}</option>`).join('');
   document.querySelectorAll('#gestModal .gm-seg-b').forEach(b=>b.classList.remove('sel'));
