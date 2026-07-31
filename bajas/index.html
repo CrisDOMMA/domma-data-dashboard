@@ -132,8 +132,43 @@
   .pill.pausa{background:#E7F5EF;color:var(--green)} .pill.coach,.pill.gate{background:#EDEEF4;color:var(--navy)}
   .pill.test{background:#F0EEF6;color:#7A5CC0;margin-left:6px}
   .pill.re{background:#E7F5EF;color:var(--green)}
-  .actions{display:flex;gap:8px;white-space:nowrap}
-  .actions a{font-size:12px;text-decoration:none;font-weight:600}
+  .actions{display:flex;gap:10px;white-space:nowrap;align-items:center}
+  .actions a{font-size:12px;text-decoration:none;font-weight:600;color:var(--navy)}
+  /* ── CRM: clienta clicable + panel de gestión (disposición) ── */
+  .cli-link{color:var(--navy);text-decoration:none;font-weight:600;border-bottom:1px solid transparent}
+  .cli-link:hover{border-bottom-color:var(--navy)}
+  .gest-toggle{cursor:pointer}
+  .lg-badge{display:inline-block;margin-left:6px;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:20px;background:#EDEEF4;color:var(--navy);vertical-align:middle}
+  .lg-badge.ok{background:#E7F5EF;color:var(--green)} .lg-badge.bad{background:#FBE9E7;color:var(--red)} .lg-badge.warn{background:#FCF3E0;color:var(--amber)}
+  .gest-panel-row > td{background:#FBFAF8;padding:0}
+  .gest-panel{padding:16px 18px;border-top:2px solid var(--navy);border-left:3px solid var(--navy)}
+  .gest-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:12px;flex-wrap:wrap}
+  .gest-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  .gest-ag{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:flex;gap:6px;align-items:center}
+  .gest-ag select{padding:5px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;font-family:inherit;text-transform:none;letter-spacing:normal;color:var(--text);background:#fff}
+  .dispo-grp{display:flex;align-items:center;gap:10px;margin:7px 0;flex-wrap:wrap}
+  .dispo-lab{font-size:11px;font-weight:700;color:var(--muted);min-width:96px;display:flex;align-items:center}
+  .dispo-lab::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px}
+  .dispo-grp.loc .dispo-lab::before{background:var(--green)}
+  .dispo-grp.noloc .dispo-lab::before{background:#B9BCCB}
+  .dispo-chips{display:flex;gap:7px;flex-wrap:wrap}
+  .dispo-chip{background:#fff;border:1.5px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12.5px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit}
+  .dispo-chip:hover{border-color:var(--navy)}
+  .dispo-chip.sel{background:var(--navy);border-color:var(--navy);color:#fff}
+  .gest-nota{width:100%;margin-top:10px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;box-sizing:border-box}
+  .gest-foot{display:flex;align-items:center;gap:12px;margin-top:10px}
+  .gest-save{padding:8px 16px;font-size:13px}
+  .gest-save:disabled{opacity:.45;cursor:not-allowed}
+  .gest-msg{font-size:12.5px;font-weight:600}
+  .gest-msg.ok{color:var(--green)} .gest-msg.bad{color:var(--red)}
+  .gest-hist{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+  .gest-hist-empty{font-size:12px;color:var(--muted)}
+  .gest-hist-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px}
+  .gest-line{margin-bottom:9px;font-size:12.5px}
+  .dispo-pill{display:inline-block;font-size:11px;font-weight:600;padding:1px 8px;border-radius:20px;background:#EDEEF4;color:var(--navy)}
+  .dispo-pill.ok{background:#E7F5EF;color:var(--green)} .dispo-pill.bad{background:#FBE9E7;color:var(--red)} .dispo-pill.warn{background:#FCF3E0;color:var(--amber)}
+  .gest-line-meta{color:var(--muted);margin-left:8px}
+  .gest-line-nota{color:var(--text);margin-top:2px;font-size:12px}
   .tablecard{padding:18px 0 4px}
   .tablecard h3,.tablecard .hint,.tablecard .filters{padding:0 18px}
   .tablewrap{max-height:520px;overflow:auto;margin-top:12px}
@@ -468,7 +503,7 @@ async function load(){
   document.querySelectorAll('.tabpane').forEach(p => p.style.display='none');
   try{
     const cmp = ventanaCmp();
-    const [r, rp] = await Promise.all([ api('/api/dashboard'), cmp ? api('/api/dashboard', null, cmp) : null ]);
+    const [r, rp] = await Promise.all([ api('/api/dashboard'), cmp ? api('/api/dashboard', null, cmp) : null, cargarGestiones() ]);
     if(r.status === 401 || r.status === 403){
       if(token){ logout(); } else { document.getElementById('loginErr').textContent = 'Sesión no válida'; }
       return;
@@ -607,13 +642,19 @@ function render(){
   document.getElementById('solCount').textContent =
     `· ${sol.pendientes.length} pendiente${sol.pendientes.length===1?'':'s'}${sol.resueltas?` · ${sol.resueltas} ya resuelta${sol.resueltas===1?'':'s'}`:''}`;
   const orden = sol.pendientes.slice().sort((a,b)=>(b.fuera_de_plazo?1:0)-(a.fuera_de_plazo?1:0) || (b.dias||0)-(a.dias||0));
-  document.getElementById('solBody').innerHTML = orden.length ? orden.map(s=>`<tr>
+  document.getElementById('solBody').innerHTML = orden.length ? orden.map((s,i)=>{
+      const uid='gps'+i;
+      const caso={tipo_caso:'baja', customer_id:s.customer_id, contrato:s.contrato, nombre:s.nombre, email:s.email, phone:s.phone, es_test:s.es_test};
+      const lg=ultimaGestion(caso), tel=telHref(s.phone);
+      return `<tr>
       <td style="white-space:nowrap"><b style="color:${s.fuera_de_plazo?'var(--red)':'inherit'}">${s.dias===0?'hoy':s.dias+' día'+(s.dias===1?'':'s')}</b>${s.fuera_de_plazo?'<div style="font-size:11px;color:var(--red)">pasa de 72h</div>':''}</td>
-      <td>${s.nombre?esc(s.nombre):'<span class="muted">—</span>'}${s.email?`<div class="muted" style="font-size:11px">${esc(s.email)}</div>`:''}${s.es_test?' <span class="pill test">prueba</span>':''}</td>
-      <td>${esc(s.motivo||'—')}</td>
+      <td>${s.nombre?`<a href="#" class="cli-link" onclick="verSuscripcion('${esc(s.customer_id)}','${esc(s.contrato||'')}');return false">${esc(s.nombre)}</a>`:'<span class="muted">—</span>'}${s.email?`<div class="muted" style="font-size:11px">${esc(s.email)}</div>`:''}${s.es_test?' <span class="pill test">prueba</span>':''}<span id="${uid}-badge">${lg?badgeGest(lg):''}</span></td>
+      <td>${esc(labelMotivo(s.motivo))}</td>
       <td>${s.estado_actual==='active'?'<span class="pill pausa">sigue activo</span>':`<span class="pill coach">${esc(s.estado_actual)}</span>`}</td>
-      <td><div class="actions">${s.email?`<a href="mailto:${esc(s.email)}?subject=${encodeURIComponent('DOMMA · tu solicitud')}">Email</a>`:''}<a href="#" onclick="abrirWati('${esc(s.customer_id)}','${esc(s.phone||'')}');return false" title="Abrir su conversación en WATI">WhatsApp</a></div></td>
-    </tr>`).join('') : '<tr><td colspan="5"><div class="empty">Ninguna solicitud pendiente. 👌</div></td></tr>';
+      <td><div class="actions">${tel?`<a href="${tel}" title="Llamar por Ringover">Llamar</a>`:''}<a href="#" onclick="abrirWati('${esc(s.customer_id)}','${esc(s.phone||'')}');return false" title="Abrir su conversación en WATI">WhatsApp</a>${s.email?`<a href="mailto:${esc(s.email)}?subject=${encodeURIComponent('DOMMA · tu solicitud')}">Email</a>`:''}<a href="#" class="gest-toggle" onclick="togglePanel('${uid}');return false">Gestionar ▾</a></div></td>
+    </tr>
+    <tr id="${uid}-row" class="gest-panel-row" style="display:none"><td colspan="5">${panelGestion('baja',caso,uid)}</td></tr>`;
+    }).join('') : '<tr><td colspan="5"><div class="empty">Ninguna solicitud pendiente. 👌</div></td></tr>';
 
   renderLista();
   loadRepo((document.getElementById('repoSearch').value || '').trim());
@@ -802,6 +843,98 @@ async function abrirWati(customer_id, phone){
     else if(w) w.close();
   }catch(e){ if(w) w.close(); }
 }
+/* ══════════════════ CRM: gestión de casos (disposición) ══════════════════ */
+// Solo REGISTRA lo que pasó en la llamada; no ejecuta nada en Appstle.
+const AGENTES = ['Carma','Vale','Ana','Marta'];
+const DISPO = {
+  baja: {
+    localizada:    [['pausa','Pausa'],['cambio_producto','Cambio de producto'],['venta_cruzada','Venta cruzada'],['retenida','Retenida'],['cancelado','Cancelado']],
+    no_localizada: [['pendiente','Pendiente · volver a llamar'],['cancelar','Cancelar']],
+  },
+  fallo_pago: {
+    localizada:    [['cobro_manual','Cobro manual'],['actualizar_pago','Actualizar el pago'],['pendiente_cobro','Pendiente de cobro'],['cancelar_final','Cancelar finalmente']],
+    no_localizada: [['cobro_manual','Cobro manual'],['cancelar_definitivo','Cancelar definitivamente'],['pendiente','Pendiente · volver a llamar']],
+  },
+};
+const RES_LABEL = {pausa:'Pausa',cambio_producto:'Cambio de producto',venta_cruzada:'Venta cruzada',retenida:'Retenida',cancelado:'Cancelado',pendiente:'Pendiente',cancelar:'Cancelar',cobro_manual:'Cobro manual',actualizar_pago:'Actualizar pago',pendiente_cobro:'Pendiente de cobro',cancelar_final:'Cancelar finalmente',cancelar_definitivo:'Cancelar definitivamente'};
+const RES_TONE  = {retenida:'ok',pausa:'ok',venta_cruzada:'ok',cambio_producto:'ok',cobro_manual:'ok',actualizar_pago:'ok',pendiente_cobro:'warn',pendiente:'warn',cancelado:'bad',cancelar:'bad',cancelar_final:'bad',cancelar_definitivo:'bad'};
+
+let GEST = {byC:{}, byCust:{}};   // contract_id / customer_id → [gestiones más reciente primero]
+async function cargarGestiones(){
+  try{
+    const r = await fetch(API+'/api/dashboard/gestiones',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({limit:500})});
+    if(!r.ok) return;
+    const d = await r.json(); const byC={}, byCust={};
+    (d.gestiones||[]).forEach(g=>{
+      const c=String(g.contract_id||'').split('.')[0], cu=String(g.customer_id||'');
+      if(c){ (byC[c]=byC[c]||[]).push(g); }
+      if(cu){ (byCust[cu]=byCust[cu]||[]).push(g); }
+    });
+    GEST={byC,byCust};
+  }catch(e){}
+}
+function histGestiones(caso){
+  const c=String(caso.contract_id||caso.contrato||'').split('.')[0], cu=String(caso.customer_id||'');
+  return (c && GEST.byC[c]) || (cu && GEST.byCust[cu]) || [];
+}
+const ultimaGestion = caso => { const h=histGestiones(caso); return h.length?h[0]:null; };
+function agenteActual(){ return localStorage.getItem('domma_agente')||''; }
+function setAgente(v){ localStorage.setItem('domma_agente',v||''); document.querySelectorAll('.gest-ag select').forEach(s=>{ s.value=v; }); }
+function telHref(phone){ let p=String(phone||'').replace(/\D/g,''); if(!p)return ''; if(p.length===9)p='34'+p; return 'tel:+'+p; }
+function fechaCorta(s){ if(!s)return''; if(s==='ahora')return'ahora mismo'; const d=new Date(String(s).replace(' ','T')+'Z'); return isNaN(d)?esc(s):d.toLocaleString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }
+function badgeGest(g){ const t=RES_TONE[g.resultado]||''; return `<span class="lg-badge ${t}" title="Última gestión${g.agente?' · '+esc(g.agente):''} · ${fechaCorta(g.created_at)}">${esc(RES_LABEL[g.resultado]||g.resultado)}${g.agente?' · '+esc(g.agente):''}</span>`; }
+function gestLine(g){ const t=RES_TONE[g.resultado]||''; return `<div class="gest-line"><span class="dispo-pill ${t}">${esc(RES_LABEL[g.resultado]||g.resultado)}</span><span class="gest-line-meta">${g.contacto==='no_localizada'?'no localizada':'localizada'}${g.agente?' · '+esc(g.agente):''} · ${fechaCorta(g.created_at)}</span>${g.nota?`<div class="gest-line-nota">${esc(g.nota)}</div>`:''}</div>`; }
+function histHtml(caso){ const h=histGestiones(caso); if(!h.length) return '<div class="gest-hist-empty">Sin gestiones registradas todavía.</div>'; return '<div class="gest-hist-t">Gestiones anteriores</div>'+h.slice(0,6).map(gestLine).join(''); }
+// Renombra los motivos técnicos a algo accionable en el listado (#5).
+function labelMotivo(m){ const M={gate_2pedidos:'Menos de 2 pedidos · acompañar',min_2_pedidos:'Menos de 2 pedidos · acompañar',min_permanencia:'Aún sin permanencia · acompañar',fallo_pago:'Fallo de pago',coach:'Derivada a coach'}; return M[m]||m||'—'; }
+
+function panelGestion(tipo, caso, uid){
+  const cfg = DISPO[tipo], ag = agenteActual();
+  const chip = (contacto,[val,lab]) => `<button type="button" class="dispo-chip" data-uid="${uid}" data-contacto="${contacto}" data-res="${val}" onclick="selDispo(this)">${lab}</button>`;
+  const grp  = (cls,contacto,label,items) => `<div class="dispo-grp ${cls}"><span class="dispo-lab">${label}</span><div class="dispo-chips">${items.map(it=>chip(contacto,it)).join('')}</div></div>`;
+  return `<div class="gest-panel" id="${uid}" data-tipo="${tipo}"
+      data-cust="${esc(caso.customer_id||'')}" data-contract="${esc(caso.contract_id||caso.contrato||'')}"
+      data-nombre="${esc(caso.nombre||'')}" data-email="${esc(caso.email||'')}" data-phone="${esc(caso.phone||'')}" data-test="${caso.es_test?1:0}">
+      <div class="gest-head"><span class="gest-title">Registrar gestión</span>
+        <label class="gest-ag">Agente <select onchange="setAgente(this.value)">${['',...AGENTES].map(a=>`<option value="${esc(a)}"${a===ag?' selected':''}>${a||'— elige —'}</option>`).join('')}</select></label></div>
+      ${grp('loc','localizada','Localizada',cfg.localizada)}
+      ${grp('noloc','no_localizada','No localizada',cfg.no_localizada)}
+      <textarea class="gest-nota" rows="2" placeholder="Nota (opcional): qué dijo, próximo paso…"></textarea>
+      <div class="gest-foot"><button type="button" class="btn gest-save" onclick="guardarGestion('${uid}')" disabled>Guardar gestión</button><span class="gest-msg"></span></div>
+      <div class="gest-hist">${histHtml(caso)}</div>
+    </div>`;
+}
+function togglePanel(uid){ const row=document.getElementById(uid+'-row'); if(row) row.style.display = row.style.display==='none'?'table-row':'none'; }
+function selDispo(el){
+  const p=document.getElementById(el.dataset.uid);
+  p.querySelectorAll('.dispo-chip').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel'); p.dataset.selContacto=el.dataset.contacto; p.dataset.selRes=el.dataset.res;
+  p.querySelector('.gest-save').disabled=false;
+}
+async function guardarGestion(uid){
+  const p=document.getElementById(uid); const contacto=p.dataset.selContacto, resultado=p.dataset.selRes;
+  if(!contacto||!resultado) return;
+  const btn=p.querySelector('.gest-save'), msg=p.querySelector('.gest-msg');
+  btn.disabled=true; msg.textContent='Guardando…'; msg.className='gest-msg';
+  const ag=(p.querySelector('.gest-ag select')||{}).value||agenteActual();
+  const body={tipo_caso:p.dataset.tipo, customer_id:p.dataset.cust, contract_id:p.dataset.contract, nombre:p.dataset.nombre, email:p.dataset.email, phone:p.dataset.phone, contacto, resultado, agente:ag, nota:(p.querySelector('.gest-nota').value||'').trim(), es_test:p.dataset.test==='1'?1:0};
+  try{
+    const r=await fetch(API+'/api/dashboard/gestion',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(d&&d.ok){
+      msg.textContent='Guardada ✓'; msg.className='gest-msg ok';
+      const g=d.gestion||{...body,created_at:'ahora'};
+      const c=String(body.contract_id||'').split('.')[0], cu=String(body.customer_id||'');
+      if(c){ GEST.byC[c]=GEST.byC[c]||[]; GEST.byC[c].unshift(g); }
+      if(cu){ GEST.byCust[cu]=GEST.byCust[cu]||[]; GEST.byCust[cu].unshift(g); }
+      p.querySelector('.gest-hist').innerHTML=histHtml({contract_id:c,customer_id:cu});
+      p.querySelectorAll('.dispo-chip').forEach(x=>x.classList.remove('sel')); p.querySelector('.gest-nota').value='';
+      delete p.dataset.selContacto; delete p.dataset.selRes;
+      const b=document.getElementById(uid+'-badge'); if(b) b.innerHTML=badgeGest(g);
+    } else { msg.textContent = d&&d.error==='faltan_datos'?'Elige un resultado':'No se pudo guardar'; msg.className='gest-msg bad'; btn.disabled=false; }
+  }catch(e){ msg.textContent='Error de conexión'; msg.className='gest-msg bad'; btn.disabled=false; }
+}
+
 async function buscarClienta(){
   const email=(document.getElementById('cliEmail').value||'').trim();
   const box=document.getElementById('cliRes');
