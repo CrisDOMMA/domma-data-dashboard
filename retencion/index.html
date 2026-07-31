@@ -559,7 +559,7 @@ function fechaCortaG(s){ if(!s)return''; if(s==='ahora')return'ahora mismo'; con
 function badgeGest(g){ const t=RES_TONE[g.resultado]||''; return `<span class="lg-badge ${t}" title="Última gestión${g.agente?' · '+esc(g.agente):''} · ${fechaCortaG(g.created_at)}">${esc(RES_LABEL[g.resultado]||g.resultado)}${g.agente?' · '+esc(g.agente):''}</span>`; }
 // Píldora para la columna «Gestión»: lo que hicimos en la llamada (localizada/no + resultado).
 function gestPill(g){
-  if(!g) return '<span class="muted" style="font-size:11.5px">sin gestionar</span>';
+  if(!g) return '<span class="lg-badge warn" title="Aún no la ha llamado nadie">Sin gestionar</span>';
   const t=RES_TONE[g.resultado]||'', loc=g.contacto==='no_localizada'?'No localizada':'Localizada';
   return `<span class="lg-badge ${t}" title="${loc}${g.agente?' · '+esc(g.agente):''} · ${fechaCortaG(g.created_at)}">${loc} · ${esc(RES_LABEL[g.resultado]||g.resultado)}</span>${g.agente?`<div class="em" style="margin-top:2px">${esc(g.agente)} · ${fechaCortaG(g.created_at)}</div>`:''}`;
 }
