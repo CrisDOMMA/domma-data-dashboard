@@ -368,7 +368,7 @@
       <p class="hint">Se cierran solas: cuando el contrato aparece cancelado en Appstle, la solicitud desaparece de aquí. Nadie tiene que marcar nada. En <b>rojo</b>, las que pasan de las 72 h que le prometemos a la clienta.</p>
       <div class="tablewrap" style="max-height:340px">
         <table>
-          <thead><tr><th>Esperando</th><th>Clienta</th><th>Motivo</th><th>Estado del plan</th><th>Contactar</th></tr></thead>
+          <thead><tr><th>Esperando</th><th>Clienta</th><th>Motivo</th><th>Estado del plan</th><th>Gestión</th><th>Contactar</th></tr></thead>
           <tbody id="solBody"></tbody>
         </table>
       </div>
@@ -674,12 +674,13 @@ function render(){
       const lg=ultimaGestion(caso), tel=telHref(s.phone);
       return `<tr>
       <td style="white-space:nowrap"><b style="color:${s.fuera_de_plazo?'var(--red)':'inherit'}">${s.dias===0?'hoy':s.dias+' día'+(s.dias===1?'':'s')}</b>${s.fuera_de_plazo?'<div style="font-size:11px;color:var(--red)">pasa de 72h</div>':''}</td>
-      <td>${s.nombre?`<a href="#" class="cli-link" onclick="verSuscripcion('${esc(s.customer_id)}','${esc(s.contrato||'')}');return false">${esc(s.nombre)}</a>`:'<span class="muted">—</span>'}${s.email?`<div class="muted" style="font-size:11px">${esc(s.email)}</div>`:''}${s.es_test?' <span class="pill test">prueba</span>':''}<span id="${uid}-badge">${lg?badgeGest(lg):''}</span></td>
+      <td>${s.nombre?`<a href="#" class="cli-link" onclick="verSuscripcion('${esc(s.customer_id)}','${esc(s.contrato||'')}');return false">${esc(s.nombre)}</a>`:'<span class="muted">—</span>'}${s.email?`<div class="muted" style="font-size:11px">${esc(s.email)}</div>`:''}${s.es_test?' <span class="pill test">prueba</span>':''}</td>
       <td>${esc(labelMotivo(s.motivo))}</td>
-      <td>${s.estado_actual==='active'?'<span class="pill pausa">sigue activo</span>':`<span class="pill coach">${esc(s.estado_actual)}</span>`}</td>
+      <td>${s.estado_actual==='active'?'<span class="pill pausa" title="Estado de la suscripción en Appstle">sigue activo</span>':`<span class="pill coach">${esc(s.estado_actual)}</span>`}</td>
+      <td id="${uid}-gest">${gestPill(lg)}</td>
       <td><div class="actions">${tel?`<a href="${tel}" title="Llamar por Ringover">Llamar</a>`:''}<a href="#" onclick="abrirWati('${esc(s.customer_id)}','${esc(s.phone||'')}');return false" title="Abrir su conversación en WATI">WhatsApp</a>${s.email?`<a href="mailto:${esc(s.email)}?subject=${encodeURIComponent('DOMMA · tu solicitud')}">Email</a>`:''}<a href="#" class="gest-toggle" onclick="abrirGestion('${uid}');return false">Gestionar</a></div></td>
     </tr>`;
-    }).join('') : '<tr><td colspan="5"><div class="empty">Ninguna solicitud pendiente. 👌</div></td></tr>';
+    }).join('') : '<tr><td colspan="6"><div class="empty">Ninguna solicitud pendiente. 👌</div></td></tr>';
 
   renderLista();
   loadRepo((document.getElementById('repoSearch').value || '').trim());
@@ -908,6 +909,12 @@ function setAgente(v){ localStorage.setItem('domma_agente',v||''); document.quer
 function telHref(phone){ let p=String(phone||'').replace(/\D/g,''); if(!p)return ''; if(p.length===9)p='34'+p; return 'tel:+'+p; }
 function fechaCorta(s){ if(!s)return''; if(s==='ahora')return'ahora mismo'; const d=new Date(String(s).replace(' ','T')+'Z'); return isNaN(d)?esc(s):d.toLocaleString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }
 function badgeGest(g){ const t=RES_TONE[g.resultado]||''; return `<span class="lg-badge ${t}" title="Última gestión${g.agente?' · '+esc(g.agente):''} · ${fechaCorta(g.created_at)}">${esc(RES_LABEL[g.resultado]||g.resultado)}${g.agente?' · '+esc(g.agente):''}</span>`; }
+// Píldora para la columna «Gestión»: lo que hicimos en la llamada (localizada/no + resultado).
+function gestPill(g){
+  if(!g) return '<span class="muted" style="font-size:11.5px">sin gestionar</span>';
+  const t=RES_TONE[g.resultado]||'', loc=g.contacto==='no_localizada'?'No localizada':'Localizada';
+  return `<span class="lg-badge ${t}" title="${loc}${g.agente?' · '+esc(g.agente):''} · ${fechaCorta(g.created_at)}">${loc} · ${esc(RES_LABEL[g.resultado]||g.resultado)}</span>${g.agente?`<div class="muted" style="font-size:11px;margin-top:2px">${esc(g.agente)} · ${fechaCorta(g.created_at)}</div>`:''}`;
+}
 function gestLine(g){ const t=RES_TONE[g.resultado]||''; return `<div class="gest-line"><span class="dispo-pill ${t}">${esc(RES_LABEL[g.resultado]||g.resultado)}</span><span class="gest-line-meta">${g.contacto==='no_localizada'?'no localizada':'localizada'}${g.agente?' · '+esc(g.agente):''} · ${fechaCorta(g.created_at)}</span>${g.nota?`<div class="gest-line-nota">${esc(g.nota)}</div>`:''}</div>`; }
 function histHtml(caso){ const h=histGestiones(caso); if(!h.length) return '<div class="gest-hist-empty">Sin gestiones registradas todavía.</div>'; return '<div class="gest-hist-t">Gestiones anteriores</div>'+h.slice(0,6).map(gestLine).join(''); }
 // Renombra los motivos técnicos a algo accionable en el listado (#5).
@@ -979,7 +986,7 @@ async function guardarGestion(){
       const c=String(body.contract_id||'').split('.')[0], cu=String(body.customer_id||'');
       if(c){ GEST.byC[c]=GEST.byC[c]||[]; GEST.byC[c].unshift(g); }
       if(cu){ GEST.byCust[cu]=GEST.byCust[cu]||[]; GEST.byCust[cu].unshift(g); }
-      const b=document.getElementById(GM.uid+'-badge'); if(b) b.innerHTML=badgeGest(g);
+      const cell=document.getElementById(GM.uid+'-gest'); if(cell) cell.innerHTML=gestPill(g);
       msg.textContent='Guardada ✓'; msg.className='gest-msg ok';
       setTimeout(cerrarGestion, 550);
     } else { msg.textContent=d&&d.error==='faltan_datos'?'Elige un resultado':'No se pudo guardar'; msg.className='gest-msg bad'; btn.disabled=false; }

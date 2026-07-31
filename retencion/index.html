@@ -557,6 +557,12 @@ function setAgente(v){ localStorage.setItem('domma_agente',v||''); document.quer
 function telHref(phone){ let p=String(phone||'').replace(/\D/g,''); if(!p)return ''; if(p.length===9)p='34'+p; return 'tel:+'+p; }
 function fechaCortaG(s){ if(!s)return''; if(s==='ahora')return'ahora mismo'; const d=new Date(String(s).replace(' ','T')+'Z'); return isNaN(d)?esc(s):d.toLocaleString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }
 function badgeGest(g){ const t=RES_TONE[g.resultado]||''; return `<span class="lg-badge ${t}" title="Última gestión${g.agente?' · '+esc(g.agente):''} · ${fechaCortaG(g.created_at)}">${esc(RES_LABEL[g.resultado]||g.resultado)}${g.agente?' · '+esc(g.agente):''}</span>`; }
+// Píldora para la columna «Gestión»: lo que hicimos en la llamada (localizada/no + resultado).
+function gestPill(g){
+  if(!g) return '<span class="muted" style="font-size:11.5px">sin gestionar</span>';
+  const t=RES_TONE[g.resultado]||'', loc=g.contacto==='no_localizada'?'No localizada':'Localizada';
+  return `<span class="lg-badge ${t}" title="${loc}${g.agente?' · '+esc(g.agente):''} · ${fechaCortaG(g.created_at)}">${loc} · ${esc(RES_LABEL[g.resultado]||g.resultado)}</span>${g.agente?`<div class="em" style="margin-top:2px">${esc(g.agente)} · ${fechaCortaG(g.created_at)}</div>`:''}`;
+}
 function gestLine(g){ const t=RES_TONE[g.resultado]||''; return `<div class="gest-line"><span class="dispo-pill ${t}">${esc(RES_LABEL[g.resultado]||g.resultado)}</span><span class="gest-line-meta">${g.contacto==='no_localizada'?'no localizada':'localizada'}${g.agente?' · '+esc(g.agente):''} · ${fechaCortaG(g.created_at)}</span>${g.nota?`<div class="gest-line-nota">${esc(g.nota)}</div>`:''}</div>`; }
 function histHtml(caso){ const h=histGestiones(caso); if(!h.length) return '<div class="gest-hist-empty">Sin gestiones registradas todavía.</div>'; return '<div class="gest-hist-t">Gestiones anteriores</div>'+h.slice(0,6).map(gestLine).join(''); }
 // ── Modal de gestión en 2 pasos: 1) ¿Localizada o no?  2) resultado de esa rama ──
@@ -623,7 +629,7 @@ async function guardarGestion(){
     if(d&&d.ok){
       const g=d.gestion||{...body,created_at:'ahora'}; const c=String(body.contract_id||'').split('.')[0];
       if(c){ GEST.byC[c]=GEST.byC[c]||[]; GEST.byC[c].unshift(g); }
-      const b=document.getElementById(GM.uid+'-badge'); if(b) b.innerHTML='<br>'+badgeGest(g);
+      const cell=document.getElementById(GM.uid+'-gest'); if(cell) cell.innerHTML=gestPill(g);
       msg.textContent='Guardada ✓'; msg.className='gest-msg ok';
       setTimeout(cerrarGestion, 550);
     } else { msg.textContent=d&&d.error==='faltan_datos'?'Elige un resultado':'No se pudo guardar'; msg.className='gest-msg bad'; btn.disabled=false; }
@@ -759,8 +765,9 @@ function renderListado(){
       ? `<a href="#" class="cli-link" onclick="verSuscripcion('','${esc(String(f.id||''))}');return false" title="Abrir su suscripción en Shopify/Appstle">${esc(f.nombre)}</a>`
       : (f.email?esc(f.email):'<span class="muted">sin datos</span>');
     return `<tr>
-      <td class="cli">${nombreCell}${f.nombre&&f.email?`<span class="em">${esc(f.email)}</span>`:''}<span class="em">${esc(f.tipo)}${intxt?' · '+intxt:''}</span><span id="${uid}-badge">${lg?'<br>'+badgeGest(lg):''}</span></td>
-      <td><span class="pill ${sc.cls}">${esc(sc.txt)}</span></td>
+      <td class="cli">${nombreCell}${f.nombre&&f.email?`<span class="em">${esc(f.email)}</span>`:''}<span class="em">${esc(f.tipo)}${intxt?' · '+intxt:''}</span></td>
+      <td><span class="pill ${sc.cls}" title="¿Ha pagado? Dato de Appstle en vivo">${esc(sc.txt)}</span></td>
+      <td id="${uid}-gest">${gestPill(lg)}</td>
       <td class="num"><b>${eur(f.importe)}</b></td>
       <td class="num"><span class="dias ${dCls}">${f.dias==null?'—':f.dias+' d'}</span></td>
       <td>${f.fecha?esc(f.fecha):'—'}</td>
@@ -771,10 +778,10 @@ function renderListado(){
 
   return `<div class="sect">Listado de fallos · a quién llamar</div>${bar}
     <div class="card" style="margin-top:8px">
-      <p class="hint">Cada fallo del periodo, con su desenlace, importe en riesgo y días desde el primer intento fallido. «Días» ≥7 en ámbar, ≥14 en rojo. <b>«Abiertas» son las que siguen sin cobrar</b> — la lista de llamadas de Carme. Fuente: Appstle en vivo.</p>
+      <p class="hint"><b>Cobro</b> = si ha pagado (Appstle en vivo): «Abierta» sigue sin cobrar. <b>Gestión</b> = lo que hicimos en la llamada. «Días» ≥7 en ámbar, ≥14 en rojo. La lista de llamadas de Carme son las de cobro «Abierta».</p>
       <div style="overflow-x:auto"><table>
-        <thead><tr><th>Clienta</th><th>Desenlace</th><th class="num">Importe</th><th class="num">Días</th><th>1er fallo</th><th>Teléfono</th><th>Contactar</th></tr></thead>
-        <tbody>${rows || `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Sin fallos con este filtro</td></tr>`}</tbody>
+        <thead><tr><th>Clienta</th><th>Cobro</th><th>Gestión</th><th class="num">Importe</th><th class="num">Días</th><th>1er fallo</th><th>Teléfono</th><th>Contactar</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">Sin fallos con este filtro</td></tr>`}</tbody>
       </table></div>
     </div>`;
 }
