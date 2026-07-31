@@ -126,8 +126,13 @@ function showApp(){
   if(btn) btn.classList.add('active');
   load(first);
 }
+// «Sello» único por carga del hub: fuerza al navegador a pedir el iframe fresco en cada
+// visita (evita ver versiones cacheadas del dashboard tras un deploy). Dentro de la misma
+// sesión el sello no cambia, así que cambiar de pestaña no recarga de más.
+const CACHE_BUST = Date.now();
+function conSello(u){ return u + (u.includes('?') ? '&' : '?') + '_v=' + CACHE_BUST; }
 function load(view){
-  document.getElementById('content').src=VIEWS[view];
+  document.getElementById('content').src = conSello(VIEWS[view]);
 }
 function nav(view,el){
   document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
