@@ -156,6 +156,30 @@
   .gest-line-meta{color:var(--muted);margin-left:8px}
   .gest-line-nota{color:var(--navy);margin-top:2px;font-size:12px}
   .gest-toggle{cursor:pointer}
+  /* ── Modal de gestión (2 pasos) ── */
+  .gm-overlay{position:fixed;inset:0;background:rgba(16,22,55,.45);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+  .gm-box{background:#fff;border-radius:16px;width:min(560px,100%);max-height:88vh;overflow:auto;padding:24px;box-shadow:0 20px 60px rgba(16,22,55,.3);position:relative}
+  .gm-x{position:absolute;top:10px;right:14px;border:none;background:none;font-size:26px;line-height:1;color:var(--muted);cursor:pointer;font-family:inherit}
+  .gm-head{margin-bottom:18px;padding-right:24px}
+  .gm-name{font-size:19px;font-weight:700;color:var(--navy)}
+  .gm-sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .gm-q{font-size:13.5px;font-weight:600;color:var(--navy);margin-bottom:9px}
+  .gm-seg{display:flex;gap:10px;margin-bottom:14px}
+  .gm-seg-b{flex:1;padding:13px;border:2px solid var(--border);border-radius:11px;background:#fff;font-size:14.5px;font-weight:700;color:var(--navy);cursor:pointer;font-family:inherit}
+  .gm-seg-b:hover{border-color:var(--navy)}
+  .gm-seg-b.loc.sel{border-color:var(--green);background:#E7F5EF;color:var(--green)}
+  .gm-seg-b.noloc.sel{border-color:var(--navy);background:#EDEEF4;color:var(--navy)}
+  .gm-results{min-height:38px;margin-bottom:6px}
+  .gm-hint{font-size:12.5px;color:var(--muted);padding:8px 0}
+  .gm-res-lab{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:9px}
+  .gm-nota{width:100%;padding:9px 11px;border:1.5px solid var(--border);border-radius:9px;font-family:inherit;font-size:13px;resize:vertical;box-sizing:border-box;margin-top:8px}
+  .gm-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap}
+  .gm-agent{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:flex;gap:6px;align-items:center}
+  .gm-agent select{padding:6px 9px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:inherit;color:var(--navy);background:#fff;text-transform:none;letter-spacing:normal}
+  .gm-foot-r{display:flex;align-items:center;gap:12px}
+  .gm-save{padding:10px 18px}
+  .gm-save:disabled{opacity:.45;cursor:not-allowed}
+  .gm-hist{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
   .tel a{color:var(--navy);text-decoration:none;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
   .tel a:hover{text-decoration:underline}
   .th-sort{cursor:pointer}
@@ -535,43 +559,74 @@ function fechaCortaG(s){ if(!s)return''; if(s==='ahora')return'ahora mismo'; con
 function badgeGest(g){ const t=RES_TONE[g.resultado]||''; return `<span class="lg-badge ${t}" title="Última gestión${g.agente?' · '+esc(g.agente):''} · ${fechaCortaG(g.created_at)}">${esc(RES_LABEL[g.resultado]||g.resultado)}${g.agente?' · '+esc(g.agente):''}</span>`; }
 function gestLine(g){ const t=RES_TONE[g.resultado]||''; return `<div class="gest-line"><span class="dispo-pill ${t}">${esc(RES_LABEL[g.resultado]||g.resultado)}</span><span class="gest-line-meta">${g.contacto==='no_localizada'?'no localizada':'localizada'}${g.agente?' · '+esc(g.agente):''} · ${fechaCortaG(g.created_at)}</span>${g.nota?`<div class="gest-line-nota">${esc(g.nota)}</div>`:''}</div>`; }
 function histHtml(caso){ const h=histGestiones(caso); if(!h.length) return '<div class="gest-hist-empty">Sin gestiones registradas todavía.</div>'; return '<div class="gest-hist-t">Gestiones anteriores</div>'+h.slice(0,6).map(gestLine).join(''); }
-function panelGestion(caso, uid){
-  const cfg = DISPO.fallo_pago, ag = agenteActual();
-  const chip = (contacto,[val,lab]) => `<button type="button" class="dispo-chip" data-uid="${uid}" data-contacto="${contacto}" data-res="${val}" onclick="selDispo(this)">${lab}</button>`;
-  const grp  = (cls,contacto,label,items) => `<div class="dispo-grp ${cls}"><span class="dispo-lab">${label}</span><div class="dispo-chips">${items.map(it=>chip(contacto,it)).join('')}</div></div>`;
-  return `<div class="gest-panel" id="${uid}"
-      data-cust="${esc(caso.customer_id||'')}" data-contract="${esc(caso.contract_id||'')}"
-      data-nombre="${esc(caso.nombre||'')}" data-email="${esc(caso.email||'')}" data-phone="${esc(caso.phone||'')}">
-      <div class="gest-head"><span class="gest-title">Registrar gestión</span>
-        <label class="gest-ag">Agente <select onchange="setAgente(this.value)">${['',...AGENTES].map(a=>`<option value="${esc(a)}"${a===ag?' selected':''}>${a||'— elige —'}</option>`).join('')}</select></label></div>
-      ${grp('loc','localizada','Localizada',cfg.localizada)}
-      ${grp('noloc','no_localizada','No localizada',cfg.no_localizada)}
-      <textarea class="gest-nota" rows="2" placeholder="Nota (opcional): qué dijo, cuándo pagará…"></textarea>
-      <div class="gest-foot"><button type="button" class="btn gest-save" onclick="guardarGestion('${uid}')" disabled>Guardar gestión</button><span class="gest-msg"></span></div>
-      <div class="gest-hist">${histHtml(caso)}</div>
-    </div>`;
+// ── Modal de gestión en 2 pasos: 1) ¿Localizada o no?  2) resultado de esa rama ──
+const CASOS = {};
+let GM = null;   // {uid, caso, contacto, resultado}
+function ensureModal(){
+  if(document.getElementById('gestModal')) return;
+  const d=document.createElement('div'); d.id='gestModal'; d.className='gm-overlay'; d.style.display='none';
+  d.onclick=e=>{ if(e.target===d) cerrarGestion(); };
+  d.innerHTML=`<div class="gm-box">
+    <button type="button" class="gm-x" onclick="cerrarGestion()" aria-label="Cerrar">&times;</button>
+    <div class="gm-head" id="gmHead"></div>
+    <div class="gm-q">¿Has podido hablar con ella?</div>
+    <div class="gm-seg">
+      <button type="button" class="gm-seg-b loc" data-c="localizada" onclick="pickContacto('localizada')">Localizada</button>
+      <button type="button" class="gm-seg-b noloc" data-c="no_localizada" onclick="pickContacto('no_localizada')">No localizada</button>
+    </div>
+    <div class="gm-results" id="gmResults"><div class="gm-hint">Marca arriba si has hablado con ella o no.</div></div>
+    <textarea class="gm-nota" id="gmNota" rows="2" placeholder="Nota (opcional): qué dijo, cuándo pagará…"></textarea>
+    <div class="gm-foot">
+      <label class="gm-agent">Agente <select id="gmAgente" onchange="setAgente(this.value)"></select></label>
+      <div class="gm-foot-r"><span class="gest-msg" id="gmMsg"></span><button type="button" class="btn gm-save" id="gmSave" onclick="guardarGestion()" disabled>Guardar gestión</button></div>
+    </div>
+    <div class="gm-hist" id="gmHist"></div>
+  </div>`;
+  document.body.appendChild(d);
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') cerrarGestion(); });
 }
-function togglePanel(uid){ const row=document.getElementById(uid+'-row'); if(row) row.style.display = row.style.display==='none'?'table-row':'none'; }
-function selDispo(el){ const p=document.getElementById(el.dataset.uid); p.querySelectorAll('.dispo-chip').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); p.dataset.selContacto=el.dataset.contacto; p.dataset.selRes=el.dataset.res; p.querySelector('.gest-save').disabled=false; }
-async function guardarGestion(uid){
-  const p=document.getElementById(uid); const contacto=p.dataset.selContacto, resultado=p.dataset.selRes;
-  if(!contacto||!resultado) return;
-  const btn=p.querySelector('.gest-save'), msg=p.querySelector('.gest-msg');
+function abrirGestion(uid){
+  ensureModal(); const caso=CASOS[uid]; if(!caso) return;
+  GM={uid, caso, contacto:null, resultado:null};
+  document.getElementById('gmHead').innerHTML=`<div class="gm-name">${esc(caso.nombre||caso.email||'—')}</div>${caso.email&&caso.nombre?`<div class="gm-sub">${esc(caso.email)}</div>`:''}${caso.contexto?`<div class="gm-sub">${esc(caso.contexto)}</div>`:''}`;
+  const ag=agenteActual();
+  document.getElementById('gmAgente').innerHTML=['',...AGENTES].map(a=>`<option value="${esc(a)}"${a===ag?' selected':''}>${a||'— elige —'}</option>`).join('');
+  document.querySelectorAll('#gestModal .gm-seg-b').forEach(b=>b.classList.remove('sel'));
+  document.getElementById('gmResults').innerHTML='<div class="gm-hint">Marca arriba si has hablado con ella o no.</div>';
+  document.getElementById('gmNota').value=''; document.getElementById('gmMsg').textContent='';
+  document.getElementById('gmSave').disabled=true;
+  document.getElementById('gmHist').innerHTML=histHtml(caso);
+  document.getElementById('gestModal').style.display='flex';
+}
+function cerrarGestion(){ const m=document.getElementById('gestModal'); if(m) m.style.display='none'; GM=null; }
+function pickContacto(c){
+  if(!GM) return; GM.contacto=c; GM.resultado=null;
+  document.querySelectorAll('#gestModal .gm-seg-b').forEach(b=>b.classList.toggle('sel', b.dataset.c===c));
+  const items=(DISPO[GM.caso.tipo_caso||'fallo_pago']||{})[c]||[];
+  document.getElementById('gmResults').innerHTML=`<div class="gm-res-lab">${c==='localizada'?'¿Cómo ha quedado?':'¿Qué hacemos?'}</div><div class="dispo-chips">`+items.map(([val,lab])=>`<button type="button" class="dispo-chip" data-res="${val}" onclick="pickResult('${val}')">${lab}</button>`).join('')+`</div>`;
+  document.getElementById('gmSave').disabled=true;
+}
+function pickResult(val){
+  if(!GM) return; GM.resultado=val;
+  document.querySelectorAll('#gmResults .dispo-chip').forEach(x=>x.classList.toggle('sel', x.dataset.res===val));
+  document.getElementById('gmSave').disabled=false;
+}
+async function guardarGestion(){
+  if(!GM||!GM.contacto||!GM.resultado) return;
+  const btn=document.getElementById('gmSave'), msg=document.getElementById('gmMsg'), c0=GM.caso;
   btn.disabled=true; msg.textContent='Guardando…'; msg.className='gest-msg';
-  const ag=(p.querySelector('.gest-ag select')||{}).value||agenteActual();
-  const body={tipo_caso:'fallo_pago', customer_id:p.dataset.cust, contract_id:p.dataset.contract, nombre:p.dataset.nombre, email:p.dataset.email, phone:p.dataset.phone, contacto, resultado, agente:ag, nota:(p.querySelector('.gest-nota').value||'').trim()};
+  const ag=document.getElementById('gmAgente').value||agenteActual();
+  const body={tipo_caso:c0.tipo_caso||'fallo_pago', customer_id:c0.customer_id||'', contract_id:c0.contract_id||'', nombre:c0.nombre||'', email:c0.email||'', phone:c0.phone||'', contacto:GM.contacto, resultado:GM.resultado, agente:ag, nota:(document.getElementById('gmNota').value||'').trim()};
   try{
     const r=await fetch(API_BAJAS+'/api/dashboard/gestion',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
     const d=await r.json();
     if(d&&d.ok){
-      msg.textContent='Guardada ✓'; msg.className='gest-msg ok';
       const g=d.gestion||{...body,created_at:'ahora'}; const c=String(body.contract_id||'').split('.')[0];
       if(c){ GEST.byC[c]=GEST.byC[c]||[]; GEST.byC[c].unshift(g); }
-      p.querySelector('.gest-hist').innerHTML=histHtml({contract_id:c});
-      p.querySelectorAll('.dispo-chip').forEach(x=>x.classList.remove('sel')); p.querySelector('.gest-nota').value='';
-      delete p.dataset.selContacto; delete p.dataset.selRes;
-      const b=document.getElementById(uid+'-badge'); if(b) b.innerHTML=badgeGest(g);
-    } else { msg.textContent = d&&d.error==='faltan_datos'?'Elige un resultado':'No se pudo guardar'; msg.className='gest-msg bad'; btn.disabled=false; }
+      const b=document.getElementById(GM.uid+'-badge'); if(b) b.innerHTML='<br>'+badgeGest(g);
+      msg.textContent='Guardada ✓'; msg.className='gest-msg ok';
+      setTimeout(cerrarGestion, 550);
+    } else { msg.textContent=d&&d.error==='faltan_datos'?'Elige un resultado':'No se pudo guardar'; msg.className='gest-msg bad'; btn.disabled=false; }
   }catch(e){ msg.textContent='Error de conexión'; msg.className='gest-msg bad'; btn.disabled=false; }
 }
 
@@ -681,9 +736,11 @@ function renderListado(){
 
   const rows = filas.map((f,i)=>{
     const uid='gpf'+i;
-    const caso={customer_id:'', contract_id:f.id, nombre:f.nombre, email:f.email, phone:f.phone};
-    const lg=ultimaGestion(caso);
     const sc=estadoCat(f.desenlace);
+    const caso={tipo_caso:'fallo_pago', customer_id:'', contract_id:f.id, nombre:f.nombre, email:f.email, phone:f.phone,
+      contexto:`${esc(sc.txt)} · ${eur(f.importe)}${f.dias!=null?' · '+f.dias+' d':''}`};
+    CASOS[uid]=caso;
+    const lg=ultimaGestion(caso);
     const dCls = f.dias>=14?'bad':(f.dias>=7?'warn':'');
     const tieneTel = !!String(f.phone||'').replace(/\D/g,'');
     const tel = telHref(f.phone);
@@ -691,7 +748,7 @@ function renderListado(){
       tel?`<a href="${tel}" title="Llamar por Ringover">Llamar</a>`:'',
       tieneTel?`<a href="#" onclick="abrirWati('${esc(String(f.phone))}');return false" title="Abrir su conversación en WATI">WhatsApp</a>`:'',
       f.email?`<a href="mailto:${esc(f.email)}?subject=${encodeURIComponent('DOMMA · tu suscripción')}">Email</a>`:'',
-      `<a href="#" class="gest-toggle" onclick="togglePanel('${uid}');return false">Gestionar ▾</a>`,
+      `<a href="#" class="gest-toggle" onclick="abrirGestion('${uid}');return false">Gestionar</a>`,
     ].filter(Boolean).join('');
     const intxt = f.intentos!=null ? `${f.intentos} intento${f.intentos===1?'':'s'}` : '';
     const t = telFmt(f.phone);
@@ -709,8 +766,7 @@ function renderListado(){
       <td>${f.fecha?esc(f.fecha):'—'}</td>
       <td class="tel">${telCell}</td>
       <td class="acts">${acts}</td>
-    </tr>
-    <tr id="${uid}-row" class="gest-panel-row" style="display:none"><td colspan="7">${panelGestion(caso,uid)}</td></tr>`;
+    </tr>`;
   }).join('');
 
   return `<div class="sect">Listado de fallos · a quién llamar</div>${bar}
