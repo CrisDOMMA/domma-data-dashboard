@@ -612,7 +612,7 @@ function render(){
       <td>${s.nombre?esc(s.nombre):'<span class="muted">—</span>'}${s.email?`<div class="muted" style="font-size:11px">${esc(s.email)}</div>`:''}${s.es_test?' <span class="pill test">prueba</span>':''}</td>
       <td>${esc(s.motivo||'—')}</td>
       <td>${s.estado_actual==='active'?'<span class="pill pausa">sigue activo</span>':`<span class="pill coach">${esc(s.estado_actual)}</span>`}</td>
-      <td><div class="actions">${s.email?`<a href="mailto:${esc(s.email)}?subject=${encodeURIComponent('DOMMA · tu solicitud')}">Email</a>`:''}<a href="https://wa.me/${WA}" target="_blank" rel="noopener">WhatsApp</a></div></td>
+      <td><div class="actions">${s.email?`<a href="mailto:${esc(s.email)}?subject=${encodeURIComponent('DOMMA · tu solicitud')}">Email</a>`:''}<a href="#" onclick="abrirWati('${esc(s.customer_id)}','${esc(s.phone||'')}');return false" title="Abrir su conversación en WATI">WhatsApp</a></div></td>
     </tr>`).join('') : '<tr><td colspan="5"><div class="empty">Ninguna solicitud pendiente. 👌</div></td></tr>';
 
   renderLista();
@@ -755,7 +755,7 @@ function renderLista(){
     }${x.reactivada?' <span class="pill re">reactivó ✓</span>':''}${x.es_test?' <span class="pill test">prueba</span>':''}`;
     const contacto = [
       x.email?`<a href="mailto:${esc(x.email)}?subject=${encodeURIComponent('DOMMA · tu suscripción')}">Email</a>`:'',
-      `<a href="https://wa.me/${WA}?text=${waTxt}" target="_blank" rel="noopener">WhatsApp</a>`
+      `<a href="#" onclick="abrirWati('${esc(x.customer_id)}','${esc(x.phone||'')}');return false" title="Abrir su conversación en WATI">WhatsApp</a>`
     ].filter(Boolean).join('');
     return `<tr>
       <td class="muted" style="white-space:nowrap">${esc((x.fecha||'').replace('T',' '))}</td>
@@ -787,6 +787,20 @@ function verSuscripcion(cid, contractId){
   const c = contractId ? String(contractId).split('.')[0] : '';
   if(c){ window.open(SHOP_ADMIN+'/apps/'+APPSTLE_APP+'/dashboard/subscriptions/'+encodeURIComponent(c)+'/detail?details=true','_blank','noopener'); return; }
   if(cid){ window.open(SHOP_ADMIN+'/customers/'+encodeURIComponent(cid),'_blank','noopener'); }
+}
+// Abre la conversación de la clienta en WATI. El worker resuelve teléfono→ID de WATI;
+// si no lo consigue, cae a wa.me. Abrimos la pestaña YA (síncrono) para no chocar con el
+// bloqueador de popups, y le ponemos la URL cuando el worker responde.
+async function abrirWati(customer_id, phone){
+  const w = window.open('about:blank','_blank');
+  try{
+    const r = await fetch(API+'/api/dashboard/wati-link', {method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify({customer_id, phone})});
+    const d = await r.json().catch(()=>({}));
+    if(d && d.url){ if(w) w.location = d.url; else window.open(d.url,'_blank','noopener'); }
+    else if(w) w.close();
+  }catch(e){ if(w) w.close(); }
 }
 async function buscarClienta(){
   const email=(document.getElementById('cliEmail').value||'').trim();
