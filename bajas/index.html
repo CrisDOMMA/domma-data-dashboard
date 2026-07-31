@@ -365,37 +365,14 @@
 
   <!-- ══════════ TAB: A QUIÉN LLAMO ══════════ -->
   <div class="tabpane" id="tab-llamar" style="display:none">
-    <p class="hint" style="margin:0 0 14px">Tu lista de llamadas. Cada clienta: por qué la llamas, su suscripción <b>a un clic</b> (en el nombre), y <b>Gestionar</b> para dejar registrado cómo fue. En <b>ámbar</b>, las que nadie ha llamado todavía.</p>
-
-    <div class="card tablecard" style="margin-bottom:16px">
-      <h3>1 · Solicitudes de baja <span class="muted" id="solCount"></span></h3>
-      <p class="hint">Han pedido la baja por el flujo y su plan <b>sigue activo</b>. En <b>rojo</b>, las que pasan de las 72 h que le prometemos.</p>
-      <div class="tablewrap" style="max-height:340px">
-        <table>
-          <thead><tr><th>Esperando</th><th>Clienta</th><th>Motivo</th><th>Estado del plan</th><th>Gestión</th><th>Contactar</th></tr></thead>
-          <tbody id="solBody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="card tablecard" style="margin-bottom:16px">
-      <h3>2 · Derivadas a coach <span class="muted" id="derivCount"></span></h3>
-      <p class="hint">El flujo las mandó a una persona (menos de 2 pedidos, salud, «otro», o algo falló). Siguen activas — llamar para acompañar.</p>
-      <div class="tablewrap" style="max-height:340px">
-        <table>
-          <thead><tr><th>Esperando</th><th>Clienta</th><th>Por qué</th><th>Estado del plan</th><th>Gestión</th><th>Contactar</th></tr></thead>
-          <tbody id="derivBody"></tbody>
-        </table>
-      </div>
-    </div>
-
     <div class="card tablecard">
-      <h3>Ya resueltas <span class="muted" id="resCount"></span></h3>
-      <p class="hint">Bajas cuyo contrato ya aparece cancelado en Appstle (se cierran solas). Aquí ves <b>si se llamó</b> antes de que se fueran: en <b>rojo</b>, las que se fueron <b>sin gestión registrada</b>.</p>
-      <div class="tablewrap" style="max-height:300px">
+      <h3>Por llamar <span class="muted" id="llamarCount"></span></h3>
+      <p class="hint">Tu lista de llamadas: <b>solicitudes de baja</b> (plan activo) y <b>derivadas a coach</b> (menos de 2 pedidos, salud, «otro», fallos). Pincha el <b>nombre</b> para su suscripción y <b>Gestionar</b> para registrar la llamada. En <b>ámbar</b>, las que nadie ha llamado. En <b>rojo</b>, las bajas que pasan de 72 h.</p>
+      <div class="filters" id="llamarFilters"></div>
+      <div class="tablewrap">
         <table>
-          <thead><tr><th>Fecha</th><th>Clienta</th><th>Motivo</th><th>Gestión</th></tr></thead>
-          <tbody id="resBody"></tbody>
+          <thead><tr><th>Esperando</th><th>Clienta</th><th>Tipo</th><th>Motivo / por qué</th><th>Estado del plan</th><th>Gestión</th><th>Contactar</th></tr></thead>
+          <tbody id="llamarBody"></tbody>
         </table>
       </div>
     </div>
@@ -426,6 +403,18 @@
         <table>
           <thead><tr><th>Fecha</th><th>Clienta</th><th>Acción</th><th>Detalle</th><th>Motivo</th><th>Origen</th></tr></thead>
           <tbody id="repoBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card tablecard" style="margin-top:16px">
+      <h3>Bajas ya resueltas <span class="muted" id="resCount"></span></h3>
+      <p class="hint">Bajas cuyo contrato ya está cancelado en Appstle (se cierran solas). Aquí ves <b>si se llamó</b> antes de que se fueran: en <b>rojo</b>, las que se fueron <b>sin gestión registrada</b>.</p>
+      <div class="filters" id="resFilters"></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Clienta</th><th>Motivo</th><th>Gestión</th></tr></thead>
+          <tbody id="resBody"></tbody>
         </table>
       </div>
     </div>
@@ -688,59 +677,66 @@ function render(){
   if(fr.length) renderStacked('fricciones', fr, r=>({lbl:r.motivo, val:`<em>${r.n}</em>`, segs:[['solicitud',r.n]], total:r.n}));
   else document.getElementById('fricciones').innerHTML = '<div class="empty">Ninguna clienta se ha topado con un bloqueo. 👌</div>';
 
-  // ── BLOQUE 1: Solicitudes de baja pendientes (las que van tarde, primero) ──
-  document.getElementById('solCount').textContent = `· ${sol.pendientes.length} por llamar`;
-  const orden = sol.pendientes.slice().sort((a,b)=>(b.fuera_de_plazo?1:0)-(a.fuera_de_plazo?1:0) || (b.dias||0)-(a.dias||0));
-  document.getElementById('solBody').innerHTML = orden.length ? orden.map((s,i)=>{
-      const uid='gps'+i;
-      const caso={tipo_caso:'baja', customer_id:s.customer_id, contrato:s.contrato, nombre:s.nombre, email:s.email, phone:s.phone, es_test:s.es_test,
-        contexto:`${esc(labelMotivo(s.motivo))} · ${s.dias===0?'hoy':s.dias+' día'+(s.dias===1?'':'s')} esperando`};
-      CASOS[uid]=caso;
-      const lg=ultimaGestion(caso), tel=telHref(s.phone);
-      return `<tr>
-      <td style="white-space:nowrap"><b style="color:${s.fuera_de_plazo?'var(--red)':'inherit'}">${s.dias===0?'hoy':s.dias+' día'+(s.dias===1?'':'s')}</b>${s.fuera_de_plazo?'<div style="font-size:11px;color:var(--red)">pasa de 72h</div>':''}</td>
-      <td>${s.nombre?`<a href="#" class="cli-link" onclick="verSuscripcion('${esc(s.customer_id)}','${esc(s.contrato||'')}');return false">${esc(s.nombre)}</a>`:'<span class="muted">—</span>'}${s.email?`<div class="muted" style="font-size:11px">${esc(s.email)}</div>`:''}${s.es_test?' <span class="pill test">prueba</span>':''}</td>
-      <td>${esc(labelMotivo(s.motivo))}</td>
-      <td>${s.estado_actual==='active'?'<span class="pill pausa" title="Estado de la suscripción en Appstle">sigue activo</span>':`<span class="pill coach">${esc(s.estado_actual)}</span>`}</td>
-      <td id="${uid}-gest">${gestPill(lg)}</td>
-      <td><div class="actions">${tel?`<a href="${tel}" title="Llamar por Ringover">Llamar</a>`:''}<a href="#" onclick="abrirWati('${esc(s.customer_id)}','${esc(s.phone||'')}');return false" title="Abrir su conversación en WATI">WhatsApp</a>${s.email?`<a href="mailto:${esc(s.email)}?subject=${encodeURIComponent('DOMMA · tu solicitud')}">Email</a>`:''}<a href="#" class="gest-toggle" onclick="abrirGestion('${uid}');return false">Gestionar</a></div></td>
-    </tr>`;
-    }).join('') : '<tr><td colspan="6"><div class="empty">Ninguna solicitud pendiente. 👌</div></td></tr>';
+  // ── A quién llamo: solicitudes de baja + derivadas a coach en una sola tabla con filtro ──
+  LLAMAR = [
+    ...sol.pendientes.map(s => ({ ...s, tipo:'baja',     motivo_txt: labelMotivo(s.motivo) })),
+    ...(d.derivadas||[]).map(s => ({ ...s, tipo:'derivada', motivo_txt: porQueDeriv(s) })),
+  ];
+  RESUELTAS = sol.resueltas_lista || [];
+  renderLlamar();
+  renderResueltas();
 
-  // ── BLOQUE 2: Derivadas a coach (por llamar) ──
-  const deriv = (d.derivadas||[]).slice().sort((a,b)=>(b.dias||0)-(a.dias||0));
-  document.getElementById('derivCount').textContent = `· ${deriv.length} por llamar`;
-  document.getElementById('derivBody').innerHTML = deriv.length ? deriv.map((s,i)=>{
-      const uid='gpd'+i;
-      const caso={tipo_caso:'baja', customer_id:s.customer_id, contrato:s.contrato, nombre:s.nombre, email:s.email, phone:s.phone, es_test:s.es_test,
-        contexto:`${esc(porQueDeriv(s))} · ${s.dias===0?'hoy':s.dias+' día'+(s.dias===1?'':'s')}`};
-      CASOS[uid]=caso;
-      const lg=ultimaGestion(caso), tel=telHref(s.phone);
-      return `<tr>
-      <td style="white-space:nowrap"><b>${s.dias===0?'hoy':s.dias+' día'+(s.dias===1?'':'s')}</b></td>
+  renderLista();
+  loadRepo((document.getElementById('repoSearch').value || '').trim());
+}
+
+// ── «A quién llamo»: una tabla (solicitudes + derivadas) con filtro por tipo ──
+let LLAMAR = [], RESUELTAS = [], llamarFilter = 'todas', resFilter = 'todas';
+function setLlamarFilter(k){ llamarFilter = k; renderLlamar(); }
+function renderLlamar(){
+  const nBaja = LLAMAR.filter(x=>x.tipo==='baja').length, nDer = LLAMAR.filter(x=>x.tipo==='derivada').length;
+  document.getElementById('llamarCount').textContent = `· ${LLAMAR.length} por llamar`;
+  const defs = [['todas','Todas',LLAMAR.length],['baja','Solicitudes de baja',nBaja],['derivada','Derivadas a coach',nDer]];
+  document.getElementById('llamarFilters').innerHTML = defs.map(([k,l,n])=>
+    `<span class="chip ${llamarFilter===k?'on':''}" onclick="setLlamarFilter('${k}')">${l} <b>${n}</b></span>`).join('');
+  let list = (llamarFilter==='todas' ? LLAMAR : LLAMAR.filter(x=>x.tipo===llamarFilter))
+    .slice().sort((a,b)=>(b.fuera_de_plazo?1:0)-(a.fuera_de_plazo?1:0) || (b.dias||0)-(a.dias||0));
+  document.getElementById('llamarBody').innerHTML = list.length ? list.map((s,i)=>{
+    const uid='gpl'+i;
+    const caso={tipo_caso:'baja', customer_id:s.customer_id, contrato:s.contrato, nombre:s.nombre, email:s.email, phone:s.phone, es_test:s.es_test,
+      contexto:`${esc(s.motivo_txt)} · ${s.dias===0?'hoy':s.dias+' día'+(s.dias===1?'':'s')}`};
+    CASOS[uid]=caso;
+    const lg=ultimaGestion(caso), tel=telHref(s.phone);
+    const tipoPill = s.tipo==='baja' ? '<span class="pill baja">Baja</span>' : '<span class="pill coach">Derivada</span>';
+    return `<tr>
+      <td style="white-space:nowrap"><b style="color:${s.fuera_de_plazo?'var(--red)':'inherit'}">${s.dias===0?'hoy':s.dias+' día'+(s.dias===1?'':'s')}</b>${s.fuera_de_plazo?'<div style="font-size:11px;color:var(--red)">pasa de 72h</div>':''}</td>
       <td>${s.nombre?`<a href="#" class="cli-link" onclick="verSuscripcion('${esc(s.customer_id)}','${esc(s.contrato||'')}');return false">${esc(s.nombre)}</a>`:(s.email?esc(s.email):'<span class="muted">—</span>')}${s.email&&s.nombre?`<div class="muted" style="font-size:11px">${esc(s.email)}</div>`:''}${s.es_test?' <span class="pill test">prueba</span>':''}</td>
-      <td>${esc(porQueDeriv(s))}</td>
-      <td>${s.estado_actual==='active'?'<span class="pill pausa" title="Estado de la suscripción en Appstle">sigue activo</span>':`<span class="pill coach">${esc(s.estado_actual)}</span>`}</td>
+      <td>${tipoPill}</td>
+      <td>${esc(s.motivo_txt)}</td>
+      <td>${s.estado_actual==='active'?'<span class="pill pausa" title="Estado de la suscripción en Appstle">sigue activo</span>':`<span class="pill coach">${esc(s.estado_actual||'sin dato')}</span>`}</td>
       <td id="${uid}-gest">${gestPill(lg)}</td>
       <td><div class="actions">${tel?`<a href="${tel}" title="Llamar por Ringover">Llamar</a>`:''}<a href="#" onclick="abrirWati('${esc(s.customer_id)}','${esc(s.phone||'')}');return false" title="Abrir su conversación en WATI">WhatsApp</a>${s.email?`<a href="mailto:${esc(s.email)}?subject=${encodeURIComponent('DOMMA · tu plan')}">Email</a>`:''}<a href="#" class="gest-toggle" onclick="abrirGestion('${uid}');return false">Gestionar</a></div></td>
     </tr>`;
-    }).join('') : '<tr><td colspan="6"><div class="empty">Ninguna derivada pendiente. 👌</div></td></tr>';
-
-  // ── BLOQUE 3: Ya resueltas (con estado de llamada) ──
-  const res = sol.resueltas_lista || [];
-  document.getElementById('resCount').textContent = res.length ? `· ${res.length}` : '';
-  document.getElementById('resBody').innerHTML = res.length ? res.map(s=>{
-      const caso={customer_id:s.customer_id, contract_id:s.contrato, nombre:s.nombre, email:s.email, phone:s.phone};
-      return `<tr>
+  }).join('') : '<tr><td colspan="7"><div class="empty">Nada por llamar en este filtro. 👌</div></td></tr>';
+}
+function setResFilter(k){ resFilter = k; renderResueltas(); }
+function renderResueltas(){
+  const tieneG = s => !!ultimaGestion({contract_id:s.contrato, customer_id:s.customer_id});
+  const nCon = RESUELTAS.filter(tieneG).length, nSin = RESUELTAS.length - nCon;
+  document.getElementById('resCount').textContent = RESUELTAS.length ? `· ${RESUELTAS.length}` : '';
+  const defs = [['todas','Todas',RESUELTAS.length],['con','Con llamada',nCon],['sin','Se fue sin llamar',nSin]];
+  document.getElementById('resFilters').innerHTML = defs.map(([k,l,n])=>
+    `<span class="chip ${resFilter===k?'on':''}" onclick="setResFilter('${k}')">${l} <b>${n}</b></span>`).join('');
+  let list = resFilter==='con' ? RESUELTAS.filter(tieneG) : resFilter==='sin' ? RESUELTAS.filter(s=>!tieneG(s)) : RESUELTAS;
+  document.getElementById('resBody').innerHTML = list.length ? list.map(s=>{
+    const caso={customer_id:s.customer_id, contract_id:s.contrato, nombre:s.nombre, email:s.email, phone:s.phone};
+    return `<tr>
       <td style="white-space:nowrap">${s.fecha?esc(String(s.fecha).slice(0,10)):'—'}</td>
       <td>${s.nombre?`<a href="#" class="cli-link" onclick="verSuscripcion('${esc(s.customer_id)}','${esc(s.contrato||'')}');return false">${esc(s.nombre)}</a>`:(s.email?esc(s.email):'—')}${s.email&&s.nombre?`<div class="muted" style="font-size:11px">${esc(s.email)}</div>`:''}</td>
       <td>${esc(labelMotivo(s.motivo))}</td>
       <td>${resPill(caso)}</td>
     </tr>`;
-    }).join('') : '<tr><td colspan="4"><div class="empty">Ninguna baja resuelta en este periodo.</div></td></tr>';
-
-  renderLista();
-  loadRepo((document.getElementById('repoSearch').value || '').trim());
+  }).join('') : '<tr><td colspan="4"><div class="empty">Sin bajas resueltas con este filtro.</div></td></tr>';
 }
 
 function setTab(t, el){
