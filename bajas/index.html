@@ -750,7 +750,7 @@ function renderLista(){
     const waTxt = encodeURIComponent('Hola, te escribo de DOMMA sobre tu suscripción.');
     const cliTxt = x.nombre ? esc(x.nombre) : (x.email ? esc(x.email) : 'ver suscripción');
     const cli = `${x.customer_id
-      ? `<a href="#" onclick="verSuscripcion('${esc(x.customer_id)}');return false" style="color:var(--navy);font-weight:600;text-decoration:none" title="Ver su suscripción en Shopify/Appstle">${cliTxt}</a>${x.email&&x.nombre?`<div class="muted" style="font-size:11px">${esc(x.email)}</div>`:''}`
+      ? `<a href="#" onclick="verSuscripcion('${esc(x.customer_id)}','${esc(x.contract_id||'')}');return false" style="color:var(--navy);font-weight:600;text-decoration:none" title="Ver su suscripción en Appstle">${cliTxt}</a>${x.email&&x.nombre?`<div class="muted" style="font-size:11px">${esc(x.email)}</div>`:''}`
       : `${x.nombre?esc(x.nombre):(x.email?esc(x.email):'<span class="muted">sin email</span>')}${x.email&&x.nombre?`<div class="muted" style="font-size:11px">${esc(x.email)}</div>`:''}`
     }${x.reactivada?' <span class="pill re">reactivó ✓</span>':''}${x.es_test?' <span class="pill test">prueba</span>':''}`;
     const contacto = [
@@ -781,7 +781,13 @@ const estadoPill = (s)=>{ const e=(s||'').toLowerCase();
 // Clic en la clienta → su ficha en Shopify (abre en pestaña nueva), donde está su
 // suscripción de Appstle ("Subscription contract") lista para gestionar.
 const SHOP_ADMIN='https://admin.shopify.com/store/wearedomma';
-function verSuscripcion(cid){ if(cid) window.open(SHOP_ADMIN+'/customers/'+encodeURIComponent(cid),'_blank','noopener'); }
+const APPSTLE_APP='subscription-by-rhem';
+// Si tenemos el contrato → abre la suscripción directa en Appstle; si no, ficha de clienta (fallback).
+function verSuscripcion(cid, contractId){
+  const c = contractId ? String(contractId).split('.')[0] : '';
+  if(c){ window.open(SHOP_ADMIN+'/apps/'+APPSTLE_APP+'/dashboard/subscriptions/'+encodeURIComponent(c)+'/detail?details=true','_blank','noopener'); return; }
+  if(cid){ window.open(SHOP_ADMIN+'/customers/'+encodeURIComponent(cid),'_blank','noopener'); }
+}
 async function buscarClienta(){
   const email=(document.getElementById('cliEmail').value||'').trim();
   const box=document.getElementById('cliRes');
@@ -857,7 +863,7 @@ function renderRepo(){
   b.innerHTML = rows.map(a=>`<tr>
     <td class="muted" style="white-space:nowrap">${esc((a.fecha||'').slice(0,16).replace('T',' '))}</td>
     <td>${a.customer_id
-      ? `<a href="#" onclick="verSuscripcion('${esc(a.customer_id)}');return false" style="color:var(--navy);font-weight:600;text-decoration:none" title="Ver su suscripción en Shopify/Appstle">${a.nombre?esc(a.nombre):(a.email?esc(a.email):'—')}</a>${a.email?`<div class="muted" style="font-size:11px">${esc(a.email)}</div>`:''}`
+      ? `<a href="#" onclick="verSuscripcion('${esc(a.customer_id)}','${esc(a.contract_id||'')}');return false" style="color:var(--navy);font-weight:600;text-decoration:none" title="Ver su suscripción en Appstle">${a.nombre?esc(a.nombre):(a.email?esc(a.email):'—')}</a>${a.email?`<div class="muted" style="font-size:11px">${esc(a.email)}</div>`:''}`
       : `${a.nombre?esc(a.nombre):'<span class="muted">—</span>'}${a.email?`<div class="muted" style="font-size:11px">${esc(a.email)}</div>`:''}`
     }${a.es_test?' <span class="pill test">prueba</span>':''}</td>
     <td><span class="pill ${repoPill(a.accion)}">${esc(a.accion)}</span></td>
