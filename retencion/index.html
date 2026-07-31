@@ -211,6 +211,9 @@ const API_TEL = 'https://gestorsubs-domma.cristina-ed1.workers.dev/telefonos-sho
 const API_CONV = 'https://luna-agent.cristina-ed1.workers.dev/api/metrics/fallo-pago-conversion';
 const METRICS_TOKEN = 'ae054e9b8acb290020c6be1d0839832ef34145dfe5ea3acc';
 const AUTH_API = 'https://domma-pro-api.cristina-ed1.workers.dev';
+// Worker de bajas: resuelve teléfono→ID de contacto de WATI para abrir la conversación
+// de la clienta (mismo endpoint que usa «Gestión suscripciones»). Requiere token admin/retencion.
+const API_BAJAS = 'https://domma-bajas.cristina-ed1.workers.dev';
 
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
 (function(){ const m = location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token', decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
@@ -434,12 +437,6 @@ function estadoCat(desenlace){
 function limpiarNombre(s){
   return String(s||'').trim().replace(/u00([0-9a-fA-F]{2})/g,(m,h)=>String.fromCharCode(parseInt(h,16)));
 }
-function waLink(phone){
-  let p=String(phone||'').replace(/\D/g,'');
-  if(!p) return '';
-  if(p.length===9) p='34'+p;
-  return 'https://wa.me/'+p;
-}
 // Número legible + href para llamar. "+34 645 81 57 75" cuando es 34 + 9 dígitos.
 function telFmt(phone){
   let p=String(phone||'').replace(/\D/g,'');
@@ -451,6 +448,21 @@ function telFmt(phone){
     disp='+34 '+n.slice(0,3)+' '+n.slice(3,5)+' '+n.slice(5,7)+' '+n.slice(7);
   }
   return {href:'+'+p, disp};
+}
+// Abre la conversación de la clienta en WATI (mismo comportamiento que «Gestión suscripciones»).
+// El worker de bajas resuelve teléfono→ID de contacto de WATI; si no lo consigue (o no hay token)
+// cae a wa.me. Abrimos la pestaña YA (síncrono) para no chocar con el bloqueador de popups.
+async function abrirWati(phone){
+  const tel = String(phone||'').replace(/\D/g,'');
+  const w = window.open('about:blank','_blank');
+  try{
+    const r = await fetch(API_BAJAS+'/api/dashboard/wati-link', {method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify({phone: tel})});
+    const d = await r.json().catch(()=>({}));
+    if(d && d.url){ if(w) w.location = d.url; else window.open(d.url,'_blank','noopener'); }
+    else if(w){ w.location = 'https://wa.me/'+(tel.length===9?'34'+tel:tel); }  // fallback si el worker no responde
+  }catch(e){ if(w){ w.location = 'https://wa.me/'+(tel.length===9?'34'+tel:tel); } }
 }
 
 function setTab(t, el){
@@ -560,10 +572,10 @@ function renderListado(){
   const rows = filas.map(f=>{
     const sc=estadoCat(f.desenlace);
     const dCls = f.dias>=14?'bad':(f.dias>=7?'warn':'');
-    const wa=waLink(f.phone);
+    const tieneTel = !!String(f.phone||'').replace(/\D/g,'');
     const acts=[
       f.email?`<a href="mailto:${esc(f.email)}?subject=${encodeURIComponent('DOMMA · tu suscripción')}">Email</a>`:'',
-      wa?`<a href="${wa}" target="_blank" rel="noopener">WhatsApp</a>`:'',
+      tieneTel?`<a href="#" onclick="abrirWati('${esc(String(f.phone))}');return false" title="Abrir su conversación en WATI">WhatsApp</a>`:'',
     ].filter(Boolean).join('') || (ENRIQUECIENDO?'<span class="muted">buscando móvil…</span>':'<span class="muted">sin contacto</span>');
     const intxt = f.intentos!=null ? `${f.intentos} intento${f.intentos===1?'':'s'}` : '';
     const t = telFmt(f.phone);
