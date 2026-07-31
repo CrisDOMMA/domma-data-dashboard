@@ -189,6 +189,7 @@
   <div class="tabs" id="tabs" style="display:none">
     <button class="tab on" data-t="resumen" onclick="setTab('resumen',this)">Resumen</button>
     <button class="tab"    data-t="listado" onclick="setTab('listado',this)">Listado · a quién llamar <span class="badge calm" id="bdgList">0</span></button>
+    <button class="tab"    data-t="conversion" onclick="setTab('conversion',this)">Conversión WhatsApp</button>
   </div>
 
   <div id="cuerpo"><div class="loading">Cargando…</div></div>
@@ -205,6 +206,10 @@ const API_ITEMS = 'https://gestorsubs-domma.cristina-ed1.workers.dev/failures-si
 // Appstle no trae el móvil de ~40% de las clientas, pero Shopify sí (100%). Este
 // endpoint lo rellena desde Shopify (cacheado en KV). Solo lectura, no envía nada.
 const API_TEL = 'https://gestorsubs-domma.cristina-ed1.workers.dev/telefonos-shopify';
+// Conversión de la secuencia de WhatsApp de fallo de pago (entraron→respondieron→pagaron
+// + por toque). Lee el D1 de LUNA (follow_ups). Solo lectura, mismo token que la pestaña LUNA.
+const API_CONV = 'https://luna-agent.cristina-ed1.workers.dev/api/metrics/fallo-pago-conversion';
+const METRICS_TOKEN = 'ae054e9b8acb290020c6be1d0839832ef34145dfe5ea3acc';
 const AUTH_API = 'https://domma-pro-api.cristina-ed1.workers.dev';
 
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
@@ -212,6 +217,7 @@ if(new URLSearchParams(location.search).has('embed')) document.documentElement.c
 let token = localStorage.getItem('domma_analytics_token') || '';
 let TAB = 'resumen', PANES = {};
 let ITEMS = [];               // fichas individuales del periodo
+let CONV = null;              // embudo de conversión de la secuencia WhatsApp
 let FILTRO = 'abiertas';      // filtro de desenlace del listado
 let TIPO_F = 'todos';         // filtro de tipo: activos (fallo_pago) vs backlog (dunning_skipped)
 let ORDEN = 'prioridad';      // orden del listado (defecto: importe×días = a quién llamar primero)
@@ -353,7 +359,19 @@ async function load(){
     ITEMS = normalizarItems(fsA);
     render(fsA, fsP, cmp);
     enriquecerTelefonos();  // en segundo plano: rellena el móvil que Appstle no trae, desde Shopify
+    cargarConversion(desde,hasta);  // en segundo plano: embudo de la secuencia WhatsApp (D1 LUNA)
   }catch(e){ cuerpo.innerHTML=`<div class="card"><h3>Error de conexión</h3><p class="hint">${esc(e.message)}</p></div>`; }
+}
+
+// ── Conversión de la secuencia de WhatsApp (D1 de LUNA), en segundo plano ──
+async function cargarConversion(desde,hasta){
+  CONV = null;
+  try{
+    const q = new URLSearchParams({ desde, hasta, token: METRICS_TOKEN });
+    const d = await getJSON(API_CONV+'?'+q.toString());
+    CONV = (d && !d.error) ? d : { error: (d && d.error) || 'sin respuesta' };
+  }catch(e){ CONV = { error: e.message }; }
+  if(TAB==='conversion'){ const c=document.getElementById('cuerpo'); if(c) c.innerHTML=renderConversion(); }
 }
 
 // Completa el teléfono que falta buscándolo en Shopify (cacheado en KV del worker).
@@ -441,8 +459,54 @@ function setTab(t, el){
   const c=document.getElementById('cuerpo');
   c.style.display='block';
   if(t==='listado') c.innerHTML = renderListado();
+  else if(t==='conversion') c.innerHTML = renderConversion();
   else c.innerHTML = PANES[t] || '';
   if(el) el.blur();
+}
+
+// ══════════ TAB: CONVERSIÓN DE LA SECUENCIA DE WHATSAPP ══════════
+function renderConversion(){
+  const sect = `<div class="sect">Conversión de la secuencia de WhatsApp · fallo de pago</div>`;
+  if(CONV===null) return sect+`<div class="loading">Cargando el embudo desde LUNA…</div>`;
+  if(CONV.error) return sect+`<div class="card"><p class="hint">No se pudo leer el embudo de LUNA: ${esc(CONV.error)}.</p></div>`;
+
+  const ent = CONV.entraron||0;
+  const resp = CONV.respondieron||{n:0,pct:null};
+  const pag = CONV.pagaron||{n:0,pct:null};
+  const kpi=(cls,lab,val,sub)=>`<div class="kpi ${cls||''}"><div class="lab">${lab}</div><div class="val">${val}</div>${sub?`<div class="sub">${sub}</div>`:''}</div>`;
+
+  const kpis = `<div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+      ${kpi('','Entraron en la secuencia', ent, `clientas distintas con ≥1 WhatsApp enviado`)}
+      ${kpi('','Respondieron', resp.n, `${pc(resp.pct)} escribieron en 72h`)}
+      ${kpi('hero','Pagaron', pag.n, `${pc(pag.pct)} recuperadas · secuencia cancelada por pago`)}
+    </div>`;
+
+  const t = CONV.por_toque||[];
+  const maxEnv = Math.max(1, ...t.map(x=>x.enviados||0));
+  const filas = t.map(x=>`<tr>
+      <td><b>${esc(x.toque)}</b></td>
+      <td class="num">${x.enviados||0}</td>
+      <td class="num">${x.pendientes||0}</td>
+      <td class="num">${x.pagados||0}</td>
+      <td style="width:120px"><div class="bar"><i style="width:${Math.round(100*(x.enviados||0)/maxEnv)}%"></i></div></td>
+    </tr>`).join('');
+
+  const tabla = `<div class="card">
+      <h3>Por toque</h3>
+      <p class="hint">Cuántos WhatsApp de cada toque han salido, cuántos están pendientes y en cuántos la clienta ya había pagado (se canceló). Fíjate en que en el toque tardío la mayoría <b>ya ha pagado antes de que salga</b> — la recuperación es temprana.</p>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>Toque</th><th class="num">Enviados</th><th class="num">Pendientes</th><th class="num">Pagó antes</th><th></th></tr></thead>
+        <tbody>${filas || `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Sin datos en el periodo</td></tr>`}</tbody>
+      </table></div>
+    </div>`;
+
+  const aviso = `<div class="avisos"><b>Cómo leer esto</b><ul>
+      <li>«Pagaron» es un <b>suelo</b>: cuenta las secuencias que Monday canceló por pago resuelto; alguna paga sin que se cancele, así que la conversión real es algo mayor.</li>
+      <li>Fuente: D1 de LUNA (<code>follow_ups</code> + <code>conversaciones</code>), la misma que envía los WhatsApp. Ventana: ${esc((CONV.ventana&&CONV.ventana.desde)||'')} → ${esc((CONV.ventana&&CONV.ventana.hasta)||'')}.</li>
+      <li>Referencia: una <b>persona llamando</b> convierte 33-61% (análisis ROI). El WhatsApp es el primer toque barato; las que no pagan van a la llamada de Carme (listado).</li>
+    </ul></div>`;
+
+  return sect + kpis + tabla + aviso;
 }
 
 // Controles del listado (viven dentro del pane, se re-renderiza al vuelo)
