@@ -212,7 +212,8 @@ if(new URLSearchParams(location.search).has('embed')) document.documentElement.c
 let token = localStorage.getItem('domma_analytics_token') || '';
 let TAB = 'resumen', PANES = {};
 let ITEMS = [];               // fichas individuales del periodo
-let FILTRO = 'abiertas';      // filtro de estado del listado
+let FILTRO = 'abiertas';      // filtro de desenlace del listado
+let TIPO_F = 'todos';         // filtro de tipo: activos (fallo_pago) vs backlog (dunning_skipped)
 let ORDEN = 'prioridad';      // orden del listado (defecto: importe×días = a quién llamar primero)
 
 const d2s = d => d.toISOString().slice(0,10);
@@ -390,6 +391,7 @@ function normalizarItems(ri){
       email: (it.email||'').trim(),
       phone: (it.telefono||'').trim(),
       desenlace: (it.desenlace||'').trim() || 'abierta',
+      tipoRaw: it.tipo || 'fallo_pago',
       tipo: it.tipo==='dunning_skipped' ? 'Dunning skipped' : 'Fallo pago',
       intentos: it.intentos_en_ventana ?? null,
       ultimo_pago: it.ultimo_pago_ok || null,
@@ -445,12 +447,17 @@ function setTab(t, el){
 
 // Controles del listado (viven dentro del pane, se re-renderiza al vuelo)
 function setFiltro(v){ FILTRO=v; document.getElementById('cuerpo').innerHTML=renderListado(); }
+function setTipo(v){ TIPO_F=v; document.getElementById('cuerpo').innerHTML=renderListado(); }
 function setOrden(v){ ORDEN=(ORDEN===v)? v : v; document.getElementById('cuerpo').innerHTML=renderListado(); }
 
 function renderListado(){
   let filas = ITEMS.slice();
   if(FILTRO==='abiertas') filas = filas.filter(f=>estadoCat(f.desenlace).abierta);
   else if(FILTRO!=='todas') filas = filas.filter(f=>estadoCat(f.desenlace).cat===FILTRO);
+  // Tipo: separa fallos ACTIVOS (Appstle sigue reintentando) del BACKLOG (dunning agotado,
+  // Appstle ya no reintenta → decisión, no llamada urgente). Ortogonal al desenlace.
+  if(TIPO_F==='activo')  filas = filas.filter(f=>f.tipoRaw!=='dunning_skipped');
+  else if(TIPO_F==='backlog') filas = filas.filter(f=>f.tipoRaw==='dunning_skipped');
 
   const prio = f => (f.importe||0) * Math.max(1, f.dias||0); // € en riesgo × antigüedad
   filas.sort((a,b)=>{
@@ -461,6 +468,7 @@ function renderListado(){
   });
 
   const opt=(v,txt)=>`<option value="${v}"${FILTRO===v?' selected':''}>${txt}</option>`;
+  const optT=(v,txt)=>`<option value="${v}"${TIPO_F===v?' selected':''}>${txt}</option>`;
   const bar=`<div class="listbar">
       <select onchange="setFiltro(this.value)">
         ${opt('abiertas','Abiertas · a llamar')}
@@ -468,6 +476,11 @@ function renderListado(){
         ${opt('baja','Se dieron de baja')}
         ${opt('pausada','Pausadas')}
         ${opt('todas','Todas')}
+      </select>
+      <select onchange="setTipo(this.value)" title="Activos = Appstle sigue reintentando. Backlog = dunning agotado (Appstle ya no reintenta) → a decidir, no llamada urgente.">
+        ${optT('todos','Tipo: todos')}
+        ${optT('activo','Solo activos (reintentando)')}
+        ${optT('backlog','Solo backlog (dunning agotado)')}
       </select>
       <select onchange="setOrden(this.value)">
         <option value="prioridad"${ORDEN==='prioridad'?' selected':''}>Ordenar: prioridad (importe×días)</option>
