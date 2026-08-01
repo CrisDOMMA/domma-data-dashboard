@@ -214,6 +214,10 @@ async function cargar(){
 }
 
 function histDe(caso){ const c=nid(caso.contract_id); const cu=String(caso.customer_id||''); return (c&&GEST.byC[c])||(cu&&GEST.byCust[cu])||[]; }
+// Resultados que "cierran" el caso por hoy. Los no terminales (volver a llamar / no contesta)
+// mantienen la clienta en la lista, porque hay que reintentarla.
+const TERMINAL=new Set(['retenida','venta_cruzada','upsell','pausa','pago_gestionado','cancelado']);
+function gestionadaHoy(caso){ return histDe(caso).some(g=>String(g.created_at||'').slice(0,10)===hoyISO() && TERMINAL.has(g.resultado)); }
 const fechaCorta=s=>{ if(!s)return''; const d=new Date(String(s).replace(' ','T')+'Z'); return isNaN(d)?esc(s):d.toLocaleDateString('es-ES',{day:'2-digit',month:'short'}); };
 function histHtml(caso){
   const h=histDe(caso); if(!h.length) return '';
@@ -221,13 +225,15 @@ function histHtml(caso){
   return `<div class="hist"><div class="hist-t">Historial de esta clienta</div>${rows}</div>`;
 }
 
+let VIS=[];   // lista exacta que se está pintando (índice de las tarjetas → esta lista)
 function render(){
-  const counts={todas:LISTA.length, baja:LISTA.filter(x=>x.tipo==='baja').length, derivada:LISTA.filter(x=>x.tipo==='derivada').length, fallo:LISTA.filter(x=>x.tipo==='fallo').length};
+  const vivas=LISTA.filter(c=>!gestionadaHoy(c));   // las ya gestionadas hoy desaparecen del día
+  const counts={todas:vivas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:vivas.filter(x=>x.tipo==='derivada').length, fallo:vivas.filter(x=>x.tipo==='fallo').length};
   const defs=[['todas','Todas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago']];
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
-  const list=filtro==='todas'?LISTA:LISTA.filter(x=>x.tipo===filtro);
-  document.getElementById('left').textContent = list.length? `${list.length} por llamar` : '¡todo llamado! 🎉';
-  document.getElementById('list').innerHTML = list.length ? list.map((c,i)=>tarjeta(c,i)).join('') : '<div class="empty">Nada por llamar en este filtro. 👌</div>';
+  VIS = filtro==='todas' ? vivas : vivas.filter(x=>x.tipo===filtro);
+  document.getElementById('left').textContent = VIS.length? `${VIS.length} por llamar` : '¡todo llamado! 🎉';
+  document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : '<div class="empty">Nada por llamar aquí. 👌</div>';
 }
 function setFiltro(k){ filtro=k; render(); }
 
@@ -260,7 +266,7 @@ function reveal(i){
     <div id="res${i}"></div>`;
 }
 function paso2(i,contacto,btn){
-  const caso=filtro==='todas'?LISTA[i]:LISTA.filter(x=>x.tipo===filtro)[i];
+  const caso=VIS[i];
   document.getElementById('d'+i).querySelectorAll('.segb').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
   let botones;
   if(contacto==='no_localizada'){
@@ -276,7 +282,7 @@ function paso2(i,contacto,btn){
      <div class="msg" id="msg${i}"></div>`;
 }
 async function guardar(i,contacto,resultado,btn){
-  const caso=filtro==='todas'?LISTA[i]:LISTA.filter(x=>x.tipo===filtro)[i];
+  const caso=VIS[i];
   const msg=document.getElementById('msg'+i); msg.textContent='Guardando…'; msg.style.color='var(--muted)';
   document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=true);
   const body={tipo_caso:caso.tipo==='fallo'?'fallo_pago':'baja', customer_id:caso.customer_id||'', contract_id:caso.contract_id||'', nombre:caso.nombre||'', email:caso.email||'', phone:caso.phone||'', contacto, resultado, agente:agActual(), nota:(document.getElementById('nota'+i).value||'').trim()};
@@ -295,6 +301,9 @@ async function guardar(i,contacto,resultado,btn){
     const done=document.getElementById('done'+i); done.hidden=false;
     done.textContent=(WINS[resultado]?'🎉 ':'')+(RES_LABEL[resultado]||resultado)+(WINS[resultado]?' · ¡bien hecho!':'');
     if(WINS[resultado]){ motivador(); celebrate(); }
+    // Gestión terminal → la clienta sale de la lista del día (se desvanece). «Volver a
+    // llamar» / «no contesta» NO son terminales: se quedan para reintentar.
+    if(TERMINAL.has(resultado)){ card.style.transition='opacity .5s,transform .5s'; setTimeout(()=>{ card.style.opacity='0'; card.style.transform='translateX(12px)'; }, WINS[resultado]?1100:500); setTimeout(render, WINS[resultado]?1700:1050); }
   }catch(e){ msg.textContent='Error de conexión'; msg.style.color='var(--red)'; document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=false); }
 }
 
