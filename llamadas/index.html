@@ -180,6 +180,7 @@
 <script>
 const API_BAJAS='https://domma-bajas.cristina-ed1.workers.dev';
 const API_ITEMS='https://gestorsubs-domma.cristina-ed1.workers.dev/failures-since';
+const API_TEL='https://gestorsubs-domma.cristina-ed1.workers.dev/telefonos-shopify';  // rellena el móvil que falta desde Shopify
 const AUTH_API='https://domma-pro-api.cristina-ed1.workers.dev';
 const SHOP_ADMIN='https://admin.shopify.com/store/wearedomma', APPSTLE_APP='subscription-by-rhem';
 const AGENTES=['Carme','Vale','Ana','Marta'];
@@ -253,6 +254,22 @@ async function cargar(){
   ];
   motivador();
   render();
+  enriquecerTelefonos();   // en segundo plano: rellena el móvil que falta (Appstle no lo trae) desde Shopify
+}
+
+// Muchas clientas no traen móvil desde Appstle, pero Shopify sí (cacheado en KV). Rellenamos
+// los que faltan para que Llamar/WhatsApp queden operativos, y re-pintamos.
+async function enriquecerTelefonos(){
+  const faltan=LISTA.filter(c=>!String(c.phone||'').replace(/\D/g,'') && c.email);
+  if(!faltan.length) return;
+  const emails=[...new Set(faltan.map(c=>c.email))].slice(0,80);
+  try{
+    const r=await fetch(API_TEL+'?'+new URLSearchParams({emails:emails.join(','), max:'80'}));
+    const d=await r.json(); const tel=d.telefonos||{};
+    let cambios=false;
+    LISTA.forEach(c=>{ if(!String(c.phone||'').replace(/\D/g,'') && c.email && tel[c.email]){ c.phone=tel[c.email]; c.telShopify=true; cambios=true; } });
+    if(cambios) render();
+  }catch(e){}
 }
 
 function histDe(caso){ const c=nid(caso.contract_id); const cu=String(caso.customer_id||''); return (c&&GEST.byC[c])||(cu&&GEST.byCust[cu])||[]; }
