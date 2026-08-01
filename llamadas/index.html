@@ -33,7 +33,8 @@
 
   .sect{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:22px 4px 12px}
   .sect b{color:var(--indigo)}
-  .fil{display:flex;gap:8px;flex-wrap:wrap;margin:0 2px 12px}
+  .fil{display:flex;gap:8px;flex-wrap:wrap}
+  .filbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 2px 14px}
   .chipf{font-size:12.5px;padding:6px 13px;border:1.5px solid var(--line);border-radius:20px;background:#fff;cursor:pointer;color:var(--muted);font-weight:700}
   .chipf.on{border-color:var(--indigo);color:var(--indigo);background:#F1F2FA}
   /* Barra de progreso del día */
@@ -43,7 +44,7 @@
   .prog-txt{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:6px}
   .prog-txt b{color:var(--ink);font-variant-numeric:tabular-nums}
   /* Fila de filtro por día */
-  .filrow{display:flex;align-items:center;gap:9px;margin:0 2px 14px;flex-wrap:wrap}
+  .filrow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-left:auto}
   .datelbl{font-size:12.5px;font-weight:700;color:var(--muted)}
   #dateFil{padding:7px 10px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:13px;color:var(--ink);background:#fff}
   /* Desktop: columnas anchas → menos scroll y la fila de acciones cabe en una línea */
@@ -154,11 +155,13 @@
 
   <div class="sect">A quién llamar · <b id="left">…</b></div>
   <div id="progreso"></div>
-  <div class="fil" id="filtros"></div>
-  <div class="filrow">
-    <label class="datelbl">📅 Ver un día:</label>
-    <input type="date" id="dateFil" onchange="setFecha(this.value)">
-    <button class="chipf" id="dateClear" style="display:none" onclick="setFecha('')">✕ todos los días</button>
+  <div class="filbar">
+    <div class="fil" id="filtros"></div>
+    <div class="filrow">
+      <label class="datelbl">📅 Ver un día:</label>
+      <input type="date" id="dateFil" onchange="setFecha(this.value)">
+      <button class="chipf" id="dateClear" style="display:none" onclick="setFecha('')">✕ todos</button>
+    </div>
   </div>
   <div id="list"><div class="empty">Cargando…</div></div>
 
