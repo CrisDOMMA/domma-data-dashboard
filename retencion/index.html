@@ -155,6 +155,15 @@
   .fp-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
   .fp-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 20px}
   @media(max-width:720px){.fp-cols{grid-template-columns:1fr}.fp-pills{margin-left:0}}
+  /* Tarjeta de acción — idéntica a la de bajas (número + texto + botón azul, tinte alerta) */
+  .fp-ract{padding:16px 22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:14px;text-decoration:none;color:inherit;transition:border-color .12s,background .12s,box-shadow .12s}
+  .fp-ract:hover{box-shadow:0 2px 12px rgba(28,41,106,.07)}
+  .fp-ract.alert{border-color:#E9BFBA;background:#FEF7F6}
+  .fp-rabig{font-size:38px;font-weight:800;color:var(--navy);line-height:1;font-variant-numeric:tabular-nums;flex:none}
+  .fp-ract.alert .fp-rabig{color:var(--red)}
+  .fp-rasub{font-size:13.5px;color:var(--muted);font-weight:600;line-height:1.4;flex:1;min-width:180px}
+  .fp-rcta{display:inline-flex;align-items:center;gap:7px;background:var(--navy);color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 18px;border-radius:10px;margin-left:auto;white-space:nowrap}
+  .fp-rcta:hover{background:var(--navy-2)}
 
   /* Listado individual */
   .listbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
@@ -952,12 +961,10 @@ function construirResumen(){
       </div>
     </div>
 
-    <div class="todo">
-      <button class="act ${activos?'alert':'ok'}" onclick="location.href='https://data.wearedomma.com/llamadas'">
-        <div class="lab">A quién llamar</div><div class="val">${activos}</div>
-        <div class="sub">${activos?`activos esperando la llamada de Carme${ageV?` · <b style="color:var(--red)">${ageV} pasan de 14 días</b>`:''}`:'ningún fallo activo ahora mismo 👌'}</div>
-        <span class="go">Ir a «A quién llamo» → (se añaden a su lista tras 2 toques de WhatsApp + 48 h)</span></button>
-    </div>`;
+    <a class="fp-ract ${activos?'alert':''}" href="https://data.wearedomma.com/llamadas" target="_blank" rel="noopener">
+      <div class="fp-rabig">${activos}</div>
+      <div class="fp-rasub">activos <b>esperando la llamada de Carme</b><br>${activos?`${ageV?`<b style="color:var(--red)">${ageV} pasan de 14 días</b> · `:''}se añaden a su lista tras 2 toques de WhatsApp + 48 h`:'ningún fallo activo ahora mismo 👌'}</div>
+      <span class="fp-rcta">📞 Ir a «A quién llamo» →</span></a>`;
 
   if(TAB==='resumen'){ const c=document.getElementById('cuerpo'); if(c){ c.style.display='block'; c.innerHTML=PANES.resumen; } }
 }

@@ -276,7 +276,9 @@
   .heat th.rowh{text-align:left;font-size:12.5px;text-transform:none;letter-spacing:0;color:var(--text);font-weight:700;width:92px}
   .hcell{height:30px;border-radius:6px;text-align:center;line-height:30px;font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums}
   .hnote{font-size:11.5px;color:var(--muted);margin-top:10px} .hnote b{color:var(--red)}
-  .rz-act{padding:16px 22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .rz-act{padding:16px 22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;transition:border-color .12s,background .12s}
+  .rz-act.alert{border-color:#E9BFBA;background:#FEF7F6}
+  .rz-act.alert .rz-abig{color:var(--red)}
   .rz-abig{font-size:38px;font-weight:800;color:var(--navy);line-height:1;font-variant-numeric:tabular-nums;flex:none}
   .rz-asub{font-size:13.5px;color:var(--muted);font-weight:600;line-height:1.4;flex:1;min-width:180px}
   .rz-cta{display:inline-flex;align-items:center;gap:7px;background:var(--navy);color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 18px;border-radius:10px;margin-left:auto}
@@ -673,8 +675,10 @@ function render(){
 
   // Acción
   const tarde = sol.pendientes.filter(s=>s.fuera_de_plazo).length;
+  const pendTotal = sol.pendientes.length + (k.derivadas||0);
+  document.getElementById('accion').classList.toggle('alert', pendTotal>0);
   document.getElementById('accion').innerHTML = `
-    <div class="rz-abig">${money(sol.pendientes.length + (k.derivadas||0))}</div>
+    <div class="rz-abig">${money(pendTotal)}</div>
     <div class="rz-asub">clientas <b>esperando la llamada de Carme</b><br>${money(sol.pendientes.length)} piden baja · ${money(k.derivadas)} derivada${k.derivadas===1?'':'s'} a Ana${tarde?` · <b style="color:var(--red)">${tarde} pasa${tarde===1?'':'n'} de 72 h</b>`:''}</div>
     <a class="rz-cta" href="https://data.wearedomma.com/llamadas" target="_blank" rel="noopener">📞 Ir a «A quién llamo» →</a>`;
 
