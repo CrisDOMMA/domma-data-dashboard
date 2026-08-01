@@ -68,6 +68,10 @@
   .b-manage{background:var(--indigo);color:#fff;margin-left:auto}
 
   .dispo{margin-top:15px;padding-top:13px;border-top:1px dashed var(--line)}
+  .dispo-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .dispo-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .dispo-close{border:2px solid var(--line);background:#fff;color:var(--muted);font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;padding:8px 14px;border-radius:10px}
+  .dispo-close:hover{border-color:var(--red);color:var(--red)}
   .dispo-q{font-size:14px;font-weight:800;margin-bottom:10px}
   .seg{display:flex;gap:9px;margin-bottom:12px}
   .segb{flex:1;padding:12px;border:2px solid var(--line);border-radius:12px;background:#fff;font-size:14.5px;font-weight:800;color:var(--indigo);cursor:pointer;font-family:inherit}
@@ -257,14 +261,16 @@ function tarjeta(c,i){
       <div class="done" id="done${i}" hidden></div>
     </div></div>`;
 }
-window.__CT=[];
 function reveal(i){
-  const d=document.getElementById('d'+i); if(!d.hidden){ d.hidden=true; return; }
+  const d=document.getElementById('d'+i);
   d.hidden=false; d.dataset.c='';
-  d.innerHTML=`<div class="dispo-q">¿Has podido hablar con ella?</div>
+  d.innerHTML=`<div class="dispo-head"><span class="dispo-title">Registrar la llamada</span><button class="dispo-close" onclick="cerrar(${i})">✕ Cerrar</button></div>
+    <div class="dispo-q">¿Has podido hablar con ella?</div>
     <div class="seg"><button class="segb" onclick="paso2(${i},'localizada',this)">Sí, localizada</button><button class="segb" onclick="paso2(${i},'no_localizada',this)">No localizada</button></div>
     <div id="res${i}"></div>`;
+  d.scrollIntoView({block:'nearest'});
 }
+function cerrar(i){ const d=document.getElementById('d'+i); if(d){ d.hidden=true; d.innerHTML=''; } }
 function paso2(i,contacto,btn){
   const caso=VIS[i];
   document.getElementById('d'+i).querySelectorAll('.segb').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
