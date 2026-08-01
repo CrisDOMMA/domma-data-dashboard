@@ -249,7 +249,10 @@ async function cargar(){
   const impEur=a=>{ const n=parseFloat(String(a||'').replace(/[^\d.,-]/g,'').replace(',','.'))||0; return n?' · '+n.toFixed(2).replace('.',',')+' €':''; };
   const diasDe=fd=>{ fd=(fd||'').slice(0,10); return fd?Math.floor((Date.now()-Date.parse(fd))/864e5):null; };
   const mkFallo=(f,backlog)=>({tipo:'fallo', backlog:!!backlog, nombre:(f.name||'').trim(), email:(f.email||'').trim(), phone:(f.phone||'').trim(), customer_id:'', contract_id:f.contract_id, why:'Fallo de pago'+(backlog?' · sin reintentos':'')+impEur(f.amount), dias:diasDe(f.fail_date), fecha:(f.fail_date||'').slice(0,10)});
-  const fa=[...(hoyFallos.failed||[]).map(f=>mkFallo(f,false)), ...(hoyFallos.dunning_skipped||[]).map(f=>mkFallo(f,true))];
+  // GATE: no llamar hasta pasadas 48h del fallo — así la secuencia de WhatsApp (2 toques en
+  // ~48h) actúa primero, y Carme solo escala los que no han pagado. Sin fecha → se muestra.
+  const fa=[...(hoyFallos.failed||[]).map(f=>mkFallo(f,false)), ...(hoyFallos.dunning_skipped||[]).map(f=>mkFallo(f,true))]
+    .filter(f=>f.dias==null || f.dias>=2);
 
   LISTA=[
     ...sol.map(s=>({tipo:'baja', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:labelMotivo(s.motivo), dias:s.dias, alerta:s.fuera_de_plazo, fecha:(s.fecha||'').slice(0,10)})),
