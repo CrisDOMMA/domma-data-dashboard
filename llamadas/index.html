@@ -244,15 +244,17 @@ async function cargar(){
 
   const sol=(bajas.solicitudes&&bajas.solicitudes.pendientes)||[];
   const der=bajas.derivadas||[];
-  // Fallos ACTIVOS: /today ya devuelve solo los reales (Appstle reintenta), sin el backlog
-  // dunning_skipped (que se limpia por email) — cifra fiable (= /metrics).
-  const fa=(hoyFallos.failed||[]);
+  // Fallos de pago: TODOS (activos que Appstle reintenta + backlog dunning agotado).
+  // Decisión Cristina: llamar a todos. Marcamos el backlog como "sin reintentos".
   const impEur=a=>{ const n=parseFloat(String(a||'').replace(/[^\d.,-]/g,'').replace(',','.'))||0; return n?' · '+n.toFixed(2).replace('.',',')+' €':''; };
+  const diasDe=fd=>{ fd=(fd||'').slice(0,10); return fd?Math.floor((Date.now()-Date.parse(fd))/864e5):null; };
+  const mkFallo=(f,backlog)=>({tipo:'fallo', backlog:!!backlog, nombre:(f.name||'').trim(), email:(f.email||'').trim(), phone:(f.phone||'').trim(), customer_id:'', contract_id:f.contract_id, why:'Fallo de pago'+(backlog?' · sin reintentos':'')+impEur(f.amount), dias:diasDe(f.fail_date), fecha:(f.fail_date||'').slice(0,10)});
+  const fa=[...(hoyFallos.failed||[]).map(f=>mkFallo(f,false)), ...(hoyFallos.dunning_skipped||[]).map(f=>mkFallo(f,true))];
 
   LISTA=[
     ...sol.map(s=>({tipo:'baja', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:labelMotivo(s.motivo), dias:s.dias, alerta:s.fuera_de_plazo, fecha:(s.fecha||'').slice(0,10)})),
     ...der.map(s=>({tipo:'derivada', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:porQue(s), dias:s.dias, fecha:(s.fecha||'').slice(0,10)})),
-    ...fa.map(f=>({tipo:'fallo', nombre:(f.name||'').trim(), email:(f.email||'').trim(), phone:(f.phone||'').trim(), customer_id:'', contract_id:f.contract_id, why:'Fallo de pago'+impEur(f.amount), dias:null, fecha:(f.fail_date||'').slice(0,10)})),
+    ...fa,
   ];
   motivador();
   render();
