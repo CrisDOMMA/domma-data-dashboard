@@ -724,7 +724,7 @@ function renderResueltas(){
   const tieneG = s => !!ultimaGestion({contract_id:s.contrato, customer_id:s.customer_id});
   const nCon = RESUELTAS.filter(tieneG).length, nSin = RESUELTAS.length - nCon;
   document.getElementById('resCount').textContent = RESUELTAS.length ? `· ${RESUELTAS.length}` : '';
-  const defs = [['todas','Todas',RESUELTAS.length],['con','Con llamada',nCon],['sin','Se fue sin llamar',nSin]];
+  const defs = [['todas','Todas',RESUELTAS.length],['con','Con llamada',nCon],['sin','Baja sin contactar',nSin]];
   document.getElementById('resFilters').innerHTML = defs.map(([k,l,n])=>
     `<span class="chip ${resFilter===k?'on':''}" onclick="setResFilter('${k}')">${l} <b>${n}</b></span>`).join('');
   let list = resFilter==='con' ? RESUELTAS.filter(tieneG) : resFilter==='sin' ? RESUELTAS.filter(s=>!tieneG(s)) : RESUELTAS;
@@ -981,7 +981,7 @@ function porQueDeriv(s){
   return cleg || (m && m!=='—' ? m : 'Derivada a coach');
 }
 // Estado de llamada de una baja YA resuelta: si hubo gestión la muestra; si no, avisa en rojo.
-function resPill(caso){ const lg=ultimaGestion(caso); return lg ? gestPill(lg) : '<span class="lg-badge bad" title="Se canceló sin ninguna gestión registrada en el panel">se fue sin llamar</span>'; }
+function resPill(caso){ const lg=ultimaGestion(caso); return lg ? gestPill(lg) : '<span class="lg-badge bad" title="Se canceló sin ninguna gestión registrada en el panel">Baja sin contactar</span>'; }
 
 // ── Modal de gestión en 2 pasos: 1) ¿Localizada o no?  2) resultado de esa rama ──
 const CASOS = {};
