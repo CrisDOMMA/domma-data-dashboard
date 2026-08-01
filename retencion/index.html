@@ -392,6 +392,19 @@ function delta(actual, previo, opts){
 }
 
 const fsURL = (desde,hasta,extra)=>API_ITEMS+'?'+new URLSearchParams(Object.assign({desde,hasta},extra||{})).toString();
+// Fuente FIABLE: /today (= /metrics) da los fallos abiertos reales de Appstle ahora mismo,
+// sin el bug del filtro de fechas de /failures-since. Lo adaptamos al formato que ya
+// consumen resumir()/normalizarItems()/render() para reutilizar todo el dashboard.
+const API_TODAY = 'https://gestorsubs-domma.cristina-ed1.workers.dev/today';
+const importeNum = a => String(a==null?'':a).replace(/[^\d.,-]/g,'').replace(',','.');
+function todayToFsA(t){
+  const mk=(f,tipo)=>({contract_id:f.contract_id, nombre:(f.name||'').trim(), email:(f.email||'').trim(),
+    telefono:(f.phone||'').trim(), desenlace:'abierta', tipo, intentos_en_ventana:(f.attempts??null),
+    importe:importeNum(f.amount), primer_fallo:(f.fail_date||'')});
+  const detalle=[...(t.failed||[]).map(f=>mk(f,'fallo_pago')), ...(t.dunning_skipped||[]).map(f=>mk(f,'dunning_skipped'))];
+  return { generado:Date.parse(hoy()), contratos_con_fallo:detalle.length,
+    desenlace:{abierta:{n:detalle.length}, baja:{n:0}, pausada:{n:0}}, detalle, por_semana:[] };
+}
 const getJSON = u => fetch(u).then(r=>r.json()).catch(e=>({error:e.message}));
 
 async function load(){
@@ -401,29 +414,20 @@ async function load(){
   document.getElementById('tabs').style.display='none';
 
   const desde=document.getElementById('desde').value, hasta=document.getElementById('hasta').value;
-  const cmpOn=document.getElementById('cmpOn').checked;
-  const cmpModo=document.getElementById('cmpModo').value;
   ETIQ = etiquetaCmp();
-
-  // Solo Appstle base (rápido): actual [+ comparación]. Una sola fuente que el
-  // Listado y el Resumen comparten, para que las cifras cuadren.
-  const calls = [ getJSON(fsURL(desde,hasta)) ];
-  let cmp=null;
-  if(cmpOn){
-    cmp = compWindow(desde,hasta,cmpModo);
-    if(cmp.desde && cmp.hasta) calls.push(getJSON(fsURL(cmp.desde,cmp.hasta)));
-    else cmp=null;
-  }
   try{
-    const [fsA, fsP] = await Promise.all(calls);
-    if(!fsA || fsA.error){
-      cuerpo.innerHTML=`<div class="card"><h3>No se pudo leer Appstle</h3><p class="hint">${esc(fsA&&fsA.error||'sin respuesta')}. Prueba a «Actualizar».</p></div>`;
+    // Fallos abiertos REALES de Appstle ahora mismo (fuente fiable /today, sin bug de fechas).
+    // Es una foto del momento, así que no hay comparación por periodo para los fallos.
+    const t = await getJSON(API_TODAY);
+    if(!t || t.error){
+      cuerpo.innerHTML=`<div class="card"><h3>No se pudo leer Appstle</h3><p class="hint">${esc(t&&t.error||'sin respuesta')}. Prueba a «Actualizar».</p></div>`;
       return;
     }
+    const fsA = todayToFsA(t);
     ITEMS = normalizarItems(fsA);
-    render(fsA, fsP, cmp);
+    render(fsA, null, null);
     enriquecerTelefonos();  // en segundo plano: rellena el móvil que Appstle no trae, desde Shopify
-    cargarConversion(desde,hasta);  // en segundo plano: embudo de la secuencia WhatsApp (D1 LUNA)
+    cargarConversion(desde,hasta);  // embudo WhatsApp (D1 LUNA) — sí es por periodo, fuente distinta
     cargarGestiones().then(()=>{ if(TAB==='listado') refrescarListado(); });  // badges de última gestión (CRM)
   }catch(e){ cuerpo.innerHTML=`<div class="card"><h3>Error de conexión</h3><p class="hint">${esc(e.message)}</p></div>`; }
 }
@@ -797,41 +801,47 @@ function render(fsA, fsP, cmp){
   const kpi=(cls,lab,val,sub,dl)=>`<div class="kpi ${cls||''}"><div class="lab">${lab}</div><div class="val">${val}</div>${sub?`<div class="sub">${sub}</div>`:''}${dl||''}</div>`;
   const pAbi=p?p.abiertas:null, pRie=p?p.enRiesgo:null, pTot=p?p.total:null, pBaj=p?p.bajas:null;
 
+  // Activos (Appstle reintenta → a llamar) vs backlog (dunning agotado → email/cancelar)
+  const det=fsA.detalle||[];
+  const activos=det.filter(x=>(x.tipo||'fallo_pago')!=='dunning_skipped').length;
+  const backlog=a.abiertas-activos;
+  const riesgoAct=det.filter(x=>(x.tipo||'fallo_pago')!=='dunning_skipped').reduce((s,x)=>s+(parseFloat(x.importe)||0),0);
+
   // ── Titular ──
   const titular = `<div class="titular">
-      En el periodo hay <b style="color:var(--red)">${a.abiertas}</b> fallo${a.abiertas===1?'':'s'} de pago sin cobrar (a llamar), con <b>${eur(a.enRiesgo)}</b> en riesgo;
-      <b>${a.bajas}</b> acabaron en baja${a.pausadas?` y <b>${a.pausadas}</b> en pausa`:''}.
-      <div class="sub">Periodo: ${esc(document.getElementById('desde').value)} → ${esc(document.getElementById('hasta').value)}${hayCmp?` · comparado con ${esc(cmp.desde)} → ${esc(cmp.hasta)}`:' · sin comparación'}</div>
+      Ahora mismo hay <b style="color:var(--red)">${a.abiertas}</b> fallo${a.abiertas===1?'':'s'} de pago sin cobrar, con <b>${eur(a.enRiesgo)}</b> en riesgo:
+      <b>${activos}</b> activos (a llamar) y <b>${backlog}</b> en backlog (dunning agotado → email / cancelar).
+      <div class="sub">Appstle en vivo · foto del momento (no es un periodo)</div>
     </div>`;
 
   const avisos=`<div class="avisos"><b>Cómo leer esto</b><ul>
-      <li><b>«Abiertas»</b> = fallos que siguen sin cobrar. Es la lista de llamadas de Carme y cuadra exactamente con la pestaña «Listado».</li>
-      <li>Todo sale de <b>Appstle en vivo</b>, una sola fuente para Resumen y Listado — por eso las cifras casan.</li>
-      <li>El <b>% de rescate</b> histórico no se muestra aquí: la cola de Appstle es viva (al pagar, el fallo desaparece), así que la recuperación real se mide en el dashboard de cohortes/BI, no aquí.</li>
+      <li><b>Activos</b> = Appstle sigue reintentando el cobro → recuperables, la lista de llamadas de Carme.</li>
+      <li><b>Backlog</b> = dunning agotado, Appstle ya no reintenta → email de "última llamada" o decisión de cancelar.</li>
+      <li>Fuente: <b>Appstle en vivo</b> (endpoint /today, fiable). Es una foto: al pagar una clienta, su fallo desaparece; por eso el número se mueve día a día.</li>
     </ul></div>`;
 
   // ══════════ RESUMEN ══════════
   PANES.resumen = titular + `
-    <div class="sect">Cómo vamos${hayCmp?` · comparado con ${ETIQ}`:''}</div>
+    <div class="sect">Fallos abiertos ahora</div>
     <div class="kpis">
-      ${kpi('hero','Abiertas · a llamar', a.abiertas, `${pc(a.pctAbiertas)} de ${a.total} fallos · ${eur(a.enRiesgo)} en riesgo`, delta(a.abiertas,pAbi,{masEsMejor:false}))}
-      ${kpi('','Dinero en riesgo', eur(a.enRiesgo), 'suma de las abiertas', delta(a.enRiesgo,pRie,{masEsMejor:false}))}
-      ${kpi('','Fallos en el periodo', a.total, 'contratos con algún fallo', delta(a.total,pTot,{masEsMejor:false}))}
-      ${kpi('','Acabaron en baja', a.bajas, `${pc(a.pctBajas)} de los fallos`, delta(a.bajas,pBaj,{masEsMejor:false}))}
+      ${kpi('hero','Activos · a llamar', activos, `${eur(Math.round(riesgoAct))} en riesgo · Appstle reintenta`)}
+      ${kpi('','Backlog (dunning agotado)', backlog, 'email de recuperación / cancelar')}
+      ${kpi('','Total abiertos', a.abiertas, 'activos + backlog')}
+      ${kpi('','Dinero en riesgo', eur(a.enRiesgo), 'suma de todos los abiertos')}
     </div>
 
     <div class="sect">Qué hay que atender</div>
     <div class="todo">
-      <button class="act ${a.abiertas?'alert':'ok'}" onclick="setTab('listado')">
-        <div class="lab">Fallos abiertos</div><div class="val">${a.abiertas}</div>
-        <div class="sub">${a.abiertas?`siguen sin cobrar · ${eur(a.enRiesgo)} en riesgo`:'ningún fallo sin cobrar 👌'}</div>
-        <span class="go">Ver el listado y a quién llamar →</span></button>
+      <button class="act ${activos?'alert':'ok'}" onclick="setTab('listado')">
+        <div class="lab">Activos a llamar</div><div class="val">${activos}</div>
+        <div class="sub">${activos?`+ ${backlog} en backlog · ${eur(Math.round(riesgoAct))} en riesgo`:'ningún fallo activo 👌'}</div>
+        <span class="go">Ver el listado →</span></button>
     </div>` + avisos;
 
-  // Badge del listado: fallos abiertos = dinero esperando una llamada.
+  // Badge del listado = los ACTIVOS (a llamar).
   const bdg=document.getElementById('bdgList');
-  bdg.textContent=a.abiertas;
-  bdg.className='badge'+(a.abiertas?'':' calm');
+  bdg.textContent=activos;
+  bdg.className='badge'+(activos?'':' calm');
 
   // ── Evolución por semana (de failures-since) ──
   const serie=(fsA.por_semana||[]).slice().sort((x,y)=>String(x.semana).localeCompare(String(y.semana)));
