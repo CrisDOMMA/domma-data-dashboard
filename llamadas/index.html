@@ -191,9 +191,9 @@ const AUTH_API='https://domma-pro-api.cristina-ed1.workers.dev';
 const SHOP_ADMIN='https://admin.shopify.com/store/wearedomma', APPSTLE_APP='subscription-by-rhem';
 const AGENTES=['Carme','Vale','Ana','Marta'];
 const WINS={retenida:'💚 Retenida', venta_cruzada:'🚀 Venta cruzada', upsell:'⬆️ Upsell'};
-const RES_LABEL={retenida:'Retenida',cambio_producto:'Cambio de producto',venta_cruzada:'Venta cruzada',upsell:'Upsell',pausa:'Pausa',cancelado:'Cancelado',cancelar:'Cancelar',pendiente:'Volver a llamar',no_contesta:'No contesta',
+const RES_LABEL={retenida:'Retenida',cambio_producto:'Cambio de producto',cambio_fecha:'Cambio de fecha',venta_cruzada:'Venta cruzada',upsell:'Upsell',pausa:'Pausa',cancelado:'Cancelado',cancelar:'Cancelar',pendiente:'Volver a llamar',no_contesta:'No contesta',
   cobro_manual:'Cobro manual',actualizar_pago:'Actualizar el pago',pendiente_cobro:'Pendiente de cobro',cancelar_final:'Cancelar finalmente',cancelar_definitivo:'Cancelar definitivamente'};
-const RES_TONE={retenida:'green',cambio_producto:'green',venta_cruzada:'green',upsell:'green',pausa:'green',pendiente:'amber',no_contesta:'amber',cancelado:'red',cancelar:'red',
+const RES_TONE={retenida:'green',cambio_producto:'green',cambio_fecha:'green',venta_cruzada:'green',upsell:'green',pausa:'green',pendiente:'amber',no_contesta:'amber',cancelado:'red',cancelar:'red',
   cobro_manual:'green',actualizar_pago:'green',pendiente_cobro:'amber',cancelar_final:'red',cancelar_definitivo:'red'};
 
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
@@ -299,7 +299,7 @@ async function enriquecerTelefonos(){
 function histDe(caso){ const c=nid(caso.contract_id); const cu=String(caso.customer_id||''); return (c&&GEST.byC[c])||(cu&&GEST.byCust[cu])||[]; }
 // Resultados que "cierran" el caso por hoy. Los no terminales (volver a llamar / no contesta)
 // mantienen la clienta en la lista, porque hay que reintentarla.
-const TERMINAL=new Set(['retenida','cambio_producto','venta_cruzada','upsell','pausa','cancelado','cancelar','cobro_manual','actualizar_pago','pendiente_cobro','cancelar_final','cancelar_definitivo']);
+const TERMINAL=new Set(['retenida','cambio_producto','cambio_fecha','venta_cruzada','upsell','pausa','cancelado','cancelar','cobro_manual','actualizar_pago','pendiente_cobro','cancelar_final','cancelar_definitivo']);
 function gestionadaHoy(caso){ return histDe(caso).some(g=>String(g.created_at||'').slice(0,10)===hoyISO() && TERMINAL.has(g.resultado)); }
 const fechaCorta=s=>{ if(!s)return''; const d=new Date(String(s).replace(' ','T')+'Z'); return isNaN(d)?esc(s):d.toLocaleDateString('es-ES',{day:'2-digit',month:'short'}); };
 function histInner(caso){
@@ -376,7 +376,7 @@ function paso2(i,contacto,btn){
     if(contacto==='no_localizada'){
       botones=[['pendiente','⏳ Pendiente · volver a llamar','full'],['cancelar','❌ Cancelar','full bad']];
     } else {
-      botones=[['pausa','⏸️ Pausa',''],['cambio_producto','🔄 Cambio de producto',''],['venta_cruzada','🚀 Venta cruzada','win'],['retenida','💚 Retenida','win'],['upsell','⬆️ Upsell','win'],['cancelado','❌ Cancelado','full bad']];
+      botones=[['pausa','⏸️ Pausa',''],['cambio_producto','🔄 Cambio de producto',''],['cambio_fecha','📅 Cambio de fecha',''],['venta_cruzada','🚀 Venta cruzada','win'],['retenida','💚 Retenida','win'],['upsell','⬆️ Upsell','win'],['cancelado','❌ Cancelado','full bad']];
     }
   }
   document.getElementById('res'+i).innerHTML=
