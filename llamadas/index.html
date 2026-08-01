@@ -184,8 +184,8 @@ const AUTH_API='https://domma-pro-api.cristina-ed1.workers.dev';
 const SHOP_ADMIN='https://admin.shopify.com/store/wearedomma', APPSTLE_APP='subscription-by-rhem';
 const AGENTES=['Carme','Vale','Ana','Marta'];
 const WINS={retenida:'💚 Retenida', venta_cruzada:'🚀 Venta cruzada', upsell:'⬆️ Upsell'};
-const RES_LABEL={retenida:'Retenida',venta_cruzada:'Venta cruzada',upsell:'Upsell',pausa:'Pausa',pago_gestionado:'Pago gestionado',cancelado:'Se da de baja',pendiente:'Volver a llamar',no_contesta:'No contesta'};
-const RES_TONE={retenida:'green',venta_cruzada:'green',upsell:'green',pausa:'green',pago_gestionado:'amber',pendiente:'amber',no_contesta:'amber',cancelado:'red'};
+const RES_LABEL={retenida:'Retenida',cambio_producto:'Cambio de producto',venta_cruzada:'Venta cruzada',upsell:'Upsell',pausa:'Pausa',pago_gestionado:'Pago gestionado',cancelado:'Cancelado',cancelar:'Cancelar',pendiente:'Volver a llamar',no_contesta:'No contesta'};
+const RES_TONE={retenida:'green',cambio_producto:'green',venta_cruzada:'green',upsell:'green',pausa:'green',pago_gestionado:'amber',pendiente:'amber',no_contesta:'amber',cancelado:'red',cancelar:'red'};
 
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
 (function(){ const m=location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token',decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
@@ -258,7 +258,7 @@ async function cargar(){
 function histDe(caso){ const c=nid(caso.contract_id); const cu=String(caso.customer_id||''); return (c&&GEST.byC[c])||(cu&&GEST.byCust[cu])||[]; }
 // Resultados que "cierran" el caso por hoy. Los no terminales (volver a llamar / no contesta)
 // mantienen la clienta en la lista, porque hay que reintentarla.
-const TERMINAL=new Set(['retenida','venta_cruzada','upsell','pausa','pago_gestionado','cancelado']);
+const TERMINAL=new Set(['retenida','cambio_producto','venta_cruzada','upsell','pausa','pago_gestionado','cancelado','cancelar']);
 function gestionadaHoy(caso){ return histDe(caso).some(g=>String(g.created_at||'').slice(0,10)===hoyISO() && TERMINAL.has(g.resultado)); }
 const fechaCorta=s=>{ if(!s)return''; const d=new Date(String(s).replace(' ','T')+'Z'); return isNaN(d)?esc(s):d.toLocaleDateString('es-ES',{day:'2-digit',month:'short'}); };
 function histInner(caso){
@@ -324,11 +324,11 @@ function paso2(i,contacto,btn){
   document.getElementById('d'+i).querySelectorAll('.segb').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
   let botones;
   if(contacto==='no_localizada'){
-    botones=[['pendiente','⏳ Volver a llamar','full'],['no_contesta','🚫 No contesta','full bad']];
+    botones=[['pendiente','⏳ Pendiente · volver a llamar','full'],['cancelar','❌ Cancelar','full bad']];
   } else if(caso.tipo==='fallo'){
-    botones=[['pago_gestionado','💰 Va a pagar / gestionado','full'],['venta_cruzada','🚀 Venta cruzada','win'],['upsell','⬆️ Upsell','win'],['cancelado','❌ Se da de baja','full bad']];
+    botones=[['pago_gestionado','💰 Va a pagar / gestionado','full'],['venta_cruzada','🚀 Venta cruzada','win'],['upsell','⬆️ Upsell','win'],['cancelado','❌ Cancelado','full bad']];
   } else {
-    botones=[['retenida','💚 Retenida','win'],['pausa','⏸️ Pausa',''],['venta_cruzada','🚀 Venta cruzada','win'],['upsell','⬆️ Upsell','win'],['cancelado','❌ Se da de baja','full bad']];
+    botones=[['pausa','⏸️ Pausa',''],['cambio_producto','🔄 Cambio de producto',''],['venta_cruzada','🚀 Venta cruzada','win'],['retenida','💚 Retenida','win'],['upsell','⬆️ Upsell','win'],['cancelado','❌ Cancelado','full bad']];
   }
   document.getElementById('res'+i).innerHTML=
     `<div class="dgrid">${botones.map(([r,l,cls])=>`<button class="d ${cls}" onclick="guardar(${i},'${contacto}','${r}',this)">${l}</button>`).join('')}</div>
@@ -349,7 +349,7 @@ async function guardar(i,contacto,resultado,btn){
     const c=nid(body.contract_id), cu=String(body.customer_id||'');
     if(c){(GEST.byC[c]=GEST.byC[c]||[]).unshift(g);} if(cu){(GEST.byCust[cu]=GEST.byCust[cu]||[]).unshift(g);}
     const card=document.getElementById('c'+i);
-    const state = resultado==='cancelado'?'red':(WINS[resultado]||resultado==='pausa'||resultado==='pago_gestionado')?'green':'amber';
+    const state = RES_TONE[resultado] || 'amber';
     card.dataset.state=state;
     card.querySelector('.dispo').hidden=true; card.querySelector('.actions').style.display='none';
     const done=document.getElementById('done'+i); done.hidden=false;
