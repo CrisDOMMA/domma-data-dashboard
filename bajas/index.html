@@ -305,7 +305,6 @@
   <div class="tabs">
     <button class="tab on" data-t="resumen"  onclick="setTab('resumen',this)">Resumen</button>
     <button class="tab"    data-t="porque"   onclick="setTab('porque',this)">Por qué se van</button>
-    <button class="tab"    data-t="llamar"   onclick="setTab('llamar',this)">A quién llamo <span class="badge calm" id="bdgLlamar">0</span></button>
     <button class="tab"    data-t="movimientos" onclick="setTab('movimientos',this)">Movimientos</button>
     <button class="tab"    data-t="clientas" onclick="setTab('clientas',this)">Buscar clienta</button>
   </div>
@@ -363,20 +362,7 @@
     <div id="ficha"></div>
   </div>
 
-  <!-- ══════════ TAB: A QUIÉN LLAMO ══════════ -->
-  <div class="tabpane" id="tab-llamar" style="display:none">
-    <div class="card tablecard">
-      <h3>Por llamar <span class="muted" id="llamarCount"></span></h3>
-      <p class="hint">Tu lista de llamadas: <b>solicitudes de baja</b> (plan activo) y <b>derivadas a Ana</b> (menos de 2 pedidos, salud, «otro», fallos). Pincha el <b>nombre</b> para su suscripción y <b>Gestionar</b> para registrar la llamada. En <b>ámbar</b>, las que nadie ha llamado. En <b>rojo</b>, las bajas que pasan de 72 h.</p>
-      <div class="filters" id="llamarFilters"></div>
-      <div class="tablewrap">
-        <table>
-          <thead><tr><th>Esperando</th><th>Clienta</th><th>Tipo</th><th>Motivo / por qué</th><th>Estado del plan</th><th>Gestión</th><th>Contactar</th></tr></thead>
-          <tbody id="llamarBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <!-- (La pestaña «A quién llamo» se movió a su estación propia: data.wearedomma.com/llamadas) -->
 
   <!-- ══════════ TAB: BUSCAR CLIENTA ══════════ -->
   <div class="tabpane" id="tab-clientas" style="display:none">
@@ -421,7 +407,7 @@
 
     <div class="card tablecard" style="margin-top:16px">
       <h3>Lista de repesca <span class="muted" id="listaCount"></span></h3>
-      <p class="hint">Clientas para <b>recontactar en el futuro</b> (winback): las que ya se fueron, pausas y casos derivados. No es la lista de «llamar ahora» — esa está en «A quién llamo».</p>
+      <p class="hint">Clientas para <b>recontactar en el futuro</b> (winback): las que ya se fueron, pausas y casos derivados. No es la lista de «llamar ahora» — esa está en la estación <b>«A quién llamo»</b> (data.wearedomma.com/llamadas).</p>
       <div class="filters" id="listaFilters"></div>
       <div class="tablewrap">
         <table>
@@ -616,14 +602,14 @@ function render(){
   const fricN = (d.fricciones||[]).reduce((a,x)=>a+(x.n||0),0);
   const rep   = (d.repesca && d.repesca.lista) ? d.repesca.lista.length : 0;
   document.getElementById('todo').innerHTML = [
-    `<button class="act ${tarde?'alert':'ok'}" onclick="setTab('llamar')">
+    `<div class="act ${tarde?'alert':'ok'}">
        <div class="l">Fuera de plazo</div><div class="n">${tarde}</div>
        <div class="s">${tarde ? `solicitud${tarde===1?'':'es'} que ${tarde===1?'pasa':'pasan'} de las 72 h prometidas` : 'ninguna solicitud pasa de 72 h 👌'}</div>
-       <span class="go">Ver solicitudes →</span></button>`,
-    `<button class="act" onclick="setTab('llamar')">
+       <span class="go">llámalas desde «A quién llamo» (data.wearedomma.com/llamadas)</span></div>`,
+    `<button class="act" onclick="setTab('movimientos')">
        <div class="l">Para recontactar</div><div class="n">${rep}</div>
-       <div class="s">${sol.pendientes.length} pendiente${sol.pendientes.length===1?'':'s'} · ${money(k.derivadas)} derivada${k.derivadas===1?'':'s'} a Marta</div>
-       <span class="go">Abrir lista de repesca →</span></button>`,
+       <div class="s">${sol.pendientes.length} pendiente${sol.pendientes.length===1?'':'s'} · ${money(k.derivadas)} derivada${k.derivadas===1?'':'s'} a Ana</div>
+       <span class="go">Abrir lista de repesca (en Movimientos) →</span></button>`,
     `<button class="act ${fricN?'':'ok'}" onclick="setTab('porque')">
        <div class="l">Fricciones</div><div class="n">${fricN}</div>
        <div class="s">${fricN ? 'veces que el flujo dijo «no» — revisa si las reglas aprietan' : 'ninguna clienta se topó con un bloqueo 👌'}</div>
@@ -639,11 +625,6 @@ function render(){
          <div class="hint" style="margin:0">De ${money(rp.webhooks_total)} acciones detectadas en Appstle. Se actualiza con el sync automático cada 6 h — incluye a quien actúa por su cuenta, sin pasar por nuestro flujo.</div>
        </div>`
     : `<div class="empty">Aún sin reactivaciones registradas.<br>Aparecerán aquí cuando una clienta vuelva a activar su plan.</div>`;
-
-  // Badge de la pestaña «A quién llamo»
-  const bdg = document.getElementById('bdgLlamar');
-  bdg.textContent = tarde || sol.pendientes.length || 0;
-  bdg.className = 'badge' + (tarde ? '' : ' calm');
 
   // ── Análisis (pestaña «Por qué se van»), con el dato del periodo comparado al lado ──
   const prevMap = (arr, key) => { const m={}; (arr||[]).forEach(r=>m[r[key]]=r.total); return m; };
@@ -677,13 +658,9 @@ function render(){
   if(fr.length) renderStacked('fricciones', fr, r=>({lbl:r.motivo, val:`<em>${r.n}</em>`, segs:[['solicitud',r.n]], total:r.n}));
   else document.getElementById('fricciones').innerHTML = '<div class="empty">Ninguna clienta se ha topado con un bloqueo. 👌</div>';
 
-  // ── A quién llamo: solicitudes de baja + derivadas a Ana en una sola tabla con filtro ──
-  LLAMAR = [
-    ...sol.pendientes.map(s => ({ ...s, tipo:'baja',     motivo_txt: labelMotivo(s.motivo) })),
-    ...(d.derivadas||[]).map(s => ({ ...s, tipo:'derivada', motivo_txt: porQueDeriv(s) })),
-  ];
+  // La lista «a quién llamar» vive ahora en su estación propia (data.wearedomma.com/llamadas).
+  // Aquí solo quedan el resumen, «ya resueltas» y la repesca (en Movimientos).
   RESUELTAS = sol.resueltas_lista || [];
-  renderLlamar();
   renderResueltas();
 
   renderLista();
@@ -694,6 +671,7 @@ function render(){
 let LLAMAR = [], RESUELTAS = [], llamarFilter = 'todas', resFilter = 'todas';
 function setLlamarFilter(k){ llamarFilter = k; renderLlamar(); }
 function renderLlamar(){
+  if(!document.getElementById('llamarBody')) return;   // pestaña movida a la estación /llamadas
   const nBaja = LLAMAR.filter(x=>x.tipo==='baja').length, nDer = LLAMAR.filter(x=>x.tipo==='derivada').length;
   document.getElementById('llamarCount').textContent = `· ${LLAMAR.length} por llamar`;
   const defs = [['todas','Todas',LLAMAR.length],['baja','Solicitudes de baja',nBaja],['derivada','Derivadas a Ana',nDer]];

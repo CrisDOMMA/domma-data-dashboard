@@ -249,7 +249,6 @@
 
   <div class="tabs" id="tabs" style="display:none">
     <button class="tab on" data-t="resumen" onclick="setTab('resumen',this)">Resumen</button>
-    <button class="tab"    data-t="listado" onclick="setTab('listado',this)">Listado · a quién llamar <span class="badge calm" id="bdgList">0</span></button>
     <button class="tab"    data-t="conversion" onclick="setTab('conversion',this)">Conversión WhatsApp</button>
   </div>
 
@@ -832,16 +831,11 @@ function render(fsA, fsP, cmp){
 
     <div class="sect">Qué hay que atender</div>
     <div class="todo">
-      <button class="act ${activos?'alert':'ok'}" onclick="setTab('listado')">
+      <div class="act ${activos?'alert':'ok'}">
         <div class="lab">Activos a llamar</div><div class="val">${activos}</div>
         <div class="sub">${activos?`+ ${backlog} en backlog · ${eur(Math.round(riesgoAct))} en riesgo`:'ningún fallo activo 👌'}</div>
-        <span class="go">Ver el listado →</span></button>
+        <span class="go">llámalas desde «A quién llamo» (data.wearedomma.com/llamadas)</span></div>
     </div>` + avisos;
-
-  // Badge del listado = los ACTIVOS (a llamar).
-  const bdg=document.getElementById('bdgList');
-  bdg.textContent=activos;
-  bdg.className='badge'+(activos?'':' calm');
 
   // ── Evolución por semana (de failures-since) ──
   const serie=(fsA.por_semana||[]).slice().sort((x,y)=>String(x.semana).localeCompare(String(y.semana)));
