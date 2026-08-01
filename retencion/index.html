@@ -609,6 +609,7 @@ const DISPO = { fallo_pago: {
 const RES_LABEL = {cobro_manual:'Cobro manual',actualizar_pago:'Actualizar pago',pendiente_cobro:'Pendiente de cobro',cancelar_final:'Cancelar finalmente',cancelar_definitivo:'Cancelar definitivamente',pendiente:'Pendiente'};
 const RES_TONE  = {cobro_manual:'ok',actualizar_pago:'ok',pendiente_cobro:'warn',pendiente:'warn',cancelar_final:'bad',cancelar_definitivo:'bad'};
 let GEST = {byC:{}};
+let RESC_FALLOS = null;   // rescate de Carme en fallos: cobros recuperados en su llamada (desde gestiones)
 async function cargarGestiones(){
   try{
     const r = await fetch(API_BAJAS+'/api/dashboard/gestiones',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({tipo_caso:'fallo_pago',limit:500})});
@@ -616,6 +617,15 @@ async function cargarGestiones(){
     const d = await r.json(); const byC={};
     (d.gestiones||[]).forEach(g=>{ const c=String(g.contract_id||'').split('.')[0]; if(c){ (byC[c]=byC[c]||[]).push(g); } });
     GEST={byC};
+    // Rescate de Carme = cobros que recupera en su llamada. Una clienta = su gestión más reciente
+    // (evita contar dos veces). Solo con agente real (no pruebas). cobro_manual + actualizar_pago = recuperados.
+    const rf={cobro_manual:0, actualizar_pago:0, total:0};
+    Object.values(byC).forEach(arr=>{
+      const g=[...arr].sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')))[0];
+      if(g && (g.agente||'').trim() && !g.es_test && rf[g.resultado]!=null){ rf[g.resultado]++; rf.total++; }
+    });
+    RESC_FALLOS=rf;
+    construirResumen();  // el hero (rescate de Carme) depende de estas gestiones → reconstruir
   }catch(e){}
 }
 function histGestiones(caso){ const c=String(caso.contract_id||'').split('.')[0]; return (c && GEST.byC[c]) || []; }
@@ -864,41 +874,42 @@ function render(fsA, fsP, cmp){
   setTab(TAB);
 }
 
-// Embudo de recuperación por WhatsApp (CONV, por periodo) — hero izquierda (win) + embudo derecha.
-// CONV llega asíncrono: si aún no está, deja un placeholder que se reemplaza al cargar.
-function heroRecuperacion(){
-  const lab = `<div class="fp-lab">Recupera el WhatsApp · ${esc((CONV&&CONV.ventana&&CONV.ventana.desde)||'últimos 30 días')}${CONV&&CONV.ventana?` → ${esc(CONV.ventana.hasta)}`:''}</div>`;
-  if(CONV===null) return `<div class="fp-hero"><div class="loading" style="grid-column:1/-1;padding:26px">Cargando el embudo de WhatsApp…</div></div>`;
-  if(CONV.error) return `<div class="fp-hero"><div style="grid-column:1/-1;color:var(--muted);font-size:13px">Embudo de WhatsApp no disponible ahora (${esc(CONV.error)}).</div></div>`;
-
+// Hero del resumen de fallos, simétrico al de bajas:
+//   IZQUIERDA = «Rescate de Carme · fallos de pago» (lo que recupera ELLA en su llamada, desde gestiones)
+//   DERECHA   = «El embudo del periodo» (lo que recupera la secuencia de WhatsApp, y cuántas pasan a Carme)
+// Ambas mitades son asíncronas (RESC_FALLOS de gestiones, CONV de LUNA) → se rellenan al llegar.
+function colRescateCarme(){
+  const rc = RESC_FALLOS, total = rc ? rc.total : 0;
+  if(total===0){
+    return `<div class="fp-risk">
+      <div class="fp-lab">Rescate de Carme · fallos de pago</div>
+      <div><span class="fp-win-n" style="color:var(--muted)">0</span><span class="fp-win-u">aún sin rescates registrados</span></div>
+      <div class="fp-win-sub" style="margin-top:auto;padding-top:16px">En cuanto Carme registre sus llamadas en «A quién llamo», verás aquí <b>cuánto recupera</b>: cobro manual, actualizó el pago…</div>
+    </div>`;
+  }
+  const tipos=[['cobro_manual','💳 Cobro manual','#1F9D6B'],['actualizar_pago','🔄 Actualizó el pago','#2C9A78']];
+  const rows=tipos.filter(([k])=>rc[k]>0).map(([k,label,color])=>`<div class="fp-trow"><span class="fp-tdot" style="background:${color}"></span><span class="fp-tname">${label}</span><span class="fp-tn">${rc[k]}</span></div>`).join('');
+  return `<div class="fp-risk">
+      <div class="fp-lab">Rescate de Carme · fallos de pago</div>
+      <div><span class="fp-win-n">${total}</span><span class="fp-win-u">recuperadas por Carme</span></div>
+      <div class="fp-win-sub">cobros que recupera en su llamada, tras fallar el pago.</div>
+      <div class="fp-types"><div class="fp-types-h">Cómo lo recupera</div>${rows}</div>
+    </div>`;
+}
+function colEmbudoWhatsApp(){
+  if(CONV===null) return `<div class="fp-funnel"><div class="loading" style="padding:24px 0">Cargando el embudo de WhatsApp…</div></div>`;
+  if(CONV.error) return `<div class="fp-funnel"><div class="fp-lab" style="margin-bottom:2px">El embudo del periodo</div><div style="color:var(--muted);font-size:13px">Embudo de WhatsApp no disponible ahora (${esc(CONV.error)}).</div></div>`;
   const ent = CONV.entraron||0;
   const pag = CONV.pagaron||{n:0,pct:null};
   const toques = CONV.por_toque||[];
   const cum = toques.map(x=>x.pagados||0);            // acumulado: ya habían pagado antes de ese toque
-  // Recuperadas atribuibles a cada toque = pagaron durante su ventana (antes de que saliera el siguiente).
   const rec = toques.map((x,i)=> i>=toques.length-1 ? null : (i===0 ? (cum[1]||0) : ((cum[i+1]||0)-(cum[i]||0))));
-  const pend = toques.length ? (toques[toques.length-1].pendientes||0) : 0;
-  const recPct = pag.pct!=null ? pag.pct : (ent? Math.round(1000*pag.n/ent)/10 : 0);
   const aCarme = Math.max(0, ent - pag.n);
-
-  const toqueRows = toques.map((x,i)=>{
-    const last = i===toques.length-1;
-    const val = rec[i]==null ? `<span class="fp-tn soft">en curso · ${pend} pend.</span>` : `<span class="fp-tn">${rec[i]}</span>`;
-    return `<div class="fp-trow"><span class="fp-tdot" style="background:${last?'#B9BCCB':'var(--green)'}"></span><span class="fp-tname">${esc(x.toque)}</span>${val}</div>`;
-  }).join('');
-
-  return `<div class="fp-hero">
-      <div class="fp-risk">
-        ${lab}
-        <div><span class="fp-win-n">${pag.n}</span><span class="fp-win-u">recuperadas · ${String(recPct).replace('.',',')}%</span></div>
-        <div class="fp-win-sub">pagaron tras el fallo con la secuencia de WhatsApp,<br>sin llegar a la llamada.</div>
-        <div class="fp-types">
-          <div class="fp-types-h">Recuperadas tras cada toque</div>
-          ${toqueRows || '<div class="fp-tn soft">Sin datos en el periodo</div>'}
-        </div>
-      </div>
-      <div class="fp-funnel">
-        <div class="fp-lab" style="margin-bottom:2px">El embudo del periodo</div>
+  const ord=['1º','2º','3º','4º','5º'];
+  const capParts = toques.map((x,i)=> `${ord[i]||(i+1)+'º'}: ${rec[i]==null?'en curso':rec[i]}`);
+  const cap = capParts.length ? `<div class="fp-scap" style="margin-top:9px">Recupera pronto (por toque de WhatsApp) — ${capParts.join(' · ')}</div>` : '';
+  return `<div class="fp-funnel">
+        <div class="fp-lab" style="margin-bottom:2px">El embudo del periodo · WhatsApp</div>
         <div class="fp-frow"><div class="fp-flab">Entraron<small>en la secuencia</small></div>
           <div class="fp-fbar all"><i style="width:100%">${ent}</i></div></div>
         <div class="fp-frow"><div class="fp-flab">Recuperados<small>pagaron sin llamada</small></div>
@@ -906,9 +917,11 @@ function heroRecuperacion(){
         <div class="fp-pills">
           <span class="fp-pill ok">✅ <b>${pag.n}</b> pagaron por WhatsApp</span>
           <span class="fp-pill call">📞 <b>${aCarme}</b> sin recuperar → a Carme</span>
-        </div>
-      </div>
-    </div>`;
+        </div>${cap}
+      </div>`;
+}
+function heroRecuperacion(){
+  return `<div class="fp-hero">${colRescateCarme()}${colEmbudoWhatsApp()}</div>`;
 }
 
 // Construye el resumen combinando la foto de Appstle (/today, ahora) y el embudo WhatsApp (CONV, periodo).
