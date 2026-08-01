@@ -227,7 +227,7 @@ function porQue(s){ const CM={min_2_pedidos:'Menos de 2 pedidos',min_permanencia
 
 async function cargar(){
   const H={'Content-Type':'application/json','Authorization':'Bearer '+token};
-  const desde='2026-07-01', hasta=hoyISO();   // Carme empezó el 1-jul; lo anterior es backlog (email aparte)
+  const desde='2026-01-01', hasta=hoyISO();   // pedimos todo; el filtro real es por TIPO (abajo)
   let bajas={}, fallos={}, gest={};
   try{
     const [rb,rf,rg]=await Promise.all([
