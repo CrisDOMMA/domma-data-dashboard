@@ -67,8 +67,12 @@
   .cname a{color:var(--indigo);text-decoration:none;border-bottom:1px solid transparent}
   .cname a:hover{border-color:var(--indigo)}
   .cwhy{font-size:13px;color:var(--muted);margin-top:2px;font-weight:600}
-  .cmeta{font-size:12.5px;color:var(--muted);margin-top:6px;word-break:break-word}
+  .cmeta-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:6px;flex-wrap:wrap}
+  .cmeta{font-size:12.5px;color:var(--muted);word-break:break-word;flex:1;min-width:0}
   .cmeta b{color:var(--ink);font-weight:600}
+  .histlink{font-size:12.5px;font-weight:700;color:var(--indigo);text-decoration:none;white-space:nowrap;cursor:pointer}
+  .histlink:hover{text-decoration:underline}
+  .b.dis{background:#F3F1EC;color:#B4B2AB;border:2px solid var(--line);cursor:not-allowed;pointer-events:none}
   .chip{font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:20px;white-space:nowrap;flex:none}
   .chip.amber{background:var(--amber-bg);color:var(--amber)} .chip.green{background:var(--green-bg);color:var(--green)} .chip.red{background:var(--red-bg);color:var(--red)}
 
@@ -257,10 +261,9 @@ function histDe(caso){ const c=nid(caso.contract_id); const cu=String(caso.custo
 const TERMINAL=new Set(['retenida','venta_cruzada','upsell','pausa','pago_gestionado','cancelado']);
 function gestionadaHoy(caso){ return histDe(caso).some(g=>String(g.created_at||'').slice(0,10)===hoyISO() && TERMINAL.has(g.resultado)); }
 const fechaCorta=s=>{ if(!s)return''; const d=new Date(String(s).replace(' ','T')+'Z'); return isNaN(d)?esc(s):d.toLocaleDateString('es-ES',{day:'2-digit',month:'short'}); };
-function histHtml(caso){
+function histInner(caso){
   const h=histDe(caso); if(!h.length) return '';
-  const rows=h.slice(0,4).map(g=>`<div class="hline"><span class="hpill ${RES_TONE[g.resultado]||''}">${esc(RES_LABEL[g.resultado]||g.resultado)}</span> <span class="hmeta">${g.contacto==='no_localizada'?'no localizada':'localizada'}${g.agente?' · '+esc(g.agente):''} · ${fechaCorta(g.created_at)}</span>${g.nota?`<div class="hnota">${esc(g.nota)}</div>`:''}</div>`).join('');
-  return `<div class="hist"><div class="hist-t">Historial de esta clienta</div>${rows}</div>`;
+  return h.slice(0,6).map(g=>`<div class="hline"><span class="hpill ${RES_TONE[g.resultado]||''}">${esc(RES_LABEL[g.resultado]||g.resultado)}</span> <span class="hmeta">${g.contacto==='no_localizada'?'no localizada':'localizada'}${g.agente?' · '+esc(g.agente):''} · ${fechaCorta(g.created_at)}</span>${g.nota?`<div class="hnota">${esc(g.nota)}</div>`:''}</div>`).join('');
 }
 
 let VIS=[];   // lista exacta que se está pintando (índice de las tarjetas → esta lista)
@@ -287,22 +290,25 @@ function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
   const chip = c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
+  const nHist=histDe(c).length;
+  const meta=(c.email?`✉️ <b>${esc(c.email)}</b>`:'')+(c.email&&c.phone?' · ':'')+(c.phone?`📱 <b>${esc(c.phone)}</b>`:'')+((!c.email&&!c.phone)?'<span style="color:var(--amber)">sin contacto — abre su ficha</span>':'');
   return `<div class="card" data-state="amber" id="c${i}">
     <div class="stripe"></div>
     <div class="body">
       <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div>${chip}</div>
-      <div class="cmeta">${c.email?`✉️ <b>${esc(c.email)}</b>`:''}${c.email&&c.phone?' · ':''}${c.phone?`📱 <b>${esc(c.phone)}</b>`:''}${!c.email&&!c.phone?'<span style="color:var(--amber)">sin contacto — abre su ficha</span>':''}</div>
-      ${histHtml(c)}
+      <div class="cmeta-row"><span class="cmeta">${meta}</span>${nHist?`<a class="histlink" href="#" data-n="${nHist}" onclick="toggleHist(${i},this);return false">Ver historial · ${nHist}</a>`:''}</div>
+      <div class="hist" id="hist${i}" hidden>${histInner(c)}</div>
       <div class="actions">
-        ${telH?`<a class="b b-call" href="${telH}">📞 Llamar</a>`:''}
-        ${tel?`<a class="b b-wa" href="#" onclick="wati('${esc(c.phone)}');return false">💬 WhatsApp</a>`:''}
-        ${c.email?`<a class="b b-email" href="mailto:${esc(c.email)}">✉️ Email</a>`:''}
+        ${telH?`<a class="b b-call" href="${telH}">📞 Llamar</a>`:`<span class="b b-call dis" title="No tenemos su teléfono">📞 Llamar</span>`}
+        ${tel?`<a class="b b-wa" href="#" onclick="wati('${esc(c.phone)}');return false">💬 WhatsApp</a>`:`<span class="b b-wa dis" title="No tenemos su teléfono">💬 WhatsApp</span>`}
+        ${c.email?`<a class="b b-email" href="mailto:${esc(c.email)}">✉️ Email</a>`:`<span class="b b-email dis" title="No tenemos su email">✉️ Email</span>`}
         <button class="b b-manage" onclick="reveal(${i})">Registrar</button>
       </div>
       <div class="dispo" id="d${i}" hidden></div>
       <div class="done" id="done${i}" hidden></div>
     </div></div>`;
 }
+function toggleHist(i,el){ const d=document.getElementById('hist'+i); if(!d)return; d.hidden=!d.hidden; el.textContent=(d.hidden?'Ver':'Ocultar')+' historial · '+el.dataset.n; }
 function reveal(i){
   const d=document.getElementById('d'+i);
   d.hidden=false; d.dataset.c='';
