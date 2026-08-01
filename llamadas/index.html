@@ -180,6 +180,8 @@
 <script>
 const API_BAJAS='https://domma-bajas.cristina-ed1.workers.dev';
 const API_TODAY='https://gestorsubs-domma.cristina-ed1.workers.dev/today';  // fallos activos reales (cifra fiable = /metrics)
+const API_TOQUES='https://luna-agent.cristina-ed1.workers.dev/api/metrics/fallo-pago-toques';  // toques WhatsApp por teléfono (D1 LUNA)
+const METRICS_TOKEN='ae054e9b8acb290020c6be1d0839832ef34145dfe5ea3acc';
 const API_TEL='https://gestorsubs-domma.cristina-ed1.workers.dev/telefonos-shopify';  // rellena el móvil que falta desde Shopify
 const AUTH_API='https://domma-pro-api.cristina-ed1.workers.dev';
 const SHOP_ADMIN='https://admin.shopify.com/store/wearedomma', APPSTLE_APP='subscription-by-rhem';
@@ -227,14 +229,15 @@ function porQue(s){ const CM={min_2_pedidos:'Menos de 2 pedidos',min_permanencia
 
 async function cargar(){
   const H={'Content-Type':'application/json','Authorization':'Bearer '+token};
-  let bajas={}, hoyFallos={}, gest={};
+  let bajas={}, hoyFallos={}, gest={}, toq={};
   try{
-    const [rb,rf,rg]=await Promise.all([
+    const [rb,rf,rg,rt]=await Promise.all([
       fetch(API_BAJAS+'/api/dashboard',{method:'POST',headers:H,body:JSON.stringify({incluir_test:false})}).then(r=>r.json()),
       fetch(API_TODAY).then(r=>r.json()).catch(()=>({})),   // fallos ACTIVOS reales de Appstle (sin el bug de fechas de /failures-since)
       fetch(API_BAJAS+'/api/dashboard/gestiones',{method:'POST',headers:H,body:JSON.stringify({limit:500})}).then(r=>r.json()),
+      fetch(API_TOQUES+'?token='+METRICS_TOKEN).then(r=>r.json()).catch(()=>({})),   // toques WhatsApp por teléfono
     ]);
-    bajas=rb||{}; hoyFallos=rf||{}; gest=rg||{};
+    bajas=rb||{}; hoyFallos=rf||{}; gest=rg||{}; toq=rt||{};
   }catch(e){ document.getElementById('list').innerHTML='<div class="empty">No se pudo cargar. Recarga la página.</div>'; return; }
   if(bajas.error==='no_autorizado'){ logout(); return; }
 
@@ -248,11 +251,21 @@ async function cargar(){
   // Decisión Cristina: llamar a todos. Marcamos el backlog como "sin reintentos".
   const impEur=a=>{ const n=parseFloat(String(a||'').replace(/[^\d.,-]/g,'').replace(',','.'))||0; return n?' · '+n.toFixed(2).replace('.',',')+' €':''; };
   const diasDe=fd=>{ fd=(fd||'').slice(0,10); return fd?Math.floor((Date.now()-Date.parse(fd))/864e5):null; };
-  const mkFallo=(f,backlog)=>({tipo:'fallo', backlog:!!backlog, nombre:(f.name||'').trim(), email:(f.email||'').trim(), phone:(f.phone||'').trim(), customer_id:'', contract_id:f.contract_id, why:'Fallo de pago'+(backlog?' · sin reintentos':'')+impEur(f.amount), dias:diasDe(f.fail_date), fecha:(f.fail_date||'').slice(0,10)});
-  // GATE: no llamar hasta pasadas 48h del fallo — así la secuencia de WhatsApp (2 toques en
-  // ~48h) actúa primero, y Carme solo escala los que no han pagado. Sin fecha → se muestra.
+  // Toques de WhatsApp por teléfono (últimos 9 dígitos), desde el D1 de LUNA.
+  const TOQ=toq.toques||{};
+  const n9=p=>{ const d=String(p||'').replace(/\D/g,''); return d.length>9?d.slice(-9):d; };
+  const mkFallo=(f,backlog)=>{
+    const tel=String(f.phone||'').replace(/\D/g,''); const wa=TOQ[n9(f.phone)]||null; const dias=diasDe(f.fail_date);
+    return {tipo:'fallo', backlog:!!backlog, nombre:(f.name||'').trim(), email:(f.email||'').trim(), phone:(f.phone||'').trim(),
+      customer_id:'', contract_id:f.contract_id, dias, fecha:(f.fail_date||'').slice(0,10),
+      wa: wa?{toque:wa.toque_max, ultimo:(wa.ultimo||'').slice(0,10)}:null, hasTel:!!tel,
+      why:'Fallo de pago'+(backlog?' · sin reintentos':'')+impEur(f.amount)+(wa?` · 💬 WhatsApp toque ${wa.toque_max}`:'')};
+  };
+  // GATE exacto por toques reales de WhatsApp: Carme llama cuando la secuencia ya hizo su
+  // trabajo → (≥2 toques) O (sin teléfono, WhatsApp no llega) O (≥5 días, ya pasó toda la
+  // secuencia). Espera solo si el WhatsApp está trabajando (tiene tel, <2 toques, <5 días).
   const fa=[...(hoyFallos.failed||[]).map(f=>mkFallo(f,false)), ...(hoyFallos.dunning_skipped||[]).map(f=>mkFallo(f,true))]
-    .filter(f=>f.dias==null || f.dias>=2);
+    .filter(f=> ((f.wa&&f.wa.toque>=2)) || !f.hasTel || (f.dias!=null && f.dias>=5) );
 
   LISTA=[
     ...sol.map(s=>({tipo:'baja', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:labelMotivo(s.motivo), dias:s.dias, alerta:s.fuera_de_plazo, fecha:(s.fecha||'').slice(0,10)})),
