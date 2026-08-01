@@ -1,0 +1,10 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Backups manuales (*.backup-pre-…, *.bak, etc.)
+*.backup-*
+*.bak
+
+# Wrangler
+.wrangler/
