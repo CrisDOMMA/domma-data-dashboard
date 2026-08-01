@@ -103,6 +103,30 @@
   .loading{text-align:center;color:var(--muted);padding:50px;font-size:13px}
   .foot{font-size:11.5px;color:var(--muted);margin-top:26px;text-align:center}
 
+  /* ── Resumen fallos: hero (dinero en riesgo) + reparto activos/backlog ── */
+  .fp-hero{display:grid;grid-template-columns:.85fr 1.15fr;gap:28px;align-items:stretch;
+    background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px 26px;margin-bottom:14px}
+  .fp-risk{border-right:1px solid var(--line);padding-right:26px;display:flex;flex-direction:column}
+  .fp-lab{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+  .fp-big{font-size:46px;font-weight:800;line-height:.95;color:var(--red);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .fp-risk .fp-note{font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.45}
+  .fp-split{display:flex;flex-direction:column;gap:16px;justify-content:center}
+  .fp-srow{display:flex;flex-direction:column;gap:5px}
+  .fp-shead{display:flex;align-items:baseline;gap:8px;font-size:13.5px}
+  .fp-shead .nm{font-weight:700;flex:1}
+  .fp-shead .n{font-weight:800;font-variant-numeric:tabular-nums;font-size:17px}
+  .fp-shead .e{color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
+  .fp-sbar{height:20px;background:var(--track);border-radius:7px;overflow:hidden}
+  .fp-sbar > i{display:block;height:100%;border-radius:7px}
+  .fp-sbar.a > i{background:var(--navy)} .fp-sbar.bk > i{background:#C9A24B}
+  .fp-scap{font-size:11.5px;color:var(--muted)}
+  .fp-age{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .fp-agecard{flex:1;min-width:120px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 15px}
+  .fp-agecard .n{font-size:25px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+  .fp-agecard .l{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:5px}
+  .fp-agecard.hot{border-color:#E9BFBA;background:#FEF7F6} .fp-agecard.hot .n{color:var(--red)}
+  @media(max-width:720px){.fp-hero{grid-template-columns:1fr;gap:18px}.fp-risk{border-right:none;border-bottom:1px solid var(--line);padding:0 0 16px}}
+
   /* Listado individual */
   .listbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
   .listbar input,.listbar select{padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff}
@@ -806,50 +830,52 @@ function render(fsA, fsP, cmp){
   const backlog=a.abiertas-activos;
   const riesgoAct=det.filter(x=>(x.tipo||'fallo_pago')!=='dunning_skipped').reduce((s,x)=>s+(parseFloat(x.importe)||0),0);
 
-  // ── Titular ──
-  const titular = `<div class="titular">
-      Ahora mismo hay <b style="color:var(--red)">${a.abiertas}</b> fallo${a.abiertas===1?'':'s'} de pago sin cobrar, con <b>${eur(a.enRiesgo)}</b> en riesgo:
-      <b>${activos}</b> activos (a llamar) y <b>${backlog}</b> en backlog (dunning agotado → email / cancelar).
-      <div class="sub">Appstle en vivo · foto del momento (no es un periodo)</div>
-    </div>`;
+  const riesgoBk = Math.max(0, a.enRiesgo - Math.round(riesgoAct));
+  const maxN = Math.max(1, activos, backlog);
 
-  const avisos=`<div class="avisos"><b>Cómo leer esto</b><ul>
-      <li><b>Activos</b> = Appstle sigue reintentando el cobro → recuperables, la lista de llamadas de Carme.</li>
-      <li><b>Backlog</b> = dunning agotado, Appstle ya no reintenta → email de "última llamada" o decisión de cancelar.</li>
-      <li>Fuente: <b>Appstle en vivo</b> (endpoint /today, fiable). Es una foto: al pagar una clienta, su fallo desaparece; por eso el número se mueve día a día.</li>
-    </ul></div>`;
+  // ── Antigüedad de los activos (los que Carme llama): prioriza los más viejos ──
+  const hoyMs = Date.parse(hoy()+'T00:00:00Z');
+  const diasDe = f => { const d=(f.primer_fallo||'').slice(0,10); if(!d) return null;
+    const ms=Date.parse(d+'T00:00:00Z'); return isFinite(ms) ? Math.floor((hoyMs-ms)/86400000) : null; };
+  const act = det.filter(x=>(x.tipo||'fallo_pago')!=='dunning_skipped');
+  let ageR=0, ageM=0, ageV=0;
+  act.forEach(f=>{ const dd=diasDe(f); if(dd!=null && dd>14) ageV++; else if(dd!=null && dd>=7) ageM++; else ageR++; });
 
-  // ══════════ RESUMEN ══════════
-  PANES.resumen = titular + `
-    <div class="sect">Fallos abiertos ahora</div>
-    <div class="kpis">
-      ${kpi('hero','Activos · a llamar', activos, `${eur(Math.round(riesgoAct))} en riesgo · Appstle reintenta`)}
-      ${kpi('','Backlog (dunning agotado)', backlog, 'email de recuperación / cancelar')}
-      ${kpi('','Total abiertos', a.abiertas, 'activos + backlog')}
-      ${kpi('','Dinero en riesgo', eur(a.enRiesgo), 'suma de todos los abiertos')}
+  // ══════════ RESUMEN ══════════ (hero dinero-en-riesgo + reparto + antigüedad + 1 acción)
+  PANES.resumen = `
+    <div class="fp-hero">
+      <div class="fp-risk">
+        <div class="fp-lab">Dinero en riesgo · ahora</div>
+        <div class="fp-big">${eur(a.enRiesgo)}</div>
+        <div class="fp-note"><b>${a.abiertas}</b> fallo${a.abiertas===1?'':'s'} de pago sin cobrar.<br>Foto de Appstle en vivo — al pagar una clienta, su fallo desaparece.</div>
+      </div>
+      <div class="fp-split">
+        <div class="fp-srow">
+          <div class="fp-shead"><span class="nm">🔴 Activos · a llamar</span><span class="n">${activos}</span><span class="e">${eur(Math.round(riesgoAct))}</span></div>
+          <div class="fp-sbar a"><i style="width:${Math.round(100*activos/maxN)}%"></i></div>
+          <div class="fp-scap">Appstle sigue reintentando el cobro → recuperables, la lista de Carme.</div>
+        </div>
+        <div class="fp-srow">
+          <div class="fp-shead"><span class="nm">⚪ Backlog · dunning agotado</span><span class="n">${backlog}</span><span class="e">${eur(riesgoBk)}</span></div>
+          <div class="fp-sbar bk"><i style="width:${Math.round(100*backlog/maxN)}%"></i></div>
+          <div class="fp-scap">Ya no reintenta → email de «última llamada» o decidir cancelar.</div>
+        </div>
+      </div>
     </div>
 
-    <div class="sect">Qué hay que atender</div>
-    <div class="todo">
-      <div class="act ${activos?'alert':'ok'}">
-        <div class="lab">Activos a llamar</div><div class="val">${activos}</div>
-        <div class="sub">${activos?`+ ${backlog} en backlog · ${eur(Math.round(riesgoAct))} en riesgo`:'ningún fallo activo 👌'}</div>
-        <span class="go">llámalas desde «A quién llamo» (data.wearedomma.com/llamadas)</span></div>
-    </div>` + avisos;
+    <div class="sect">Antigüedad de los activos · a quién llamar primero</div>
+    <div class="fp-age">
+      <div class="fp-agecard"><div class="n">${ageR}</div><div class="l">Recientes · ≤7 días</div></div>
+      <div class="fp-agecard"><div class="n">${ageM}</div><div class="l">8–14 días</div></div>
+      <div class="fp-agecard ${ageV?'hot':''}"><div class="n">${ageV}</div><div class="l">+14 días · a punto de agotar reintentos</div></div>
+    </div>
 
-  // ── Evolución por semana (de failures-since) ──
-  const serie=(fsA.por_semana||[]).slice().sort((x,y)=>String(x.semana).localeCompare(String(y.semana)));
-  const max=Math.max(1,...serie.map(s=>s.total||0));
-  const cols=[{t:'Fallos',f:s=>s.total},{t:'Abiertas',f:s=>s.abierta},{t:'Baja',f:s=>s.baja}];
-  PANES.resumen += `<div class="card">
-      <h3>Evolución de los fallos</h3><p class="hint">Fallos que entraron cada semana (por fecha del primer intento fallido) y en qué acabaron.</p>
-      <div style="overflow-x:auto"><table>
-        <thead><tr><th>Semana</th>${cols.map(c=>`<th class="num">${c.t}</th>`).join('')}<th></th></tr></thead>
-        <tbody>${serie.length?serie.map(s=>`<tr><td><b>${esc(s.semana)}</b></td>
-          ${cols.map(c=>`<td class="num">${c.f(s)}</td>`).join('')}
-          <td style="width:90px"><div class="bar"><i style="width:${Math.round(100*(s.total||0)/max)}%"></i></div></td></tr>`).join('')
-          :`<tr><td colspan="${cols.length+2}" style="text-align:center;color:var(--muted);padding:24px">Sin datos en el periodo</td></tr>`}</tbody>
-      </table></div></div>`;
+    <div class="todo">
+      <button class="act ${activos?'alert':'ok'}" onclick="location.href='https://data.wearedomma.com/llamadas'">
+        <div class="lab">A quién llamar</div><div class="val">${activos}</div>
+        <div class="sub">${activos?`activos esperando la llamada de Carme${ageV?` · <b style="color:var(--red)">${ageV} pasan de 14 días</b>`:''}`:'ningún fallo activo ahora mismo 👌'}</div>
+        <span class="go">Ir a «A quién llamo» → (se añaden a su lista tras 2 toques de WhatsApp + 48 h)</span></button>
+    </div>`;
 
   document.getElementById('tabs').style.display='flex';
   setTab(TAB);

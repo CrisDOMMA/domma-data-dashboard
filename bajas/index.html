@@ -237,6 +237,51 @@
   /* Embebido en el Data Hub: el shell ya aporta cabecera/logout */
   html.embed .wrap{padding-top:20px}
   html.embed header{display:none}
+
+  /* ══ Resumen rediseñado ══ */
+  .rz-ct{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+  .rz-hero{padding:22px 24px;display:grid;grid-template-columns:.9fr 1.1fr;gap:30px;align-items:stretch;margin-bottom:12px}
+  .rz-resc{border-right:1px solid var(--line);padding-right:28px;display:flex;flex-direction:column}
+  .rz-big{display:flex;align-items:baseline;gap:9px;margin-bottom:14px}
+  .rz-n{font-size:52px;font-weight:800;line-height:.9;color:var(--green);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .rz-u{font-size:13.5px;font-weight:700;color:var(--muted)}
+  .rz-types{display:flex;flex-direction:column;gap:7px;margin-top:auto}
+  .rz-trow{display:flex;align-items:center;gap:9px;font-size:13.5px}
+  .rz-dot{width:9px;height:9px;border-radius:3px;flex:none}
+  .rz-tname{flex:1;font-weight:600} .rz-tn{font-weight:800;font-variant-numeric:tabular-nums}
+  .rz-funnel{display:flex;flex-direction:column;gap:9px;justify-content:center}
+  .rz-funnel .fh{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+  .rz-funnel .frow{display:flex;align-items:center;gap:12px}
+  .rz-funnel .flab{width:110px;flex:none;font-size:13.5px;font-weight:600}
+  .rz-funnel .flab small{display:block;color:var(--muted);font-weight:600;font-size:11px}
+  .rz-funnel .fbar{flex:1;height:23px;background:var(--track);border-radius:7px;overflow:hidden;display:flex}
+  .rz-funnel .fseg{height:100%;display:flex;align-items:center;padding-left:10px;color:#fff;font-weight:800;font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .rz-funnel .fseg.all{background:var(--navy)} .rz-funnel .fseg.dec{background:var(--navy-2)}
+  .rz-funnel .fsplit{display:flex;gap:9px;margin-top:2px;margin-left:122px;flex-wrap:wrap}
+  .fpill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:9px}
+  .fpill.a{background:#FCF3E0;color:var(--amber)} .fpill.r{background:#FBE9E7;color:var(--red)}
+  .fpill b{font-variant-numeric:tabular-nums}
+  .rz-warn{background:#FDF6E9;border:1px solid #EAD9B0;border-radius:12px;padding:12px 18px;margin-bottom:12px;font-size:13px;color:#7a5a12;font-weight:600;align-items:center;gap:10px}
+  .rz-warn b{color:#5f4609}
+  .rz-cols{display:grid;grid-template-columns:1fr 1.25fr;gap:14px;margin-bottom:12px}
+  .rz-cpad{padding:18px 20px}
+  .rz-cpad .mrow{margin-bottom:12px}
+  .rz-cpad .mtop{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;margin-bottom:5px}
+  .rz-cpad .mtop b{font-weight:700} .rz-cpad .mn{color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
+  .rz-cpad .mbar{height:9px;background:var(--track);border-radius:5px;overflow:hidden}
+  .rz-cpad .mbar i{display:block;height:100%;background:linear-gradient(90deg,#C0453B,#D8756B);border-radius:5px}
+  .rz-cpad .mnote{font-size:11.5px;color:var(--muted);margin-top:6px}
+  .heat{width:100%;border-collapse:separate;border-spacing:4px}
+  .heat th{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;padding:2px 3px;text-align:center}
+  .heat th.rowh{text-align:left;font-size:12.5px;text-transform:none;letter-spacing:0;color:var(--text);font-weight:700;width:92px}
+  .hcell{height:30px;border-radius:6px;text-align:center;line-height:30px;font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums}
+  .hnote{font-size:11.5px;color:var(--muted);margin-top:10px} .hnote b{color:var(--red)}
+  .rz-act{padding:16px 22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .rz-abig{font-size:38px;font-weight:800;color:var(--navy);line-height:1;font-variant-numeric:tabular-nums;flex:none}
+  .rz-asub{font-size:13.5px;color:var(--muted);font-weight:600;line-height:1.4;flex:1;min-width:180px}
+  .rz-cta{display:inline-flex;align-items:center;gap:7px;background:var(--navy);color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 18px;border-radius:10px;margin-left:auto}
+  .rz-cta:hover{background:var(--navy-2)}
+  @media(max-width:820px){ .rz-hero{grid-template-columns:1fr;gap:18px} .rz-resc{border-right:none;border-bottom:1px solid var(--line);padding:0 0 16px} .rz-cols{grid-template-columns:1fr} .rz-funnel .fsplit{margin-left:0} }
 </style>
 </head>
 <body>
@@ -313,16 +358,20 @@
 
   <!-- ══════════ TAB: RESUMEN ══════════ -->
   <div class="tabpane" id="tab-resumen" style="display:none">
-    <div class="titular" id="titular"></div>
-
-    <div class="sect" id="sectComo">Cómo vamos</div>
-    <div class="kpis" id="kpis"></div>
-
-    <div class="sect">Qué hay que atender</div>
-    <div class="todo" id="todo"></div>
-
-    <div class="sect">Repesca real</div>
-    <div class="card" id="repescaBox"></div>
+    <div class="rz-hero card">
+      <div class="rz-resc">
+        <div class="rz-ct">Rescate de Carme · retención real</div>
+        <div class="rz-big" id="rescBig"></div>
+        <div class="rz-types" id="rescTypes"></div>
+      </div>
+      <div class="rz-funnel" id="funnel"></div>
+    </div>
+    <div class="rz-warn" id="pausaWarn" style="display:none"></div>
+    <div class="rz-cols">
+      <div class="card rz-cpad"><div class="rz-ct">Por qué se van · motivos reales</div><div id="motivosMini"></div></div>
+      <div class="card rz-cpad"><div class="rz-ct">Qué producto se cancela · y en qué mes</div><div id="heatmap"></div></div>
+    </div>
+    <div class="card rz-act" id="accion"></div>
   </div>
 
   <!-- ══════════ TAB: POR QUÉ SE VAN ══════════ -->
@@ -572,59 +621,62 @@ function render(){
   document.getElementById('gen').textContent = new Date(d.generated_at).toLocaleString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
   document.getElementById('testBanner').style.display = d.filtros.incluir_test ? 'block' : 'none';
 
-  // ── Titular en castellano: qué ha pasado, en una frase ──
-  const decidieron = (k.salvados||0) + (k.bajas||0) + (k.solicitudes||0);
-  const topMotivo  = (d.por_motivo||[]).slice().sort((a,b)=>b.total-a.total)[0];
-  const rangoTxt   = d.filtros.desde && d.filtros.hasta
-    ? `${d.filtros.desde} → ${d.filtros.hasta}` : 'todo el histórico';
-  document.getElementById('titular').innerHTML = k.sesiones
-    ? `<b>${money(k.sesiones)}</b> mujer${k.sesiones===1?'':'es'} ${k.sesiones===1?'entró':'entraron'} en el flujo. De las <b>${money(decidieron)}</b> que llegaron a decidir,
-       <b style="color:var(--green)">${money(k.salvados)}</b> se quedaron y <b style="color:var(--red)">${money(k.bajas)}</b> se fueron.
-       ${topMotivo ? `El motivo que más pesa es <b>${esc(topMotivo.motivo)}</b> (${topMotivo.total} caso${topMotivo.total===1?'':'s'}, salvamos el ${pct(topMotivo.save_rate)}).` : ''}
-       <div class="sub">Periodo: ${rangoTxt}${PREV_VENT?` · comparado con ${PREV_VENT.desde} → ${PREV_VENT.hasta}`:' · sin comparación'}</div>`
-    : `<b>Nadie ha usado el flujo en este periodo.</b> Prueba a ampliar el rango arriba.
-       <div class="sub">Periodo: ${rangoTxt}</div>`;
+  // ══════════ RESUMEN (rediseño: rescate de Carme + embudo + motivos + heatmap) ══════════
+  const sol = d.solicitudes || {resueltas:0, resueltas_lista:[], pendientes:[]};
+  const rc = d.rescate_carme || {retenida:0,pausa:0,cambio_producto:0,cambio_fecha:0,venta_cruzada:0,upsell:0,total:0};
+  const decid = k.decididas || ((k.salvados||0)+(k.bajas||0)+(k.solicitudes||0));
+  const pausas = ((d.por_accion||[]).find(a=>a.accion==='pausa')||{}).n || 0;
+  const pidenBaja = k.solicitudes || 0;
 
-  document.getElementById('sectComo').textContent = PREV ? `Cómo vamos · comparado con ${PREV_ETIQ}` : 'Cómo vamos';
+  // Rescate de Carme por tipo (retención REAL — distinto de la pausa que la clienta se hace sola)
+  const RT = [['retenida','💚 Retenida (tal cual)','#1F9D6B'],['pausa','⏸️ Pausa','#2C9A78'],['cambio_producto','🔄 Cambio de producto','#3E8E8E'],['cambio_fecha','📅 Cambio de fecha','#5A7BB0'],['venta_cruzada','🚀 Venta cruzada','#39308A'],['upsell','⬆️ Upsell','#1C296A']];
+  document.getElementById('rescBig').innerHTML = rc.total
+    ? `<span class="rz-n">${money(rc.total)}</span><span class="rz-u">rescatadas por llamada</span>`
+    : `<span class="rz-n" style="color:var(--muted)">0</span><span class="rz-u">aún sin rescates registrados</span>`;
+  document.getElementById('rescTypes').innerHTML = rc.total
+    ? RT.map(([kk,l,col])=>`<div class="rz-trow"><span class="rz-dot" style="background:${col}"></span><span class="rz-tname">${l}</span><span class="rz-tn">${money(rc[kk]||0)}</span></div>`).join('')
+    : `<div class="hint" style="margin:6px 0 0">En cuanto Carme registre sus llamadas en «A quién llamo», verás aquí <b>de qué</b> retiene: pausa, cambio de producto, cambio de fecha, cross-sell…</div>`;
 
-  // ── 4 KPIs (no 6): los que responden «¿vamos mejor o peor?» ──
-  const kpi = (cls,l,n,nc,s,dl) => `<div class="kpi ${cls}"><div class="l">${l}</div><div class="n ${nc||''}">${n}</div>${s?`<div class="s">${s}</div>`:''}${dl||''}</div>`;
-  document.getElementById('kpis').innerHTML = [
-    kpi('hero','Save rate', pct(k.save_rate), '', 'de las que llegan a decidir', delta(k.save_rate, p&&p.save_rate, {pp:true})),
-    kpi('','Entraron en el flujo', money(k.sesiones), '', 'sesiones', delta(k.sesiones, p&&p.sesiones)),
-    kpi('','Retenidas', money(k.salvados), 'green', 'pausa, cambio o espaciar', delta(k.salvados, p&&p.salvados)),
-    kpi('','Bajas efectivas', money(k.bajas), 'red', 'plan cancelado', delta(k.bajas, p&&p.bajas, {masEsMejor:false})),
-  ].join('');
+  // Embudo del periodo
+  const pctW = decid && k.sesiones ? Math.round(100*decid/k.sesiones) : 0;
+  document.getElementById('funnel').innerHTML = k.sesiones ? `
+    <div class="fh">El embudo del periodo</div>
+    <div class="frow"><div class="flab">Entraron<small>en el flujo</small></div><div class="fbar"><div class="fseg all" style="width:100%">${money(k.sesiones)}</div></div></div>
+    <div class="frow"><div class="flab">Decidieron<small>llegaron al final</small></div><div class="fbar"><div class="fseg dec" style="width:${Math.max(pctW,12)}%">${money(decid)}</div></div></div>
+    <div class="fsplit"><span class="fpill a">⏸️ <b>${money(pausas)}</b> pausaron (ellas)</span><span class="fpill r">🔴 <b>${money(pidenBaja)}</b> piden baja</span></div>`
+    : `<div class="empty">Nadie usó el flujo en este periodo. Amplía el rango arriba.</div>`;
 
-  // ── Qué hay que atender: cola de trabajo, clicable ──
-  const sol   = d.solicitudes || {resueltas:0, pendientes:[]};
-  const tarde = sol.pendientes.filter(s => s.fuera_de_plazo).length;
-  const fricN = (d.fricciones||[]).reduce((a,x)=>a+(x.n||0),0);
-  const rep   = (d.repesca && d.repesca.lista) ? d.repesca.lista.length : 0;
-  document.getElementById('todo').innerHTML = [
-    `<div class="act ${tarde?'alert':'ok'}">
-       <div class="l">Fuera de plazo</div><div class="n">${tarde}</div>
-       <div class="s">${tarde ? `solicitud${tarde===1?'':'es'} que ${tarde===1?'pasa':'pasan'} de las 72 h prometidas` : 'ninguna solicitud pasa de 72 h 👌'}</div>
-       <span class="go">llámalas desde «A quién llamo» (data.wearedomma.com/llamadas)</span></div>`,
-    `<button class="act" onclick="setTab('movimientos')">
-       <div class="l">Para recontactar</div><div class="n">${rep}</div>
-       <div class="s">${sol.pendientes.length} pendiente${sol.pendientes.length===1?'':'s'} · ${money(k.derivadas)} derivada${k.derivadas===1?'':'s'} a Ana</div>
-       <span class="go">Abrir lista de repesca (en Movimientos) →</span></button>`,
-    `<button class="act ${fricN?'':'ok'}" onclick="setTab('porque')">
-       <div class="l">Fricciones</div><div class="n">${fricN}</div>
-       <div class="s">${fricN ? 'veces que el flujo dijo «no» — revisa si las reglas aprietan' : 'ninguna clienta se topó con un bloqueo 👌'}</div>
-       <span class="go">Ver por qué →</span></button>`,
-  ].join('');
+  // Aviso: las pausas de la clienta NO son rescate
+  const warn = document.getElementById('pausaWarn');
+  if(pausas){ warn.style.display='flex'; warn.innerHTML = `⚠️ <span>Las <b>${money(pausas)} pausas son de las clientas</b> (self-service), <b>no son rescate</b> — y muchas pueden ser <b>bajas encubiertas</b>. Vigila cuántas reactivan vs cancelan.</span>`; }
+  else warn.style.display='none';
 
-  // ── Repesca real: clientas que volvieron (viene del sync de Appstle, no del flujo) ──
-  const rp = d.repesca || {};
-  document.getElementById('repescaBox').innerHTML = rp.webhooks_total
-    ? `<div style="display:flex;gap:28px;align-items:baseline;flex-wrap:wrap">
-         <div><div style="font-size:30px;font-weight:700;color:var(--green);line-height:1">${money(rp.reactivaciones)}</div>
-              <div class="hint" style="margin:6px 0 0">clientas que volvieron a activar su plan</div></div>
-         <div class="hint" style="margin:0">De ${money(rp.webhooks_total)} acciones detectadas en Appstle. Se actualiza con el sync automático cada 6 h — incluye a quien actúa por su cuenta, sin pasar por nuestro flujo.</div>
-       </div>`
-    : `<div class="empty">Aún sin reactivaciones registradas.<br>Aparecerán aquí cuando una clienta vuelva a activar su plan.</div>`;
+  // Motivos reales (sin ruido)
+  const RUIDO = new Set(['(sin motivo)','gate_2pedidos','min_2_pedidos','min_permanencia','fallo_pago','(sin producto)']);
+  const motReal = (d.por_motivo||[]).filter(m=>m.motivo && !RUIDO.has(m.motivo) && ((m.solicitud||0)+(m.baja||0))>0)
+    .sort((a,b)=>((b.solicitud||0)+(b.baja||0))-((a.solicitud||0)+(a.baja||0))).slice(0,4);
+  const maxMot = Math.max(1,...motReal.map(m=>(m.solicitud||0)+(m.baja||0)));
+  document.getElementById('motivosMini').innerHTML = motReal.length
+    ? motReal.map(m=>{const v=(m.solicitud||0)+(m.baja||0); return `<div class="mrow"><div class="mtop"><b>${esc(labelMotivo(m.motivo))}</b><span class="mn">${v}</span></div><div class="mbar"><i style="width:${Math.round(100*v/maxMot)}%"></i></div></div>`}).join('') + `<div class="mnote">Solo de quien pide baja (las pausas no llevan motivo).</div>`
+    : `<div class="empty">Sin motivos de baja en el periodo.</div>`;
+
+  // Heatmap producto × mes (solo cancelaciones)
+  const TB = ['<1m','1-2m','3-4m','5-6m','>6m'];
+  const prods = (d.por_producto||[]).map(pp=>({nombre:pp.producto, tb:pp.tenure_baja||{}, tot:Object.values(pp.tenure_baja||{}).reduce((a,b)=>a+b,0)}))
+    .filter(pp=>pp.tot>0 && pp.nombre!=='(sin producto)').sort((a,b)=>b.tot-a.tot).slice(0,5);
+  const maxCell = Math.max(1,...prods.flatMap(pp=>TB.map(t=>pp.tb[t]||0)));
+  const hcolor = v=>{ if(!v) return 'background:#F1EDE5;color:#C9C4BA'; const t=v/maxCell; const r=Math.round(232-(232-160)*t),g=Math.round(160-(160-40)*t),b=Math.round(150-(150-40)*t); return `background:rgb(${r},${g},${b});color:${t>0.35?'#fff':'#7a3b34'}`; };
+  let topCell={v:0}; prods.forEach(pp=>TB.forEach(t=>{ if((pp.tb[t]||0)>topCell.v) topCell={p:pp.nombre,t,v:pp.tb[t]}; }));
+  document.getElementById('heatmap').innerHTML = prods.length
+    ? `<table class="heat"><thead><tr><th class="rowh"></th>${TB.map(t=>`<th>${t}</th>`).join('')}</tr></thead><tbody>${prods.map(pp=>`<tr><th class="rowh">${esc(pp.nombre)}</th>${TB.map(t=>`<td><div class="hcell" style="${hcolor(pp.tb[t]||0)}">${pp.tb[t]||''}</div></td>`).join('')}</tr>`).join('')}</tbody></table>${topCell.v?`<div class="hnote">Punto caliente: <b>${esc(topCell.p)} a los ${topCell.t}</b> (${topCell.v}).</div>`:''}`
+    : `<div class="empty">Sin cancelaciones con producto en el periodo.</div>`;
+
+  // Acción
+  const tarde = sol.pendientes.filter(s=>s.fuera_de_plazo).length;
+  document.getElementById('accion').innerHTML = `
+    <div class="rz-abig">${money(sol.pendientes.length + (k.derivadas||0))}</div>
+    <div class="rz-asub">clientas <b>esperando la llamada de Carme</b><br>${money(sol.pendientes.length)} piden baja · ${money(k.derivadas)} derivada${k.derivadas===1?'':'s'} a Ana${tarde?` · <b style="color:var(--red)">${tarde} pasa${tarde===1?'':'n'} de 72 h</b>`:''}</div>
+    <a class="rz-cta" href="https://data.wearedomma.com/llamadas" target="_blank" rel="noopener">📞 Ir a «A quién llamo» →</a>`;
 
   // ── Análisis (pestaña «Por qué se van»), con el dato del periodo comparado al lado ──
   const prevMap = (arr, key) => { const m={}; (arr||[]).forEach(r=>m[r[key]]=r.total); return m; };
@@ -949,7 +1001,7 @@ function gestPill(g){
 function gestLine(g){ const t=RES_TONE[g.resultado]||''; return `<div class="gest-line"><span class="dispo-pill ${t}">${esc(RES_LABEL[g.resultado]||g.resultado)}</span><span class="gest-line-meta">${g.contacto==='no_localizada'?'no localizada':'localizada'}${g.agente?' · '+esc(g.agente):''} · ${fechaCorta(g.created_at)}</span>${g.nota?`<div class="gest-line-nota">${esc(g.nota)}</div>`:''}</div>`; }
 function histHtml(caso){ const h=histGestiones(caso); if(!h.length) return '<div class="gest-hist-empty">Sin gestiones registradas todavía.</div>'; return '<div class="gest-hist-t">Gestiones anteriores</div>'+h.slice(0,6).map(gestLine).join(''); }
 // Renombra los motivos técnicos a algo accionable en el listado (#5).
-function labelMotivo(m){ const M={gate_2pedidos:'Menos de 2 pedidos · acompañar',min_2_pedidos:'Menos de 2 pedidos · acompañar',min_permanencia:'Aún sin permanencia · acompañar',fallo_pago:'Fallo de pago',coach:'Derivada a Ana'}; return M[m]||m||'—'; }
+function labelMotivo(m){ const M={gate_2pedidos:'Menos de 2 pedidos · acompañar',min_2_pedidos:'Menos de 2 pedidos · acompañar',min_permanencia:'Aún sin permanencia · acompañar',fallo_pago:'Fallo de pago',coach:'Derivada a Ana',acumulo:'Acumulo producto',resultados:'No noté resultados',resuelto:'Ya resuelto · no lo necesito',puntual:'Solo lo quería puntual',precio:'Precio',economico:'Motivo económico',medicacion:'Incompatible medicación',direccion:'Cambio de dirección',otro:'Otro motivo'}; return M[m]||(m? m.charAt(0).toUpperCase()+m.slice(1) : '—'); }
 // «Por qué» de una derivada a Ana: usa el comentario técnico si lo hay, si no el motivo.
 function porQueDeriv(s){
   const CM={min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Tiene un fallo de pago'};
