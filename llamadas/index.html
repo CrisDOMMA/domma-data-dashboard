@@ -36,6 +36,18 @@
   .fil{display:flex;gap:8px;flex-wrap:wrap;margin:0 2px 12px}
   .chipf{font-size:12.5px;padding:6px 13px;border:1.5px solid var(--line);border-radius:20px;background:#fff;cursor:pointer;color:var(--muted);font-weight:700}
   .chipf.on{border-color:var(--indigo);color:var(--indigo);background:#F1F2FA}
+  /* Barra de progreso del día */
+  .prog{margin:0 2px 14px}
+  .prog-bar{height:9px;background:#E7E3DB;border-radius:6px;overflow:hidden}
+  .prog-fill{height:100%;background:linear-gradient(90deg,var(--green),#37b083);border-radius:6px;transition:width .5s ease}
+  .prog-txt{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:6px}
+  .prog-txt b{color:var(--ink);font-variant-numeric:tabular-nums}
+  /* Fila de filtro por día */
+  .filrow{display:flex;align-items:center;gap:9px;margin:0 2px 14px;flex-wrap:wrap}
+  .datelbl{font-size:12.5px;font-weight:700;color:var(--muted)}
+  #dateFil{padding:7px 10px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:13px;color:var(--ink);background:#fff}
+  /* Desktop: 2 columnas para que la lista no se haga eterna */
+  @media(min-width:780px){ #list{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start} #list .card{margin-bottom:0} #list .empty{grid-column:1/-1} }
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:12px;display:flex;box-shadow:0 2px 10px rgba(20,26,52,.04)}
   .stripe{width:7px;flex:none;background:var(--amber)}
@@ -135,7 +147,13 @@
   </div>
 
   <div class="sect">A quién llamar · <b id="left">…</b></div>
+  <div id="progreso"></div>
   <div class="fil" id="filtros"></div>
+  <div class="filrow">
+    <label class="datelbl">📅 Ver un día:</label>
+    <input type="date" id="dateFil" onchange="setFecha(this.value)">
+    <button class="chipf" id="dateClear" style="display:none" onclick="setFecha('')">✕ todos los días</button>
+  </div>
   <div id="list"><div class="empty">Cargando…</div></div>
 
   <div class="foot">Panel interno DOMMA · no compartir enlaces (datos de clientas)</div>
@@ -154,7 +172,7 @@ const RES_TONE={retenida:'green',venta_cruzada:'green',upsell:'green',pausa:'gre
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
 (function(){ const m=location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token',decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
 let token=localStorage.getItem('domma_analytics_token')||'';
-let LISTA=[], GEST={byC:{},byCust:{}}, GALL=[], filtro='todas';
+let LISTA=[], GEST={byC:{},byCust:{}}, GALL=[], filtro='todas', fechaFil='';
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hoyISO=()=>new Date().toISOString().slice(0,10);
 const nid=v=>String(v==null?'':v).split('.')[0].trim();
@@ -188,7 +206,7 @@ function porQue(s){ const CM={min_2_pedidos:'Menos de 2 pedidos',min_permanencia
 
 async function cargar(){
   const H={'Content-Type':'application/json','Authorization':'Bearer '+token};
-  const desde=new Date(Date.now()-60*864e5).toISOString().slice(0,10), hasta=hoyISO();
+  const desde='2026-07-01', hasta=hoyISO();   // Carme empezó el 1-jul; lo anterior es backlog (email aparte)
   let bajas={}, fallos={}, gest={};
   try{
     const [rb,rf,rg]=await Promise.all([
@@ -206,12 +224,14 @@ async function cargar(){
 
   const sol=(bajas.solicitudes&&bajas.solicitudes.pendientes)||[];
   const der=bajas.derivadas||[];
-  const fa=((fallos.detalle)||[]).filter(it=>((it.desenlace||'abierta').trim().toLowerCase())==='abierta');
+  // Solo fallos ACTIVOS (Appstle sigue reintentando). Excluimos el backlog viejo
+  // (dunning_skipped), que se limpia aparte con el email de "última llamada".
+  const fa=((fallos.detalle)||[]).filter(it=>((it.desenlace||'abierta').trim().toLowerCase())==='abierta' && (it.tipo||'fallo_pago')!=='dunning_skipped');
 
   LISTA=[
-    ...sol.map(s=>({tipo:'baja', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:labelMotivo(s.motivo), dias:s.dias, alerta:s.fuera_de_plazo})),
-    ...der.map(s=>({tipo:'derivada', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:porQue(s), dias:s.dias})),
-    ...fa.map(f=>({tipo:'fallo', nombre:(f.nombre||'').trim(), email:(f.email||'').trim(), phone:(f.telefono||'').trim(), customer_id:'', contract_id:f.contract_id, why:'Fallo de pago'+(f.importe?' · '+String(f.importe).replace('.',',')+' €':''), dias:null})),
+    ...sol.map(s=>({tipo:'baja', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:labelMotivo(s.motivo), dias:s.dias, alerta:s.fuera_de_plazo, fecha:(s.fecha||'').slice(0,10)})),
+    ...der.map(s=>({tipo:'derivada', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:porQue(s), dias:s.dias, fecha:(s.fecha||'').slice(0,10)})),
+    ...fa.map(f=>({tipo:'fallo', nombre:(f.nombre||'').trim(), email:(f.email||'').trim(), phone:(f.telefono||'').trim(), customer_id:'', contract_id:f.contract_id, why:'Fallo de pago'+(f.importe?' · '+String(f.importe).replace('.',',')+' €':''), dias:null, fecha:(f.primer_fallo||'').slice(0,10)})),
   ];
   motivador();
   render();
@@ -231,15 +251,23 @@ function histHtml(caso){
 
 let VIS=[];   // lista exacta que se está pintando (índice de las tarjetas → esta lista)
 function render(){
-  const vivas=LISTA.filter(c=>!gestionadaHoy(c));   // las ya gestionadas hoy desaparecen del día
+  const gestHoy=LISTA.filter(gestionadaHoy).length;                 // ya gestionadas hoy (terminal)
+  let vivas=LISTA.filter(c=>!gestionadaHoy(c));                     // desaparecen del día
+  if(fechaFil) vivas=vivas.filter(c=>c.fecha===fechaFil);          // filtro por día (calendario)
+  // Barra de progreso del día → da sensación de "hay un final"
+  const totalDia=gestHoy+vivas.length, pct=totalDia?Math.round(gestHoy/totalDia*100):0;
+  document.getElementById('progreso').innerHTML = totalDia
+    ? `<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt"><b>${gestHoy}</b> gestionada${gestHoy===1?'':'s'} hoy · quedan <b>${vivas.length}</b></div></div>` : '';
   const counts={todas:vivas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:vivas.filter(x=>x.tipo==='derivada').length, fallo:vivas.filter(x=>x.tipo==='fallo').length};
   const defs=[['todas','Todas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago']];
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
+  document.getElementById('dateClear').style.display=fechaFil?'inline-block':'none';
   VIS = filtro==='todas' ? vivas : vivas.filter(x=>x.tipo===filtro);
-  document.getElementById('left').textContent = VIS.length? `${VIS.length} por llamar` : '¡todo llamado! 🎉';
+  document.getElementById('left').textContent = VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉');
   document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : '<div class="empty">Nada por llamar aquí. 👌</div>';
 }
 function setFiltro(k){ filtro=k; render(); }
+function setFecha(v){ fechaFil=v||''; const el=document.getElementById('dateFil'); if(el) el.value=fechaFil; render(); }
 
 function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
