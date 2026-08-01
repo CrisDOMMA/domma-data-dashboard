@@ -14,25 +14,26 @@
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--ground);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
   .wrap{max-width:1200px;margin:0 auto;padding:22px 20px 90px}
-  .head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px}
+  .head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
   .hi{font-family:ui-rounded,"SF Pro Rounded","Hiragino Maru Gothic ProN",system-ui,sans-serif;font-size:28px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
   .hi span{color:var(--indigo)}
-  .who{text-align:right;font-size:12px;color:var(--muted);font-weight:600}
-  .who select{margin-top:5px;padding:6px 9px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;color:var(--indigo);background:#fff;font-weight:700}
-  .who a{display:block;margin-top:6px;color:var(--muted);font-size:11px;text-decoration:none}
+  .who{display:flex;align-items:center;gap:14px;font-size:12.5px;color:var(--muted);font-weight:600;flex-wrap:wrap;justify-content:flex-end}
+  .soy{display:flex;align-items:center;gap:6px}
+  .who select{padding:6px 9px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;color:var(--indigo);background:#fff;font-weight:700}
+  .who a{color:var(--muted);font-size:12px;text-decoration:none}
+  .who a:hover{color:var(--indigo)}
 
-  .moti{background:linear-gradient(135deg,#1C296A 0%,#39308A 100%);border-radius:20px;padding:20px 20px 18px;color:#fff;box-shadow:0 12px 30px rgba(28,41,106,.22)}
-  .moti-t{font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.8;margin-bottom:12px}
-  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
-  .tile{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:13px 8px;text-align:center}
-  .tile .emo{font-size:22px;line-height:1}
-  .tile .n{font-size:32px;font-weight:800;line-height:1;margin:5px 0 3px;font-variant-numeric:tabular-nums;transition:transform .35s cubic-bezier(.2,1.4,.4,1)}
-  .tile .n.pop{transform:scale(1.35)}
-  .tile .l{font-size:11px;opacity:.85;font-weight:600;line-height:1.2}
-  .streak{font-size:13px;font-weight:600;margin-top:13px;text-align:center;opacity:.92}
-
-  .sect{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:22px 4px 12px}
-  .sect b{color:var(--indigo)}
+  /* Hero: lo más importante (a quién llamar / cuántas quedan), arriba y grande */
+  .hero{margin-bottom:14px}
+  .hero-lbl{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+  .hero-n{font-size:30px;font-weight:800;color:var(--indigo);letter-spacing:-.02em;margin:3px 0 10px;font-variant-numeric:tabular-nums}
+  /* Motivador compacto: una tira */
+  .moti{background:linear-gradient(135deg,#1C296A 0%,#39308A 100%);border-radius:14px;padding:11px 18px;color:#fff;display:flex;align-items:center;gap:20px;flex-wrap:wrap;box-shadow:0 6px 18px rgba(28,41,106,.16);margin-bottom:16px}
+  .moti-t{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;opacity:.72}
+  .mstat{font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .mstat b{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;display:inline-block;transition:transform .35s cubic-bezier(.2,1.4,.4,1)}
+  .mstat b.pop{transform:scale(1.4)}
+  .streak{font-size:12.5px;font-weight:600;opacity:.9;margin-left:auto}
   .fil{display:flex;gap:8px;flex-wrap:wrap}
   .filbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 2px 14px}
   .chipf{font-size:12.5px;padding:6px 13px;border:1.5px solid var(--line);border-radius:20px;background:#fff;cursor:pointer;color:var(--muted);font-weight:700}
@@ -137,24 +138,28 @@
   <div class="head">
     <div class="hi">Hola, <span id="agName">Carme</span> 👋</div>
     <div class="who">
-      <div id="today"></div>
-      Soy: <select id="agSel" onchange="setAg(this.value)"></select>
+      <span id="today"></span>
+      <span class="soy">Soy: <select id="agSel" onchange="setAg(this.value)"></select></span>
       <a href="#" onclick="logout();return false">salir</a>
     </div>
   </div>
 
-  <div class="moti">
-    <div class="moti-t">Hoy has conseguido</div>
-    <div class="tiles">
-      <div class="tile"><div class="emo">💚</div><div class="n" id="n-reten">0</div><div class="l">clientas retenidas</div></div>
-      <div class="tile"><div class="emo">🚀</div><div class="n" id="n-cross">0</div><div class="l">ventas cruzadas</div></div>
-      <div class="tile"><div class="emo">⬆️</div><div class="n" id="n-upsell">0</div><div class="l">upsells</div></div>
-    </div>
-    <div class="streak" id="streak">Empieza el día — cada llamada cuenta 💪</div>
+  <!-- Lo más importante, arriba y grande: a quién llamar y cuántas quedan -->
+  <div class="hero">
+    <div class="hero-lbl">A quién llamar hoy</div>
+    <div class="hero-n" id="left">…</div>
+    <div id="progreso"></div>
   </div>
 
-  <div class="sect">A quién llamar · <b id="left">…</b></div>
-  <div id="progreso"></div>
+  <!-- Motivador compacto (una tira) -->
+  <div class="moti">
+    <span class="moti-t">Hoy has conseguido</span>
+    <span class="mstat">💚 <b id="n-reten">0</b> retenidas</span>
+    <span class="mstat">🚀 <b id="n-cross">0</b> ventas cruzadas</span>
+    <span class="mstat">⬆️ <b id="n-upsell">0</b> upsells</span>
+    <span class="streak" id="streak">cada llamada cuenta 💪</span>
+  </div>
+
   <div class="filbar">
     <div class="fil" id="filtros"></div>
     <div class="filrow">
