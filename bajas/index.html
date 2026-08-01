@@ -367,7 +367,7 @@
   <div class="tabpane" id="tab-llamar" style="display:none">
     <div class="card tablecard">
       <h3>Por llamar <span class="muted" id="llamarCount"></span></h3>
-      <p class="hint">Tu lista de llamadas: <b>solicitudes de baja</b> (plan activo) y <b>derivadas a coach</b> (menos de 2 pedidos, salud, «otro», fallos). Pincha el <b>nombre</b> para su suscripción y <b>Gestionar</b> para registrar la llamada. En <b>ámbar</b>, las que nadie ha llamado. En <b>rojo</b>, las bajas que pasan de 72 h.</p>
+      <p class="hint">Tu lista de llamadas: <b>solicitudes de baja</b> (plan activo) y <b>derivadas a Ana</b> (menos de 2 pedidos, salud, «otro», fallos). Pincha el <b>nombre</b> para su suscripción y <b>Gestionar</b> para registrar la llamada. En <b>ámbar</b>, las que nadie ha llamado. En <b>rojo</b>, las bajas que pasan de 72 h.</p>
       <div class="filters" id="llamarFilters"></div>
       <div class="tablewrap">
         <table>
@@ -696,7 +696,7 @@ function setLlamarFilter(k){ llamarFilter = k; renderLlamar(); }
 function renderLlamar(){
   const nBaja = LLAMAR.filter(x=>x.tipo==='baja').length, nDer = LLAMAR.filter(x=>x.tipo==='derivada').length;
   document.getElementById('llamarCount').textContent = `· ${LLAMAR.length} por llamar`;
-  const defs = [['todas','Todas',LLAMAR.length],['baja','Solicitudes de baja',nBaja],['derivada','Derivadas a coach',nDer]];
+  const defs = [['todas','Todas',LLAMAR.length],['baja','Solicitudes de baja',nBaja],['derivada','Derivadas a Ana',nDer]];
   document.getElementById('llamarFilters').innerHTML = defs.map(([k,l,n])=>
     `<span class="chip ${llamarFilter===k?'on':''}" onclick="setLlamarFilter('${k}')">${l} <b>${n}</b></span>`).join('');
   let list = (llamarFilter==='todas' ? LLAMAR : LLAMAR.filter(x=>x.tipo===llamarFilter))
@@ -971,14 +971,14 @@ function gestPill(g){
 function gestLine(g){ const t=RES_TONE[g.resultado]||''; return `<div class="gest-line"><span class="dispo-pill ${t}">${esc(RES_LABEL[g.resultado]||g.resultado)}</span><span class="gest-line-meta">${g.contacto==='no_localizada'?'no localizada':'localizada'}${g.agente?' · '+esc(g.agente):''} · ${fechaCorta(g.created_at)}</span>${g.nota?`<div class="gest-line-nota">${esc(g.nota)}</div>`:''}</div>`; }
 function histHtml(caso){ const h=histGestiones(caso); if(!h.length) return '<div class="gest-hist-empty">Sin gestiones registradas todavía.</div>'; return '<div class="gest-hist-t">Gestiones anteriores</div>'+h.slice(0,6).map(gestLine).join(''); }
 // Renombra los motivos técnicos a algo accionable en el listado (#5).
-function labelMotivo(m){ const M={gate_2pedidos:'Menos de 2 pedidos · acompañar',min_2_pedidos:'Menos de 2 pedidos · acompañar',min_permanencia:'Aún sin permanencia · acompañar',fallo_pago:'Fallo de pago',coach:'Derivada a coach'}; return M[m]||m||'—'; }
+function labelMotivo(m){ const M={gate_2pedidos:'Menos de 2 pedidos · acompañar',min_2_pedidos:'Menos de 2 pedidos · acompañar',min_permanencia:'Aún sin permanencia · acompañar',fallo_pago:'Fallo de pago',coach:'Derivada a Ana'}; return M[m]||m||'—'; }
 // «Por qué» de una derivada a coach: usa el comentario técnico si lo hay, si no el motivo.
 function porQueDeriv(s){
   const CM={min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Tiene un fallo de pago'};
   const c=(s.comentario||'').trim();
   const cleg = CM[c] || (c && c.length<=60 ? c : '');
   const m = labelMotivo(s.motivo);
-  return cleg || (m && m!=='—' ? m : 'Derivada a coach');
+  return cleg || (m && m!=='—' ? m : 'Derivada a Ana');
 }
 // Estado de llamada de una baja YA resuelta: si hubo gestión la muestra; si no, avisa en rojo.
 function resPill(caso){ const lg=ultimaGestion(caso); return lg ? gestPill(lg) : '<span class="lg-badge bad" title="Se canceló sin ninguna gestión registrada en el panel">Baja sin contactar</span>'; }

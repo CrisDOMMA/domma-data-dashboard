@@ -222,8 +222,8 @@ function arrancar(){
   cargar();
 }
 
-const labelMotivo=m=>({gate_2pedidos:'Menos de 2 pedidos',min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Fallo de pago',coach:'Derivada a coach'}[m]||m||'—');
-function porQue(s){ const CM={min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Tiene un fallo de pago'}; const c=(s.comentario||'').trim(); return CM[c]||(c&&c.length<=60?c:'')||labelMotivo(s.motivo)||'Derivada a coach'; }
+const labelMotivo=m=>({gate_2pedidos:'Menos de 2 pedidos',min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Fallo de pago',coach:'Derivada a Ana'}[m]||m||'—');
+function porQue(s){ const CM={min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Tiene un fallo de pago'}; const c=(s.comentario||'').trim(); return CM[c]||(c&&c.length<=60?c:'')||labelMotivo(s.motivo)||'Derivada a Ana'; }
 
 async function cargar(){
   const H={'Content-Type':'application/json','Authorization':'Bearer '+token};
