@@ -179,7 +179,7 @@
 
 <script>
 const API_BAJAS='https://domma-bajas.cristina-ed1.workers.dev';
-const API_ITEMS='https://gestorsubs-domma.cristina-ed1.workers.dev/failures-since';
+const API_TODAY='https://gestorsubs-domma.cristina-ed1.workers.dev/today';  // fallos activos reales (cifra fiable = /metrics)
 const API_TEL='https://gestorsubs-domma.cristina-ed1.workers.dev/telefonos-shopify';  // rellena el móvil que falta desde Shopify
 const AUTH_API='https://domma-pro-api.cristina-ed1.workers.dev';
 const SHOP_ADMIN='https://admin.shopify.com/store/wearedomma', APPSTLE_APP='subscription-by-rhem';
@@ -227,15 +227,14 @@ function porQue(s){ const CM={min_2_pedidos:'Menos de 2 pedidos',min_permanencia
 
 async function cargar(){
   const H={'Content-Type':'application/json','Authorization':'Bearer '+token};
-  const desde='2026-01-01', hasta=hoyISO();   // pedimos todo; el filtro real es por TIPO (abajo)
-  let bajas={}, fallos={}, gest={};
+  let bajas={}, hoyFallos={}, gest={};
   try{
     const [rb,rf,rg]=await Promise.all([
       fetch(API_BAJAS+'/api/dashboard',{method:'POST',headers:H,body:JSON.stringify({incluir_test:false})}).then(r=>r.json()),
-      fetch(API_ITEMS+'?'+new URLSearchParams({desde,hasta})).then(r=>r.json()).catch(()=>({})),
+      fetch(API_TODAY).then(r=>r.json()).catch(()=>({})),   // fallos ACTIVOS reales de Appstle (sin el bug de fechas de /failures-since)
       fetch(API_BAJAS+'/api/dashboard/gestiones',{method:'POST',headers:H,body:JSON.stringify({limit:500})}).then(r=>r.json()),
     ]);
-    bajas=rb||{}; fallos=rf||{}; gest=rg||{};
+    bajas=rb||{}; hoyFallos=rf||{}; gest=rg||{};
   }catch(e){ document.getElementById('list').innerHTML='<div class="empty">No se pudo cargar. Recarga la página.</div>'; return; }
   if(bajas.error==='no_autorizado'){ logout(); return; }
 
@@ -245,14 +244,15 @@ async function cargar(){
 
   const sol=(bajas.solicitudes&&bajas.solicitudes.pendientes)||[];
   const der=bajas.derivadas||[];
-  // Solo fallos ACTIVOS (Appstle sigue reintentando). Excluimos el backlog viejo
-  // (dunning_skipped), que se limpia aparte con el email de "última llamada".
-  const fa=((fallos.detalle)||[]).filter(it=>((it.desenlace||'abierta').trim().toLowerCase())==='abierta' && (it.tipo||'fallo_pago')!=='dunning_skipped');
+  // Fallos ACTIVOS: /today ya devuelve solo los reales (Appstle reintenta), sin el backlog
+  // dunning_skipped (que se limpia por email) — cifra fiable (= /metrics).
+  const fa=(hoyFallos.failed||[]);
+  const impEur=a=>{ const n=parseFloat(String(a||'').replace(/[^\d.,-]/g,'').replace(',','.'))||0; return n?' · '+n.toFixed(2).replace('.',',')+' €':''; };
 
   LISTA=[
     ...sol.map(s=>({tipo:'baja', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:labelMotivo(s.motivo), dias:s.dias, alerta:s.fuera_de_plazo, fecha:(s.fecha||'').slice(0,10)})),
     ...der.map(s=>({tipo:'derivada', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:porQue(s), dias:s.dias, fecha:(s.fecha||'').slice(0,10)})),
-    ...fa.map(f=>({tipo:'fallo', nombre:(f.nombre||'').trim(), email:(f.email||'').trim(), phone:(f.telefono||'').trim(), customer_id:'', contract_id:f.contract_id, why:'Fallo de pago'+(f.importe?' · '+String(f.importe).replace('.',',')+' €':''), dias:null, fecha:(f.primer_fallo||'').slice(0,10)})),
+    ...fa.map(f=>({tipo:'fallo', nombre:(f.name||'').trim(), email:(f.email||'').trim(), phone:(f.phone||'').trim(), customer_id:'', contract_id:f.contract_id, why:'Fallo de pago'+impEur(f.amount), dias:null, fecha:(f.fail_date||'').slice(0,10)})),
   ];
   motivador();
   render();
