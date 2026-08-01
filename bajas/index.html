@@ -43,11 +43,8 @@
   .err{color:var(--red);font-size:13px;margin-top:10px;min-height:16px}
 
   /* Controls */
-  .controls{display:flex;align-items:flex-end;gap:12px;flex-wrap:nowrap;margin:18px 0 18px;
+  .controls{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:18px 0 18px;
     background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
-  .controls-filters{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;flex:1 1 auto;min-width:0}
-  .export-field{flex:none;align-self:flex-start}
-  @media(max-width:640px){.controls{flex-wrap:wrap}.export-field{align-self:auto;margin-left:auto}}
   .field{display:flex;flex-direction:column;gap:5px}
   .field label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
   .field input,.field select{padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;background:#fff;font-size:13px}
@@ -321,7 +318,6 @@
 
   <!-- CONTROL ÚNICO: mismo patrón que «Acciones retención» -->
   <div class="controls">
-    <div class="controls-filters">
     <div class="field"><label>Rango</label>
       <select id="rango" onchange="usarPreset(this.value)">
         <option value="7d">Últimos 7 días</option>
@@ -346,12 +342,10 @@
     </div>
     <div class="field cmp-cust" id="cmpCust" style="display:none"><label>Comp. desde</label><input type="date" id="cmpDesde"></div>
     <div class="field cmp-cust" id="cmpCust2" style="display:none"><label>Comp. hasta</label><input type="date" id="cmpHasta"></div>
-    <label class="toggle"><input type="checkbox" id="incTest" onchange="load()"> Incluir pruebas</label>
     <button class="btn" onclick="load()">Aplicar</button>
-    </div>
-    <div class="field export-field"><label>&nbsp;</label>
-      <button class="btn ghost" onclick="exportCsv()">↓ Exportar CSV</button>
-    </div>
+    <div class="spacer"></div>
+    <button class="btn ghost" onclick="exportCsv()">↓ Exportar CSV</button>
+    <input type="checkbox" id="incTest" style="display:none">
   </div>
 
   <!-- PESTAÑAS: un trabajo por pestaña -->
