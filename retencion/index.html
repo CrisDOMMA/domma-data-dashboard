@@ -127,6 +127,35 @@
   .fp-agecard.hot{border-color:#E9BFBA;background:#FEF7F6} .fp-agecard.hot .n{color:var(--red)}
   @media(max-width:720px){.fp-hero{grid-template-columns:1fr;gap:18px}.fp-risk{border-right:none;border-bottom:1px solid var(--line);padding:0 0 16px}}
 
+  /* Resumen fallos v2: recuperación (win) + embudo WhatsApp + 2 columnas */
+  .fp-hero{grid-template-columns:.9fr 1.1fr}
+  .fp-win-n{font-size:46px;font-weight:800;line-height:.95;color:var(--green);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .fp-win-u{font-size:13.5px;font-weight:700;color:var(--muted);margin-left:7px}
+  .fp-win-sub{font-size:12.5px;color:var(--muted);margin-top:6px;font-weight:600;line-height:1.4}
+  .fp-types{display:flex;flex-direction:column;gap:8px;margin-top:auto;padding-top:16px}
+  .fp-types-h{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:2px}
+  .fp-trow{display:flex;align-items:center;gap:9px;font-size:13px}
+  .fp-tdot{width:9px;height:9px;border-radius:3px;flex:none}
+  .fp-tname{flex:1;font-weight:600}
+  .fp-tn{font-weight:800;font-variant-numeric:tabular-nums}
+  .fp-tn.soft{color:var(--muted);font-weight:700;font-size:12px}
+  .fp-funnel{display:flex;flex-direction:column;gap:11px;justify-content:center}
+  .fp-frow{display:flex;align-items:center;gap:12px}
+  .fp-flab{width:104px;flex:none;font-size:13px;font-weight:600}
+  .fp-flab small{display:block;color:var(--muted);font-weight:600;font-size:11px}
+  .fp-fbar{flex:1;height:23px;background:var(--track);border-radius:7px;overflow:hidden}
+  .fp-fbar > i{height:100%;display:flex;align-items:center;padding-left:11px;color:#fff;font-weight:800;font-size:12.5px;font-variant-numeric:tabular-nums;border-radius:7px;min-width:2.2em}
+  .fp-fbar.all > i{background:var(--navy)} .fp-fbar.rec > i{background:var(--green)}
+  .fp-pills{display:flex;gap:9px;margin-top:3px;margin-left:116px;flex-wrap:wrap}
+  .fp-pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:9px}
+  .fp-pill b{font-variant-numeric:tabular-nums}
+  .fp-pill.ok{background:#E4F3EC;color:var(--green)} .fp-pill.call{background:#EDEEF4;color:var(--navy)}
+  .fp-warn{background:#FCF3E0;border:1px solid #EAD9A8;border-radius:12px;padding:11px 16px;margin-bottom:14px;font-size:12.8px;color:#8A6206;font-weight:600;display:flex;align-items:flex-start;gap:9px;line-height:1.45}
+  .fp-warn b{color:#6b4d05}
+  .fp-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+  .fp-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 20px}
+  @media(max-width:720px){.fp-cols{grid-template-columns:1fr}.fp-pills{margin-left:0}}
+
   /* Listado individual */
   .listbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
   .listbar input,.listbar select{padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff}
@@ -463,6 +492,7 @@ async function cargarConversion(desde,hasta){
     const d = await getJSON(API_CONV+'?'+q.toString());
     CONV = (d && !d.error) ? d : { error: (d && d.error) || 'sin respuesta' };
   }catch(e){ CONV = { error: e.message }; }
+  construirResumen();  // el embudo del resumen depende de CONV → reconstruir cuando llega
   if(TAB==='conversion'){ const c=document.getElementById('cuerpo'); if(c) c.innerHTML=renderConversion(); }
 }
 
@@ -815,59 +845,111 @@ function renderListado(){
     </div>`;
 }
 
+let LAST_FS = null;
+
 function render(fsA, fsP, cmp){
-  const a=resumir(fsA);
-  const p=cmp?resumir(fsP):null;
-  const hayCmp=!!p;
   document.getElementById('gen').textContent='datos de '+new Date(fsA.generado||Date.parse(hoy())).toLocaleString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  LAST_FS = fsA;
+  construirResumen();
+  document.getElementById('tabs').style.display='flex';
+  setTab(TAB);
+}
 
-  const kpi=(cls,lab,val,sub,dl)=>`<div class="kpi ${cls||''}"><div class="lab">${lab}</div><div class="val">${val}</div>${sub?`<div class="sub">${sub}</div>`:''}${dl||''}</div>`;
-  const pAbi=p?p.abiertas:null, pRie=p?p.enRiesgo:null, pTot=p?p.total:null, pBaj=p?p.bajas:null;
+// Embudo de recuperación por WhatsApp (CONV, por periodo) — hero izquierda (win) + embudo derecha.
+// CONV llega asíncrono: si aún no está, deja un placeholder que se reemplaza al cargar.
+function heroRecuperacion(){
+  const lab = `<div class="fp-lab">Recupera el WhatsApp · ${esc((CONV&&CONV.ventana&&CONV.ventana.desde)||'últimos 30 días')}${CONV&&CONV.ventana?` → ${esc(CONV.ventana.hasta)}`:''}</div>`;
+  if(CONV===null) return `<div class="fp-hero"><div class="loading" style="grid-column:1/-1;padding:26px">Cargando el embudo de WhatsApp…</div></div>`;
+  if(CONV.error) return `<div class="fp-hero"><div style="grid-column:1/-1;color:var(--muted);font-size:13px">Embudo de WhatsApp no disponible ahora (${esc(CONV.error)}).</div></div>`;
 
-  // Activos (Appstle reintenta → a llamar) vs backlog (dunning agotado → email/cancelar)
+  const ent = CONV.entraron||0;
+  const pag = CONV.pagaron||{n:0,pct:null};
+  const toques = CONV.por_toque||[];
+  const cum = toques.map(x=>x.pagados||0);            // acumulado: ya habían pagado antes de ese toque
+  // Recuperadas atribuibles a cada toque = pagaron durante su ventana (antes de que saliera el siguiente).
+  const rec = toques.map((x,i)=> i>=toques.length-1 ? null : (i===0 ? (cum[1]||0) : ((cum[i+1]||0)-(cum[i]||0))));
+  const pend = toques.length ? (toques[toques.length-1].pendientes||0) : 0;
+  const recPct = pag.pct!=null ? pag.pct : (ent? Math.round(1000*pag.n/ent)/10 : 0);
+  const aCarme = Math.max(0, ent - pag.n);
+
+  const toqueRows = toques.map((x,i)=>{
+    const last = i===toques.length-1;
+    const val = rec[i]==null ? `<span class="fp-tn soft">en curso · ${pend} pend.</span>` : `<span class="fp-tn">${rec[i]}</span>`;
+    return `<div class="fp-trow"><span class="fp-tdot" style="background:${last?'#B9BCCB':'var(--green)'}"></span><span class="fp-tname">${esc(x.toque)}</span>${val}</div>`;
+  }).join('');
+
+  return `<div class="fp-hero">
+      <div class="fp-risk">
+        ${lab}
+        <div><span class="fp-win-n">${pag.n}</span><span class="fp-win-u">recuperadas · ${String(recPct).replace('.',',')}%</span></div>
+        <div class="fp-win-sub">pagaron tras el fallo con la secuencia de WhatsApp,<br>sin llegar a la llamada.</div>
+        <div class="fp-types">
+          <div class="fp-types-h">Recuperadas tras cada toque</div>
+          ${toqueRows || '<div class="fp-tn soft">Sin datos en el periodo</div>'}
+        </div>
+      </div>
+      <div class="fp-funnel">
+        <div class="fp-lab" style="margin-bottom:2px">El embudo del periodo</div>
+        <div class="fp-frow"><div class="fp-flab">Entraron<small>en la secuencia</small></div>
+          <div class="fp-fbar all"><i style="width:100%">${ent}</i></div></div>
+        <div class="fp-frow"><div class="fp-flab">Recuperados<small>pagaron sin llamada</small></div>
+          <div class="fp-fbar rec"><i style="width:${Math.max(7,Math.round(ent?100*pag.n/ent:0))}%">${pag.n}</i></div></div>
+        <div class="fp-pills">
+          <span class="fp-pill ok">✅ <b>${pag.n}</b> pagaron por WhatsApp</span>
+          <span class="fp-pill call">📞 <b>${aCarme}</b> sin recuperar → a Carme</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+// Construye el resumen combinando la foto de Appstle (/today, ahora) y el embudo WhatsApp (CONV, periodo).
+function construirResumen(){
+  const fsA = LAST_FS; if(!fsA) return;
+  const a=resumir(fsA);
   const det=fsA.detalle||[];
   const activos=det.filter(x=>(x.tipo||'fallo_pago')!=='dunning_skipped').length;
   const backlog=a.abiertas-activos;
   const riesgoAct=det.filter(x=>(x.tipo||'fallo_pago')!=='dunning_skipped').reduce((s,x)=>s+(parseFloat(x.importe)||0),0);
-
   const riesgoBk = Math.max(0, a.enRiesgo - Math.round(riesgoAct));
   const maxN = Math.max(1, activos, backlog);
 
-  // ── Antigüedad de los activos (los que Carme llama): prioriza los más viejos ──
+  // Antigüedad de los activos (los que Carme llama): prioriza los más viejos.
   const hoyMs = Date.parse(hoy()+'T00:00:00Z');
   const diasDe = f => { const d=(f.primer_fallo||'').slice(0,10); if(!d) return null;
     const ms=Date.parse(d+'T00:00:00Z'); return isFinite(ms) ? Math.floor((hoyMs-ms)/86400000) : null; };
-  const act = det.filter(x=>(x.tipo||'fallo_pago')!=='dunning_skipped');
   let ageR=0, ageM=0, ageV=0;
-  act.forEach(f=>{ const dd=diasDe(f); if(dd!=null && dd>14) ageV++; else if(dd!=null && dd>=7) ageM++; else ageR++; });
+  det.filter(x=>(x.tipo||'fallo_pago')!=='dunning_skipped').forEach(f=>{ const dd=diasDe(f); if(dd!=null && dd>14) ageV++; else if(dd!=null && dd>=7) ageM++; else ageR++; });
 
-  // ══════════ RESUMEN ══════════ (hero dinero-en-riesgo + reparto + antigüedad + 1 acción)
-  PANES.resumen = `
-    <div class="fp-hero">
-      <div class="fp-risk">
+  PANES.resumen = heroRecuperacion() + `
+    <div class="fp-warn">⚠️<span><b>«Pagaron» es un suelo</b> (cuenta las secuencias que se cancelan por pago; alguna paga sin cancelarse). Una <b>persona llamando convierte 33–61%</b> — por eso las que el WhatsApp no recupera pasan a la llamada de Carme.</span></div>
+
+    <div class="fp-cols">
+      <div class="fp-card">
         <div class="fp-lab">Dinero en riesgo · ahora</div>
-        <div class="fp-big">${eur(a.enRiesgo)}</div>
-        <div class="fp-note"><b>${a.abiertas}</b> fallo${a.abiertas===1?'':'s'} de pago sin cobrar.<br>Foto de Appstle en vivo — al pagar una clienta, su fallo desaparece.</div>
-      </div>
-      <div class="fp-split">
-        <div class="fp-srow">
-          <div class="fp-shead"><span class="nm">🔴 Activos · a llamar</span><span class="n">${activos}</span><span class="e">${eur(Math.round(riesgoAct))}</span></div>
-          <div class="fp-sbar a"><i style="width:${Math.round(100*activos/maxN)}%"></i></div>
-          <div class="fp-scap">Appstle sigue reintentando el cobro → recuperables, la lista de Carme.</div>
+        <div class="fp-big" style="font-size:38px">${eur(a.enRiesgo)}</div>
+        <div class="fp-win-sub"><b>${a.abiertas}</b> fallo${a.abiertas===1?'':'s'} sin cobrar · foto de Appstle en vivo</div>
+        <div style="margin-top:15px;display:flex;flex-direction:column;gap:13px">
+          <div class="fp-srow">
+            <div class="fp-shead"><span class="nm">🔴 Activos · a llamar</span><span class="n">${activos}</span><span class="e">${eur(Math.round(riesgoAct))}</span></div>
+            <div class="fp-sbar a"><i style="width:${Math.round(100*activos/maxN)}%"></i></div>
+            <div class="fp-scap">Appstle sigue reintentando → recuperables, la lista de Carme.</div>
+          </div>
+          <div class="fp-srow">
+            <div class="fp-shead"><span class="nm">⚪ Backlog · dunning agotado</span><span class="n">${backlog}</span><span class="e">${eur(riesgoBk)}</span></div>
+            <div class="fp-sbar bk"><i style="width:${Math.round(100*backlog/maxN)}%"></i></div>
+            <div class="fp-scap">Ya no reintenta → email de «última llamada» o decidir cancelar.</div>
+          </div>
         </div>
-        <div class="fp-srow">
-          <div class="fp-shead"><span class="nm">⚪ Backlog · dunning agotado</span><span class="n">${backlog}</span><span class="e">${eur(riesgoBk)}</span></div>
-          <div class="fp-sbar bk"><i style="width:${Math.round(100*backlog/maxN)}%"></i></div>
-          <div class="fp-scap">Ya no reintenta → email de «última llamada» o decidir cancelar.</div>
-        </div>
       </div>
-    </div>
-
-    <div class="sect">Antigüedad de los activos · a quién llamar primero</div>
-    <div class="fp-age">
-      <div class="fp-agecard"><div class="n">${ageR}</div><div class="l">Recientes · ≤7 días</div></div>
-      <div class="fp-agecard"><div class="n">${ageM}</div><div class="l">8–14 días</div></div>
-      <div class="fp-agecard ${ageV?'hot':''}"><div class="n">${ageV}</div><div class="l">+14 días · a punto de agotar reintentos</div></div>
+      <div class="fp-card">
+        <div class="fp-lab">Antigüedad de los activos · a quién llamar primero</div>
+        <div class="fp-age" style="margin-top:13px;margin-bottom:0">
+          <div class="fp-agecard"><div class="n">${ageR}</div><div class="l">Recientes · ≤7 días</div></div>
+          <div class="fp-agecard"><div class="n">${ageM}</div><div class="l">8–14 días</div></div>
+          <div class="fp-agecard ${ageV?'hot':''}"><div class="n">${ageV}</div><div class="l">+14 días · agotando reintentos</div></div>
+        </div>
+        <div class="fp-scap" style="margin-top:11px">Cuanto más viejo el fallo, más cerca de que Appstle deje de reintentar → esos primero.</div>
+      </div>
     </div>
 
     <div class="todo">
@@ -877,8 +959,7 @@ function render(fsA, fsP, cmp){
         <span class="go">Ir a «A quién llamo» → (se añaden a su lista tras 2 toques de WhatsApp + 48 h)</span></button>
     </div>`;
 
-  document.getElementById('tabs').style.display='flex';
-  setTab(TAB);
+  if(TAB==='resumen'){ const c=document.getElementById('cuerpo'); if(c){ c.style.display='block'; c.innerHTML=PANES.resumen; } }
 }
 
 function arrancar(){
