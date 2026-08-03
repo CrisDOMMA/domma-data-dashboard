@@ -263,6 +263,7 @@ async function cargar(){
     const tel=String(f.phone||'').replace(/\D/g,''); const wa=TOQ[n9(f.phone)]||null; const dias=diasDe(f.fail_date);
     return {tipo:'fallo', backlog:!!backlog, nombre:(f.name||'').trim(), email:(f.email||'').trim(), phone:(f.phone||'').trim(),
       customer_id:'', contract_id:f.contract_id, dias, fecha:(f.fail_date||'').slice(0,10),
+      importe: parseFloat(String(f.amount||'').replace(/[^\d.,-]/g,'').replace(',','.'))||null,
       wa: wa?{toque:wa.toque_max, ultimo:(wa.ultimo||'').slice(0,10)}:null, hasTel:!!tel,
       why:'Fallo de pago'+(backlog?' · sin reintentos':'')+impEur(f.amount)+(wa?` · 💬 WhatsApp toque ${wa.toque_max}`:'')};
   };
@@ -272,10 +273,28 @@ async function cargar(){
   const fa=[...(hoyFallos.failed||[]).map(f=>mkFallo(f,false)), ...(hoyFallos.dunning_skipped||[]).map(f=>mkFallo(f,true))]
     .filter(f=> ((f.wa&&f.wa.toque>=2)) || !f.hasTel || (f.dias!=null && f.dias>=5) );
 
+  // Worklist persistente: guardamos los fallos que se muestran para que NO desaparezcan al
+  // pagar la clienta (sale de /today) antes de que Carma registre la gestión. La worklist
+  // devuelve también los que ya pagaron y faltan por registrar → se muestran «✅ ya pagó».
+  const mkFalloResuelto=row=>{ const tel=String(row.phone||'').replace(/\D/g,'');
+    return {tipo:'fallo', backlog:!!row.backlog, resuelto:true, nombre:(row.nombre||'').trim(), email:(row.email||'').trim(),
+      phone:(row.phone||'').trim(), customer_id:String(row.customer_id||''), contract_id:row.contract_id,
+      dias:diasDe(row.fail_date), fecha:(row.fail_date||'').slice(0,10), wa:null, hasTel:!!tel,
+      why:'✅ Ya pagó — registra cómo lo gestionaste'+(row.importe?' · '+Number(row.importe).toFixed(2).replace('.',',')+' €':'')};
+  };
+  let resueltas=[];
+  try{
+    const payload=fa.map(f=>({contract_id:f.contract_id, customer_id:f.customer_id, nombre:f.nombre, email:f.email, phone:f.phone, importe:f.importe, fail_date:f.fecha, backlog:f.backlog}));
+    const wr=await fetch(API_BAJAS+'/api/dashboard/fallos-sync',{method:'POST',headers:H,body:JSON.stringify({fallos:payload})}).then(r=>r.json());
+    const liveIds=new Set([...(hoyFallos.failed||[]), ...(hoyFallos.dunning_skipped||[])].map(f=>nid(f.contract_id)));
+    resueltas=(wr.worklist||[]).filter(row=>!liveIds.has(nid(row.contract_id))).map(mkFalloResuelto);
+  }catch(e){}
+
   LISTA=[
     ...sol.map(s=>({tipo:'baja', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:labelMotivo(s.motivo), dias:s.dias, alerta:s.fuera_de_plazo, fecha:(s.fecha||'').slice(0,10)})),
     ...der.map(s=>({tipo:'derivada', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:porQue(s), dias:s.dias, fecha:(s.fecha||'').slice(0,10)})),
     ...fa,
+    ...resueltas,
   ];
   motivador();
   render();
@@ -330,11 +349,11 @@ function setFecha(v){ fechaFil=v||''; const el=document.getElementById('dateFil'
 
 function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
-  const chip = c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
+  const chip = c.resuelto?'<span class="chip green">✅ Ya pagó</span>':c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
   const nHist=histDe(c).length;
   const meta=(c.email?`✉️ <b>${esc(c.email)}</b>`:'')+(c.email&&c.phone?' · ':'')+(c.phone?`📱 <b>${esc(c.phone)}</b>`:'')+((!c.email&&!c.phone)?'<span style="color:var(--amber)">sin contacto — abre su ficha</span>':'');
-  return `<div class="card" data-state="amber" id="c${i}">
+  return `<div class="card" data-state="${c.resuelto?'green':'amber'}" id="c${i}">
     <div class="stripe"></div>
     <div class="body">
       <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div>${chip}</div>
