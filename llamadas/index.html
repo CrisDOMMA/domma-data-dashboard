@@ -331,6 +331,25 @@ function histInner(caso){
   return h.slice(0,6).map(g=>`<div class="hline"><span class="hpill ${RES_TONE[g.resultado]||''}">${esc(RES_LABEL[g.resultado]||g.resultado)}</span> <span class="hmeta">${g.contacto==='no_localizada'?'no localizada':'localizada'}${g.agente?' · '+esc(g.agente):''} · ${fechaCorta(g.created_at)}</span>${g.nota?`<div class="hnota">${esc(g.nota)}</div>`:''}</div>`).join('');
 }
 
+// Clientas con las que YA se ha hablado (de las gestiones registradas): para reencontrar a
+// alguien aunque su caso ya no esté en la lista. Una tarjeta por clienta (la gestión más
+// reciente), localizada o no. GALL viene ORDER BY created_at DESC → la 1ª por clienta es la última.
+function gestionadasCards(){
+  const seen=new Set(), out=[];
+  for(const g of GALL){
+    if(g.es_test) continue;
+    const key=nid(g.contract_id)||String(g.customer_id||'')||(g.email||'').toLowerCase();
+    if(!key||seen.has(key)) continue; seen.add(key);
+    const t=g.tipo_caso==='fallo_pago'?'fallo':(g.tipo_caso==='baja'?'baja':'derivada');
+    const loc=g.contacto==='no_localizada'?'No localizada':'Localizada';
+    const res=RES_LABEL[g.resultado]||g.resultado||'';
+    out.push({tipo:t, gestionada:true, nombre:g.nombre, email:g.email, phone:g.phone,
+      customer_id:g.customer_id, contract_id:g.contract_id, fecha:(g.created_at||'').slice(0,10),
+      why:`${loc}${res?' · '+res:''}${g.agente?' · '+g.agente:''} · ${fechaCorta(g.created_at)}`});
+  }
+  return out;
+}
+
 let VIS=[];   // lista exacta que se está pintando (índice de las tarjetas → esta lista)
 function render(){
   const gestHoy=LISTA.filter(gestionadaHoy).length;                 // ya gestionadas hoy (terminal)
@@ -340,16 +359,22 @@ function render(){
   const totalDia=gestHoy+vivas.length, pct=totalDia?Math.round(gestHoy/totalDia*100):0;
   document.getElementById('progreso').innerHTML = totalDia
     ? `<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt"><b>${gestHoy}</b> gestionada${gestHoy===1?'':'s'} hoy · quedan <b>${vivas.length}</b></div></div>` : '';
-  const counts={todas:vivas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:vivas.filter(x=>x.tipo==='derivada').length, fallo:vivas.filter(x=>x.tipo==='fallo').length};
-  const defs=[['todas','Todas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago']];
+  const gestList = fechaFil ? gestionadasCards().filter(c=>c.fecha===fechaFil) : gestionadasCards();
+  const counts={todas:vivas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:vivas.filter(x=>x.tipo==='derivada').length, fallo:vivas.filter(x=>x.tipo==='fallo').length, gestionadas:gestList.length};
+  const defs=[['todas','Todas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['gestionadas','✓ Ya habladas']];
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
   document.getElementById('dateClear').style.display=fechaFil?'inline-block':'none';
-  // La búsqueda encuentra a cualquiera (ignora el chip de tipo); sin búsqueda, respeta el chip.
-  VIS = busca
-    ? vivas.filter(c=>((c.nombre||'')+' '+(c.email||'')+' '+(c.phone||'')).toLowerCase().includes(busca))
-    : (filtro==='todas' ? vivas : vivas.filter(x=>x.tipo===filtro));
-  document.getElementById('left').textContent = busca ? `${VIS.length} resultado${VIS.length===1?'':'s'}` : (VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉'));
-  document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${busca?'Ninguna clienta coincide con «'+esc(busca)+'».':'Nada por llamar aquí. 👌'}</div>`;
+  // Búsqueda: encuentra a CUALQUIERA — pendientes de llamar Y ya habladas (aunque su caso ya no
+  // esté en la lista). Sin búsqueda: respeta el chip (incluido «✓ Ya habladas»).
+  const matchB=c=>((c.nombre||'')+' '+(c.email||'')+' '+(c.phone||'')).toLowerCase().includes(busca);
+  if(busca){
+    const seen=new Set(); VIS=[];
+    for(const c of [...vivas, ...gestList]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||''); if(seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
+  } else if(filtro==='gestionadas'){ VIS=gestList; }
+  else { VIS = filtro==='todas' ? vivas : vivas.filter(x=>x.tipo===filtro); }
+  document.getElementById('left').textContent = busca ? `${VIS.length} resultado${VIS.length===1?'':'s'}`
+    : filtro==='gestionadas' ? `${VIS.length} ya hablada${VIS.length===1?'':'s'}` : (VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉'));
+  document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${busca?'Ninguna clienta coincide con «'+esc(busca)+'».':(filtro==='gestionadas'?'Aún no hay clientas gestionadas.':'Nada por llamar aquí. 👌')}</div>`;
 }
 function setBusca(v){ busca=(v||'').toLowerCase().trim(); render(); }
 function setFiltro(k){ filtro=k; render(); }
@@ -357,11 +382,11 @@ function setFecha(v){ fechaFil=v||''; const el=document.getElementById('dateFil'
 
 function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
-  const chip = c.resuelto?'<span class="chip green">✅ Ya pagó</span>':c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
+  const chip = c.resuelto?'<span class="chip green">✅ Ya pagó</span>':c.gestionada?`<span class="chip green">✓ Ya hablada</span>`:c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
   const nHist=histDe(c).length;
   const meta=(c.email?`✉️ <b>${esc(c.email)}</b>`:'')+(c.email&&c.phone?' · ':'')+(c.phone?`📱 <b>${esc(c.phone)}</b>`:'')+((!c.email&&!c.phone)?'<span style="color:var(--amber)">sin contacto — abre su ficha</span>':'');
-  return `<div class="card" data-state="${c.resuelto?'green':'amber'}" id="c${i}">
+  return `<div class="card" data-state="${(c.resuelto||c.gestionada)?'green':'amber'}" id="c${i}">
     <div class="stripe"></div>
     <div class="body">
       <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div>${chip}</div>
