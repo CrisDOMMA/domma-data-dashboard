@@ -47,6 +47,9 @@
   .prog-txt b{color:var(--ink);font-variant-numeric:tabular-nums}
   /* Fila de filtro por día */
   .filrow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-left:auto}
+  .buscador{flex:1 1 100%;padding:11px 15px;border:1.5px solid var(--line);border-radius:12px;font-size:14.5px;font-family:inherit;outline:none;background:#fff;color:var(--ink)}
+  .buscador:focus{border-color:var(--indigo)}
+  .buscador::placeholder{color:var(--muted)}
   .datelbl{font-size:12.5px;font-weight:700;color:var(--muted)}
   #dateFil{padding:7px 10px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:13px;color:var(--ink);background:#fff}
   /* Desktop: columnas anchas → menos scroll y la fila de acciones cabe en una línea */
@@ -170,6 +173,7 @@
   </div>
 
   <div class="filbar">
+    <input type="search" id="buscador" class="buscador" placeholder="🔍 Buscar clienta por nombre, email o teléfono…" oninput="setBusca(this.value)" autocomplete="off">
     <div class="fil" id="filtros"></div>
     <div class="filrow">
       <label class="datelbl">📅 Ver un día:</label>
@@ -200,7 +204,7 @@ const RES_TONE={retenida:'green',cambio_producto:'green',cambio_fecha:'green',ve
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
 (function(){ const m=location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token',decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
 let token=localStorage.getItem('domma_analytics_token')||'';
-let LISTA=[], GEST={byC:{},byCust:{}}, GALL=[], filtro='todas', fechaFil='';
+let LISTA=[], GEST={byC:{},byCust:{}}, GALL=[], filtro='todas', fechaFil='', busca='';
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hoyISO=()=>new Date().toISOString().slice(0,10);
 const nid=v=>String(v==null?'':v).split('.')[0].trim();
@@ -340,10 +344,14 @@ function render(){
   const defs=[['todas','Todas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago']];
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
   document.getElementById('dateClear').style.display=fechaFil?'inline-block':'none';
-  VIS = filtro==='todas' ? vivas : vivas.filter(x=>x.tipo===filtro);
-  document.getElementById('left').textContent = VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉');
-  document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : '<div class="empty">Nada por llamar aquí. 👌</div>';
+  // La búsqueda encuentra a cualquiera (ignora el chip de tipo); sin búsqueda, respeta el chip.
+  VIS = busca
+    ? vivas.filter(c=>((c.nombre||'')+' '+(c.email||'')+' '+(c.phone||'')).toLowerCase().includes(busca))
+    : (filtro==='todas' ? vivas : vivas.filter(x=>x.tipo===filtro));
+  document.getElementById('left').textContent = busca ? `${VIS.length} resultado${VIS.length===1?'':'s'}` : (VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉'));
+  document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${busca?'Ninguna clienta coincide con «'+esc(busca)+'».':'Nada por llamar aquí. 👌'}</div>`;
 }
+function setBusca(v){ busca=(v||'').toLowerCase().trim(); render(); }
 function setFiltro(k){ filtro=k; render(); }
 function setFecha(v){ fechaFil=v||''; const el=document.getElementById('dateFil'); if(el) el.value=fechaFil; render(); }
 
