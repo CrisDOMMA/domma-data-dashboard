@@ -368,7 +368,7 @@ function tarjeta(c,i){
       <div class="cmeta-row"><span class="cmeta">${meta}</span>${nHist?`<a class="histlink" href="#" data-n="${nHist}" onclick="toggleHist(${i},this);return false">Ver historial · ${nHist}</a>`:''}</div>
       <div class="hist" id="hist${i}" hidden>${histInner(c)}</div>
       <div class="actions">
-        ${telH?`<a class="b b-call" href="${telH}">📞 Llamar</a>`:`<span class="b b-call dis" title="No tenemos su teléfono">📞 Llamar</span>`}
+        ${tel?`<button class="b b-call" onclick="llamar('${esc(c.phone)}',this)">📞 Llamar</button>`:`<span class="b b-call dis" title="No tenemos su teléfono">📞 Llamar</span>`}
         ${tel?`<a class="b b-wa" href="#" onclick="wati('${esc(c.phone)}');return false">💬 WhatsApp</a>`:`<span class="b b-wa dis" title="No tenemos su teléfono">💬 WhatsApp</span>`}
         ${c.email?`<a class="b b-email" href="mailto:${esc(c.email)}">✉️ Email</a>`:`<span class="b b-email dis" title="No tenemos su email">✉️ Email</span>`}
         <button class="b b-manage" onclick="reveal(${i})">Registrar</button>
@@ -451,6 +451,18 @@ function motivador(){
 function bump(id,val){ const el=document.getElementById(id); if(el.textContent!=String(val)){ el.textContent=val; el.classList.add('pop'); setTimeout(()=>el.classList.remove('pop'),350);} }
 
 function verSub(cid,ctr){ const c=ctr?nid(ctr):''; if(c){ window.open(SHOP_ADMIN+'/apps/'+APPSTLE_APP+'/dashboard/subscriptions/'+encodeURIComponent(c)+'/detail?details=true','_blank','noopener'); } else if(cid){ window.open(SHOP_ADMIN+'/customers/'+encodeURIComponent(cid),'_blank','noopener'); } }
+// Ringover click-to-call: pide al worker que lance el callback. Suena la app de Ringover de la
+// agente (sesión DOMMA) → contesta → Ringover marca a la clienta. No abre el marcador del móvil.
+async function llamar(phone, btn){
+  const orig=btn.textContent; btn.disabled=true; btn.textContent='📞 Sonando tu Ringover…';
+  try{
+    const r=await fetch(API_BAJAS+'/api/dashboard/ringover-call',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({phone})});
+    const d=await r.json().catch(()=>({}));
+    if(d && d.ok){ btn.textContent='📞 Contesta tu Ringover ✓'; }
+    else { btn.textContent='⚠️ '+((d&&d.error)||'no se pudo'); }
+  }catch(e){ btn.textContent='⚠️ sin conexión'; }
+  setTimeout(()=>{ btn.textContent=orig; btn.disabled=false; }, 4500);
+}
 async function wati(phone){
   const tel=String(phone||'').replace(/\D/g,''); const w=window.open('about:blank','_blank');
   try{ const r=await fetch(API_BAJAS+'/api/dashboard/wati-link',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({phone:tel})}); const d=await r.json().catch(()=>({})); if(d&&d.url){ w.location=d.url; } else { w.location='https://wa.me/'+(tel.length===9?'34'+tel:tel); } }
