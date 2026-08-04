@@ -299,7 +299,7 @@ async function cargar(){
     return {tipo:'fallo', backlog:!!row.backlog, resuelto:true, nombre:(row.nombre||'').trim(), email:(row.email||'').trim(),
       phone:(row.phone||'').trim(), customer_id:String(row.customer_id||''), contract_id:row.contract_id,
       dias:diasDe(row.fail_date), fecha:(row.fail_date||'').slice(0,10), wa:null, hasTel:!!tel,
-      why:'✅ Ya pagó — registra cómo lo gestionaste'+(row.importe?' · '+Number(row.importe).toFixed(2).replace('.',',')+' €':'')};
+      why:'Ha pagado — registra cómo lo gestionaste'+(row.importe?' · '+Number(row.importe).toFixed(2).replace('.',',')+' €':'')};
   };
   let resueltas=[];
   try{
@@ -419,7 +419,7 @@ function setFecha(v){ fechaFil=v||''; const el=document.getElementById('dateFil'
 
 function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
-  const chip = c.resuelto?'<span class="chip green">Ya pagó</span>'
+  const chip = c.resuelto?'<span class="chip green">Ha pagado</span>'
     : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.noLoc?'<span class="chip amber">No contactada</span>':'<span class="chip green">Contactada</span>')
     : c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
