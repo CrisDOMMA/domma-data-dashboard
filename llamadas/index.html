@@ -112,6 +112,13 @@
   .d{border:2px solid var(--line);background:#fff;border-radius:12px;font-family:inherit;font-size:14.5px;font-weight:700;cursor:pointer;padding:13px 12px;text-align:left;color:var(--ink)}
   .d:hover{border-color:var(--indigo)} .d.win:hover{border-color:var(--green)} .d.bad{color:var(--red)} .d.bad:hover{border-color:var(--red)}
   .d.full{grid-column:1/-1}
+  .d.sel{border-color:var(--indigo);background:#EEF0FA}
+  .prox-row{display:flex;align-items:center;gap:10px;margin-top:11px;flex-wrap:wrap}
+  .prox-lbl{font-size:13px;font-weight:700;color:var(--ink)} .prox-lbl span{color:var(--muted);font-weight:600}
+  .proxin{padding:8px 11px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:13.5px;background:#fff;outline:none}
+  .proxin:focus{border-color:var(--indigo)}
+  .hedit{color:var(--indigo);text-decoration:none;font-weight:700;margin-left:6px;white-space:nowrap}
+  .hedit:hover{text-decoration:underline}
   .nota{width:100%;margin-top:9px;padding:9px 11px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:13.5px;resize:vertical;box-sizing:border-box}
   .msg{font-size:13px;font-weight:700;margin-top:8px}
   .done{margin-top:13px;padding:13px 15px;background:var(--green-bg);border-radius:12px;font-size:15.5px;font-weight:800;color:var(--green)}
@@ -169,6 +176,7 @@
     <span class="mstat">💚 <b id="n-reten">0</b> retenidas</span>
     <span class="mstat">🚀 <b id="n-cross">0</b> ventas cruzadas</span>
     <span class="mstat">⬆️ <b id="n-upsell">0</b> upsells</span>
+    <span class="mstat">💰 <b id="n-pagado">0</b> cobros</span>
     <span class="streak" id="streak">cada llamada cuenta 💪</span>
   </div>
 
@@ -195,11 +203,11 @@ const API_TEL='https://gestorsubs-domma.cristina-ed1.workers.dev/telefonos-shopi
 const AUTH_API='https://domma-pro-api.cristina-ed1.workers.dev';
 const SHOP_ADMIN='https://admin.shopify.com/store/wearedomma', APPSTLE_APP='subscription-by-rhem';
 const AGENTES=['Carme','Vale','Ana','Marta'];
-const WINS={retenida:'💚 Retenida', venta_cruzada:'🚀 Venta cruzada', upsell:'⬆️ Upsell'};
+const WINS={retenida:'💚 Retenida', venta_cruzada:'🚀 Venta cruzada', upsell:'⬆️ Upsell', pagado:'💰 Pagado'};
 const RES_LABEL={retenida:'Retenida',cambio_producto:'Cambio de producto',cambio_fecha:'Cambio de fecha',venta_cruzada:'Venta cruzada',upsell:'Upsell',pausa:'Pausa',cancelado:'Cancelado',cancelar:'Cancelar',pendiente:'Volver a llamar',no_contesta:'No contesta',
-  cobro_manual:'Cobro manual',actualizar_pago:'Actualizar el pago',pendiente_cobro:'Pendiente de cobro',cancelar_final:'Cancelar finalmente',cancelar_definitivo:'Cancelar definitivamente'};
+  cobro_manual:'Cobro manual',actualizar_pago:'Actualizar el pago',pendiente_cobro:'Pendiente de cobro',cancelar_final:'Cancelar finalmente',cancelar_definitivo:'Cancelar definitivamente',pagado:'Pagado'};
 const RES_TONE={retenida:'green',cambio_producto:'green',cambio_fecha:'green',venta_cruzada:'green',upsell:'green',pausa:'green',pendiente:'amber',no_contesta:'amber',cancelado:'red',cancelar:'red',
-  cobro_manual:'green',actualizar_pago:'green',pendiente_cobro:'amber',cancelar_final:'red',cancelar_definitivo:'red'};
+  cobro_manual:'green',actualizar_pago:'green',pendiente_cobro:'amber',cancelar_final:'red',cancelar_definitivo:'red',pagado:'green'};
 
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
 (function(){ const m=location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token',decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
@@ -323,29 +331,38 @@ async function enriquecerTelefonos(){
 function histDe(caso){ const c=nid(caso.contract_id); const cu=String(caso.customer_id||''); return (c&&GEST.byC[c])||(cu&&GEST.byCust[cu])||[]; }
 // Resultados que "cierran" el caso por hoy. Los no terminales (volver a llamar / no contesta)
 // mantienen la clienta en la lista, porque hay que reintentarla.
-const TERMINAL=new Set(['retenida','cambio_producto','cambio_fecha','venta_cruzada','upsell','pausa','cancelado','cancelar','cobro_manual','actualizar_pago','pendiente_cobro','cancelar_final','cancelar_definitivo']);
+const TERMINAL=new Set(['retenida','cambio_producto','cambio_fecha','venta_cruzada','upsell','pausa','cancelado','cancelar','cobro_manual','actualizar_pago','pendiente_cobro','cancelar_final','cancelar_definitivo','pagado']);
 function gestionadaHoy(caso){ return histDe(caso).some(g=>String(g.created_at||'').slice(0,10)===hoyISO() && TERMINAL.has(g.resultado)); }
 const fechaCorta=s=>{ if(!s)return''; const d=new Date(String(s).replace(' ','T')+'Z'); return isNaN(d)?esc(s):d.toLocaleDateString('es-ES',{day:'2-digit',month:'short'}); };
-function histInner(caso){
+function histInner(caso, i){
   const h=histDe(caso); if(!h.length) return '';
-  return h.slice(0,6).map(g=>`<div class="hline"><span class="hpill ${RES_TONE[g.resultado]||''}">${esc(RES_LABEL[g.resultado]||g.resultado)}</span> <span class="hmeta">${g.contacto==='no_localizada'?'no localizada':'localizada'}${g.agente?' · '+esc(g.agente):''} · ${fechaCorta(g.created_at)}</span>${g.nota?`<div class="hnota">${esc(g.nota)}</div>`:''}</div>`).join('');
+  return h.slice(0,6).map((g,j)=>{
+    const prox=g.proxima_llamada?` · 📅 próx. ${fechaCorta(g.proxima_llamada)}`:'';
+    const edit=(j===0 && g.id!=null)?` <a href="#" class="hedit" onclick="abrirEdit(${i},'${esc(String(g.id))}');return false">✏️ editar</a>`:'';
+    return `<div class="hline"><span class="hpill ${RES_TONE[g.resultado]||''}">${esc(RES_LABEL[g.resultado]||g.resultado)}</span> <span class="hmeta">${g.contacto==='no_localizada'?'no localizada':'localizada'}${g.agente?' · '+esc(g.agente):''} · ${fechaCorta(g.created_at)}${prox}</span>${edit}${g.nota?`<div class="hnota">${esc(g.nota)}</div>`:''}</div>`;
+  }).join('');
 }
 
 // Clientas con las que YA se ha hablado (de las gestiones registradas): para reencontrar a
 // alguien aunque su caso ya no esté en la lista. Una tarjeta por clienta (la gestión más
 // reciente), localizada o no. GALL viene ORDER BY created_at DESC → la 1ª por clienta es la última.
-function gestionadasCards(){
+// soloContacto: 'localizada' | 'no_localizada' | undefined. Una tarjeta por clienta (su gestión
+// más reciente determina el estado). GALL viene ORDER BY created_at DESC → la 1ª por clienta = la última.
+function gestionadasCards(soloContacto){
   const seen=new Set(), out=[];
   for(const g of GALL){
     if(g.es_test) continue;
     const key=nid(g.contract_id)||String(g.customer_id||'')||(g.email||'').toLowerCase();
     if(!key||seen.has(key)) continue; seen.add(key);
+    const noLoc=g.contacto==='no_localizada';
+    if(soloContacto==='no_localizada' && !noLoc) continue;
+    if(soloContacto==='localizada' && noLoc) continue;
     const t=g.tipo_caso==='fallo_pago'?'fallo':(g.tipo_caso==='baja'?'baja':'derivada');
-    const loc=g.contacto==='no_localizada'?'No localizada':'Localizada';
     const res=RES_LABEL[g.resultado]||g.resultado||'';
-    out.push({tipo:t, gestionada:true, nombre:g.nombre, email:g.email, phone:g.phone,
+    const prox=g.proxima_llamada?` · 📅 próx. ${fechaCorta(g.proxima_llamada)}`:'';
+    out.push({tipo:t, gestionada:true, noLoc, nombre:g.nombre, email:g.email, phone:g.phone,
       customer_id:g.customer_id, contract_id:g.contract_id, fecha:(g.created_at||'').slice(0,10),
-      why:`${loc}${res?' · '+res:''}${g.agente?' · '+g.agente:''} · ${fechaCorta(g.created_at)}`});
+      why:`${noLoc?'No localizada':'Localizada'}${res?' · '+res:''}${g.agente?' · '+g.agente:''} · ${fechaCorta(g.created_at)}${prox}`});
   }
   return out;
 }
@@ -359,22 +376,27 @@ function render(){
   const totalDia=gestHoy+vivas.length, pct=totalDia?Math.round(gestHoy/totalDia*100):0;
   document.getElementById('progreso').innerHTML = totalDia
     ? `<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt"><b>${gestHoy}</b> gestionada${gestHoy===1?'':'s'} hoy · quedan <b>${vivas.length}</b></div></div>` : '';
-  const gestList = fechaFil ? gestionadasCards().filter(c=>c.fecha===fechaFil) : gestionadasCards();
-  const counts={todas:vivas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:vivas.filter(x=>x.tipo==='derivada').length, fallo:vivas.filter(x=>x.tipo==='fallo').length, gestionadas:gestList.length};
-  const defs=[['todas','Todas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['gestionadas','✓ Contactadas']];
+  const dfil=l=>fechaFil?l.filter(c=>c.fecha===fechaFil):l;
+  const contactadas = dfil(gestionadasCards('localizada'));
+  const nolocal     = dfil(gestionadasCards('no_localizada'));
+  const counts={todas:vivas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:vivas.filter(x=>x.tipo==='derivada').length, fallo:vivas.filter(x=>x.tipo==='fallo').length, gestionadas:contactadas.length, nolocal:nolocal.length};
+  const defs=[['todas','Todas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['gestionadas','✓ Contactadas'],['nolocal','☎️ No contactadas']];
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
   document.getElementById('dateClear').style.display=fechaFil?'inline-block':'none';
-  // Búsqueda: encuentra a CUALQUIERA — pendientes de llamar Y ya habladas (aunque su caso ya no
-  // esté en la lista). Sin búsqueda: respeta el chip (incluido «✓ Ya habladas»).
+  // Búsqueda: encuentra a CUALQUIERA — pendientes de llamar + contactadas + no contactadas
+  // (aunque su caso ya no esté en la lista). Sin búsqueda: respeta el chip.
   const matchB=c=>((c.nombre||'')+' '+(c.email||'')+' '+(c.phone||'')).toLowerCase().includes(busca);
   if(busca){
     const seen=new Set(); VIS=[];
-    for(const c of [...vivas, ...gestList]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||''); if(seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
-  } else if(filtro==='gestionadas'){ VIS=gestList; }
+    for(const c of [...vivas, ...contactadas, ...nolocal]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||''); if(seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
+  } else if(filtro==='gestionadas'){ VIS=contactadas; }
+  else if(filtro==='nolocal'){ VIS=nolocal; }
   else { VIS = filtro==='todas' ? vivas : vivas.filter(x=>x.tipo===filtro); }
   document.getElementById('left').textContent = busca ? `${VIS.length} resultado${VIS.length===1?'':'s'}`
-    : filtro==='gestionadas' ? `${VIS.length} contactada${VIS.length===1?'':'s'}` : (VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉'));
-  document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${busca?'Ninguna clienta coincide con «'+esc(busca)+'».':(filtro==='gestionadas'?'Aún no hay clientas gestionadas.':'Nada por llamar aquí. 👌')}</div>`;
+    : filtro==='gestionadas' ? `${VIS.length} contactada${VIS.length===1?'':'s'}`
+    : filtro==='nolocal' ? `${VIS.length} sin contactar` : (VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉'));
+  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin contactar 👌':'Nada por llamar aquí. 👌';
+  document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${vacio}</div>`;
 }
 function setBusca(v){ busca=(v||'').toLowerCase().trim(); render(); }
 function setFiltro(k){ filtro=k; render(); }
@@ -382,16 +404,16 @@ function setFecha(v){ fechaFil=v||''; const el=document.getElementById('dateFil'
 
 function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
-  const chip = c.resuelto?'<span class="chip green">✅ Ya pagó</span>':c.gestionada?`<span class="chip green">✓ Contactada</span>`:c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
+  const chip = c.resuelto?'<span class="chip green">✅ Ya pagó</span>':c.gestionada?(c.noLoc?'<span class="chip amber">☎️ No contactada</span>':'<span class="chip green">✓ Contactada</span>'):c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
   const nHist=histDe(c).length;
   const meta=(c.email?`✉️ <b>${esc(c.email)}</b>`:'')+(c.email&&c.phone?' · ':'')+(c.phone?`📱 <b>${esc(c.phone)}</b>`:'')+((!c.email&&!c.phone)?'<span style="color:var(--amber)">sin contacto — abre su ficha</span>':'');
-  return `<div class="card" data-state="${(c.resuelto||c.gestionada)?'green':'amber'}" id="c${i}">
+  return `<div class="card" data-state="${(c.resuelto||(c.gestionada&&!c.noLoc))?'green':'amber'}" id="c${i}">
     <div class="stripe"></div>
     <div class="body">
       <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div>${chip}</div>
       <div class="cmeta-row"><span class="cmeta">${meta}</span>${nHist?`<a class="histlink" href="#" data-n="${nHist}" onclick="toggleHist(${i},this);return false">Ver historial · ${nHist}</a>`:''}</div>
-      <div class="hist" id="hist${i}" hidden>${histInner(c)}</div>
+      <div class="hist" id="hist${i}" hidden>${histInner(c,i)}</div>
       <div class="actions">
         ${tel?`<button class="b b-call" onclick="llamar('${esc(c.phone)}',this)">📞 Llamar</button>`:`<span class="b b-call dis" title="No tenemos su teléfono">📞 Llamar</span>`}
         ${tel?`<a class="b b-wa" href="#" onclick="wati('${esc(c.phone)}');return false">💬 WhatsApp</a>`:`<span class="b b-wa dis" title="No tenemos su teléfono">💬 WhatsApp</span>`}
@@ -405,7 +427,7 @@ function tarjeta(c,i){
 function toggleHist(i,el){ const d=document.getElementById('hist'+i); if(!d)return; d.hidden=!d.hidden; el.textContent=(d.hidden?'Ver':'Ocultar')+' historial · '+el.dataset.n; }
 function reveal(i){
   const d=document.getElementById('d'+i);
-  d.hidden=false; d.dataset.c='';
+  d.hidden=false; d.dataset.c=''; d.dataset.edit='';
   d.innerHTML=`<div class="dispo-head"><span class="dispo-title">Registrar la llamada</span><button class="dispo-close" onclick="cerrar(${i})">✕ Cerrar</button></div>
     <div class="dispo-q">¿Has podido hablar con ella?</div>
     <div class="seg"><button class="segb" onclick="paso2(${i},'localizada',this)">Sí, localizada</button><button class="segb" onclick="paso2(${i},'no_localizada',this)">No localizada</button></div>
@@ -413,16 +435,16 @@ function reveal(i){
   d.scrollIntoView({block:'nearest'});
 }
 function cerrar(i){ const d=document.getElementById('d'+i); if(d){ d.hidden=true; d.innerHTML=''; } }
-function paso2(i,contacto,btn){
+function paso2(i,contacto,btn,pre){
   const caso=VIS[i];
-  document.getElementById('d'+i).querySelectorAll('.segb').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+  document.getElementById('d'+i).querySelectorAll('.segb').forEach(b=>b.classList.remove('on')); if(btn) btn.classList.add('on');
   let botones;
   if(caso.tipo==='fallo'){
     // Disposición de FALLOS DE PAGO (spec de Carme)
     if(contacto==='no_localizada'){
-      botones=[['cobro_manual','💳 Cobro manual',''],['pausa','⏸️ Pausa',''],['cancelar_definitivo','❌ Cancelar definitivamente','full bad'],['pendiente','⏳ Pendiente · volver a intentar','full']];
+      botones=[['pagado','💰 Pagado','win'],['cobro_manual','💳 Cobro manual',''],['pausa','⏸️ Pausa',''],['cancelar_definitivo','❌ Cancelar definitivamente','full bad'],['pendiente','⏳ Pendiente · volver a intentar','full']];
     } else {
-      botones=[['cobro_manual','💳 Cobro manual',''],['actualizar_pago','🔄 Actualizar el pago',''],['pendiente_cobro','📅 Pendiente de cobro',''],['cancelar_final','❌ Cancelar finalmente','full bad']];
+      botones=[['pagado','💰 Pagado','win'],['cobro_manual','💳 Cobro manual',''],['actualizar_pago','🔄 Actualizar el pago',''],['pendiente_cobro','📅 Pendiente de cobro',''],['cancelar_final','❌ Cancelar finalmente','full bad']];
     }
   } else {
     // Disposición de BAJAS y DERIVADAS (spec de Carme + Upsell)
@@ -433,43 +455,73 @@ function paso2(i,contacto,btn){
     }
   }
   document.getElementById('res'+i).innerHTML=
-    `<div class="dgrid">${botones.map(([r,l,cls])=>`<button class="d ${cls}" onclick="guardar(${i},'${contacto}','${r}',this)">${l}</button>`).join('')}</div>
-     <textarea class="nota" id="nota${i}" rows="2" placeholder="Nota (opcional): qué dijo, próximo paso…"></textarea>
+    `<div class="dgrid">${botones.map(([r,l,cls])=>`<button class="d ${cls}${pre&&pre.resultado===r?' sel':''}" onclick="guardar(${i},'${contacto}','${r}',this)">${l}</button>`).join('')}</div>
+     <div class="prox-row"><label class="prox-lbl">📅 Próxima llamada <span>(opcional)</span></label><input type="date" id="prox${i}" class="proxin" value="${pre&&pre.prox?esc(String(pre.prox).slice(0,10)):''}"></div>
+     <textarea class="nota" id="nota${i}" rows="2" placeholder="Nota (opcional): qué dijo, próximo paso…">${pre&&pre.nota?esc(pre.nota):''}</textarea>
      <div class="msg" id="msg${i}"></div>`;
 }
+// Reconstruye los índices GEST a partir de GALL (más reciente primero). Tras registrar o editar.
+function rebuildGEST(){ GEST={byC:{},byCust:{}}; GALL.forEach(g=>{ const c=nid(g.contract_id),cu=String(g.customer_id||''); if(c)(GEST.byC[c]=GEST.byC[c]||[]).push(g); if(cu)(GEST.byCust[cu]=GEST.byCust[cu]||[]).push(g); }); }
+
 async function guardar(i,contacto,resultado,btn){
   const caso=VIS[i];
-  const msg=document.getElementById('msg'+i); msg.textContent='Guardando…'; msg.style.color='var(--muted)';
+  const dispo=document.getElementById('d'+i);
+  const editId=dispo?dispo.dataset.edit:'';
+  const msg=document.getElementById('msg'+i); msg.textContent=editId?'Actualizando…':'Guardando…'; msg.style.color='var(--muted)';
   document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=true);
-  const body={tipo_caso:caso.tipo==='fallo'?'fallo_pago':'baja', customer_id:caso.customer_id||'', contract_id:caso.contract_id||'', nombre:caso.nombre||'', email:caso.email||'', phone:caso.phone||'', contacto, resultado, agente:agActual(), nota:(document.getElementById('nota'+i).value||'').trim()};
+  const prox=(document.getElementById('prox'+i)||{}).value||'';
+  const nota=(document.getElementById('nota'+i).value||'').trim();
   try{
+    if(editId){
+      // ── EDITAR una gestión ya registrada ──
+      const r=await fetch(API_BAJAS+'/api/dashboard/gestion-editar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({id:editId, contacto, resultado, nota, proxima_llamada:prox})});
+      const d=await r.json();
+      if(!d||!d.ok){ msg.textContent='No se pudo actualizar'; msg.style.color='var(--red)'; document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=false); return; }
+      const idx=GALL.findIndex(x=>String(x.id)===String(editId)); if(idx>=0 && d.gestion) GALL[idx]=d.gestion;
+      rebuildGEST();
+      if(WINS[resultado]){ motivador(); celebrate(); }
+      render();
+      return;
+    }
+    // ── REGISTRAR una gestión nueva ──
+    const body={tipo_caso:caso.tipo==='fallo'?'fallo_pago':'baja', customer_id:caso.customer_id||'', contract_id:caso.contract_id||'', nombre:caso.nombre||'', email:caso.email||'', phone:caso.phone||'', contacto, resultado, agente:agActual(), nota, proxima_llamada:prox};
     const r=await fetch(API_BAJAS+'/api/dashboard/gestion',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
     const d=await r.json();
     if(!d||!d.ok){ msg.textContent='No se pudo guardar'; msg.style.color='var(--red)'; document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=false); return; }
     const g=d.gestion||{...body,created_at:hoyISO()};
-    GALL.unshift(g);
-    const c=nid(body.contract_id), cu=String(body.customer_id||'');
-    if(c){(GEST.byC[c]=GEST.byC[c]||[]).unshift(g);} if(cu){(GEST.byCust[cu]=GEST.byCust[cu]||[]).unshift(g);}
+    GALL.unshift(g); rebuildGEST();
     const card=document.getElementById('c'+i);
-    const state = RES_TONE[resultado] || 'amber';
-    card.dataset.state=state;
+    card.dataset.state = RES_TONE[resultado] || 'amber';
     card.querySelector('.dispo').hidden=true; card.querySelector('.actions').style.display='none';
     const done=document.getElementById('done'+i); done.hidden=false;
-    done.textContent=(WINS[resultado]?'🎉 ':'')+(RES_LABEL[resultado]||resultado)+(WINS[resultado]?' · ¡bien hecho!':'');
+    done.textContent=(WINS[resultado]?'🎉 ':'')+(RES_LABEL[resultado]||resultado)+(WINS[resultado]?' · ¡bien hecho!':'')+(prox?' · 📅 próx. '+fechaCorta(prox):'');
     if(WINS[resultado]){ motivador(); celebrate(); }
     // Gestión terminal → la clienta sale de la lista del día (se desvanece). «Volver a
     // llamar» / «no contesta» NO son terminales: se quedan para reintentar.
     if(TERMINAL.has(resultado)){ card.style.transition='opacity .5s,transform .5s'; setTimeout(()=>{ card.style.opacity='0'; card.style.transform='translateX(12px)'; }, WINS[resultado]?1100:500); setTimeout(render, WINS[resultado]?1700:1050); }
+    else { setTimeout(render, 900); }
   }catch(e){ msg.textContent='Error de conexión'; msg.style.color='var(--red)'; document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=false); }
+}
+// Abre la disposición para EDITAR la última gestión de una clienta (corregir estado / próxima
+// llamada). Pre-rellena contacto, resultado, nota y fecha; guardar() la actualiza por id.
+function abrirEdit(i,gId){
+  const g=GALL.find(x=>String(x.id)===String(gId)); if(!g) return;
+  const d=document.getElementById('d'+i); d.hidden=false; d.dataset.edit=String(gId);
+  d.innerHTML=`<div class="dispo-head"><span class="dispo-title">Editar la gestión</span><button class="dispo-close" onclick="cerrar(${i})">✕ Cerrar</button></div>
+    <div class="dispo-q">¿Has podido hablar con ella?</div>
+    <div class="seg"><button class="segb${g.contacto!=='no_localizada'?' on':''}" onclick="paso2(${i},'localizada',this)">Sí, localizada</button><button class="segb${g.contacto==='no_localizada'?' on':''}" onclick="paso2(${i},'no_localizada',this)">No localizada</button></div>
+    <div id="res${i}"></div>`;
+  paso2(i, g.contacto==='no_localizada'?'no_localizada':'localizada', null, {resultado:g.resultado, nota:g.nota, prox:g.proxima_llamada});
+  d.scrollIntoView({block:'nearest'});
 }
 
 function motivador(){
   const ag=agActual(), hoy=hoyISO();
   const mios=GALL.filter(g=>g.agente===ag && String(g.created_at||'').slice(0,10)===hoy);
-  const n={retenida:0,venta_cruzada:0,upsell:0};
-  mios.forEach(g=>{ if(n[g.resultado]!=null) n[g.resultado]++; });
-  bump('n-reten',n.retenida); bump('n-cross',n.venta_cruzada); bump('n-upsell',n.upsell);
-  const total=n.retenida+n.venta_cruzada+n.upsell;
+  const n={retenida:0,venta_cruzada:0,upsell:0}; let cobros=0;
+  mios.forEach(g=>{ if(n[g.resultado]!=null) n[g.resultado]++; if(g.resultado==='pagado'||g.resultado==='cobro_manual'||g.resultado==='actualizar_pago') cobros++; });
+  bump('n-reten',n.retenida); bump('n-cross',n.venta_cruzada); bump('n-upsell',n.upsell); bump('n-pagado',cobros);
+  const total=n.retenida+n.venta_cruzada+n.upsell+cobros;
   const frases=['Empieza el día — cada llamada cuenta 💪','¡Vas genial! Sigue así 💪','¡Imparable! 🔥','¡Qué crack! 🌟','¡El equipo lo nota 💜!'];
   document.getElementById('streak').textContent=frases[Math.min(total,frases.length-1)];
 }
