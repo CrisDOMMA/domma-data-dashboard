@@ -184,6 +184,7 @@
     <input type="search" id="buscador" class="buscador" placeholder="🔍 Buscar clienta por nombre, email o teléfono…" oninput="setBusca(this.value)" autocomplete="off">
     <div class="fil" id="filtros"></div>
     <div class="filrow">
+      <button class="chipf" id="ordenBtn" onclick="toggleOrden()" title="Prioriza a las clientas que llevan más tiempo esperando">↑ Más antiguas primero</button>
       <label class="datelbl">📅 Ver un día:</label>
       <input type="date" id="dateFil" onchange="setFecha(this.value)">
       <button class="chipf" id="dateClear" style="display:none" onclick="setFecha('')">✕ todos</button>
@@ -212,7 +213,7 @@ const RES_TONE={retenida:'green',cambio_producto:'green',cambio_fecha:'green',ve
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
 (function(){ const m=location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token',decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
 let token=localStorage.getItem('domma_analytics_token')||'';
-let LISTA=[], GEST={byC:{},byCust:{}}, GALL=[], filtro='todas', fechaFil='', busca='';
+let LISTA=[], GEST={byC:{},byCust:{}}, GALL=[], filtro='todas', fechaFil='', busca='', orden='antiguas';
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hoyISO=()=>new Date().toISOString().slice(0,10);
 const nid=v=>String(v==null?'':v).split('.')[0].trim();
@@ -392,6 +393,8 @@ function render(){
   } else if(filtro==='gestionadas'){ VIS=contactadas; }
   else if(filtro==='nolocal'){ VIS=nolocal; }
   else { VIS = filtro==='todas' ? vivas : vivas.filter(x=>x.tipo===filtro); }
+  // Ordenar por antigüedad (por defecto, las que llevan más tiempo esperando primero).
+  VIS = VIS.slice().sort((a,b)=> orden==='antiguas' ? diasEspera(b)-diasEspera(a) : diasEspera(a)-diasEspera(b));
   document.getElementById('left').textContent = busca ? `${VIS.length} resultado${VIS.length===1?'':'s'}`
     : filtro==='gestionadas' ? `${VIS.length} contactada${VIS.length===1?'':'s'}`
     : filtro==='nolocal' ? `${VIS.length} sin contactar` : (VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉'));
@@ -399,6 +402,9 @@ function render(){
   document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${vacio}</div>`;
 }
 function setBusca(v){ busca=(v||'').toLowerCase().trim(); render(); }
+function toggleOrden(){ orden = orden==='antiguas'?'recientes':'antiguas'; const b=document.getElementById('ordenBtn'); if(b) b.textContent = orden==='antiguas'?'↑ Más antiguas primero':'↓ Más recientes primero'; render(); }
+// Días de espera de un caso: usa `dias` (pendientes) o los días desde la fecha (gestionadas).
+function diasEspera(c){ if(c.dias!=null) return c.dias; const f=(c.fecha||'').slice(0,10); if(!f) return -1; const ms=Date.parse(f+'T00:00:00Z'); return isFinite(ms)?Math.floor((Date.now()-ms)/864e5):-1; }
 function setFiltro(k){ filtro=k; render(); }
 function setFecha(v){ fechaFil=v||''; const el=document.getElementById('dateFil'); if(el) el.value=fechaFil; render(); }
 
