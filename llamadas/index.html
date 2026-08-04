@@ -103,14 +103,14 @@
   .dispo{margin-top:15px;padding-top:13px;border-top:1px dashed var(--line)}
   .dispo-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
   .dispo-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
-  .dispo-close{border:2px solid var(--line);background:#fff;color:var(--muted);font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;padding:8px 14px;border-radius:10px}
-  .dispo-close:hover{border-color:var(--red);color:var(--red)}
+  .dispo-close{border:none;background:none;color:var(--muted);font-family:inherit;font-size:20px;line-height:1;font-weight:700;cursor:pointer;padding:2px 6px;border-radius:8px}
+  .dispo-close:hover{color:var(--red);background:var(--ground)}
   .dispo-q{font-size:14px;font-weight:800;margin-bottom:10px}
   .seg{display:flex;gap:9px;margin-bottom:12px}
   .segb{flex:1;padding:12px;border:2px solid var(--line);border-radius:12px;background:#fff;font-size:14.5px;font-weight:800;color:var(--indigo);cursor:pointer;font-family:inherit}
   .segb.on{border-color:var(--indigo);background:#F1F2FA}
   .dgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-  .d{border:2px solid var(--line);background:#fff;border-radius:12px;font-family:inherit;font-size:14.5px;font-weight:700;cursor:pointer;padding:13px 12px;text-align:left;color:var(--ink)}
+  .d{border:1.5px solid var(--line);background:#fff;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;padding:9px 11px;text-align:left;color:var(--ink);line-height:1.2}
   .d:hover{border-color:var(--indigo)} .d.win:hover{border-color:var(--green)} .d.bad{color:var(--red)} .d.bad:hover{border-color:var(--red)}
   .d.full{grid-column:1/-1}
   .d.sel{border-color:var(--indigo);background:#EEF0FA}
@@ -206,6 +206,7 @@ const AUTH_API='https://domma-pro-api.cristina-ed1.workers.dev';
 const SHOP_ADMIN='https://admin.shopify.com/store/wearedomma', APPSTLE_APP='subscription-by-rhem';
 const AGENTES=['Carme','Vale','Ana','Marta'];
 const WINS={retenida:'💚 Retenida', venta_cruzada:'🚀 Venta cruzada', upsell:'⬆️ Upsell', pagado:'💰 Pagado'};
+const COBROS=new Set(['pagado','cobro_manual','actualizar_pago']);   // resultados = clienta cobrada
 const RES_LABEL={retenida:'Retenida',cambio_producto:'Cambio de producto',cambio_fecha:'Cambio de fecha',venta_cruzada:'Venta cruzada',upsell:'Upsell',pausa:'Pausa',cancelado:'Cancelado',cancelar:'Cancelar',pendiente:'Volver a llamar',no_contesta:'No contesta',
   cobro_manual:'Cobro manual',actualizar_pago:'Actualizar el pago',pendiente_cobro:'Pendiente de cobro',cancelar_final:'Cancelar finalmente',cancelar_definitivo:'Cancelar definitivamente',pagado:'Pagado'};
 const RES_TONE={retenida:'green',cambio_producto:'green',cambio_fecha:'green',venta_cruzada:'green',upsell:'green',pausa:'green',pendiente:'amber',no_contesta:'amber',cancelado:'red',cancelar:'red',
@@ -362,7 +363,7 @@ function gestionadasCards(soloContacto){
     const t=g.tipo_caso==='fallo_pago'?'fallo':(g.tipo_caso==='baja'?'baja':'derivada');
     const res=RES_LABEL[g.resultado]||g.resultado||'';
     const prox=g.proxima_llamada?` · 📅 próx. ${fechaCorta(g.proxima_llamada)}`:'';
-    out.push({tipo:t, gestionada:true, noLoc, nombre:g.nombre, email:g.email, phone:g.phone,
+    out.push({tipo:t, gestionada:true, noLoc, cobrada:COBROS.has(g.resultado), nombre:g.nombre, email:g.email, phone:g.phone,
       customer_id:g.customer_id, contract_id:g.contract_id, fecha:(g.created_at||'').slice(0,10),
       why:`${noLoc?'No localizada':'Localizada'}${res?' · '+res:''}${g.agente?' · '+g.agente:''} · ${fechaCorta(g.created_at)}${prox}`});
   }
@@ -411,7 +412,7 @@ function setFecha(v){ fechaFil=v||''; const el=document.getElementById('dateFil'
 
 function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
-  const chip = c.resuelto?'<span class="chip green">✅ Ya pagó</span>':c.gestionada?(c.noLoc?'<span class="chip amber">☎️ No contactada</span>':'<span class="chip green">✓ Contactada</span>'):c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
+  const chip = c.resuelto?'<span class="chip green">✅ Ya pagó</span>':c.gestionada?(c.cobrada?'<span class="chip green">💰 Cobrada</span>':c.noLoc?'<span class="chip amber">☎️ No contactada</span>':'<span class="chip green">✓ Contactada</span>'):c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
   const nHist=histDe(c).length;
   const meta=(c.email?`✉️ <b>${esc(c.email)}</b>`:'')+(c.email&&c.phone?' · ':'')+(c.phone?`📱 <b>${esc(c.phone)}</b>`:'')+((!c.email&&!c.phone)?'<span style="color:var(--amber)">sin contacto — abre su ficha</span>':'');
@@ -435,7 +436,7 @@ function toggleHist(i,el){ const d=document.getElementById('hist'+i); if(!d)retu
 function reveal(i){
   const d=document.getElementById('d'+i);
   d.hidden=false; d.dataset.c=''; d.dataset.edit='';
-  d.innerHTML=`<div class="dispo-head"><span class="dispo-title">Registrar la llamada</span><button class="dispo-close" onclick="cerrar(${i})">✕ Cerrar</button></div>
+  d.innerHTML=`<div class="dispo-head"><span class="dispo-title">Registrar la llamada</span><button class="dispo-close" onclick="cerrar(${i})" title="Cerrar">✕</button></div>
     <div class="dispo-q">¿Has podido hablar con ella?</div>
     <div class="seg"><button class="segb" onclick="paso2(${i},'localizada',this)">Sí, localizada</button><button class="segb" onclick="paso2(${i},'no_localizada',this)">No localizada</button></div>
     <div id="res${i}"></div>`;
@@ -449,16 +450,16 @@ function paso2(i,contacto,btn,pre){
   if(caso.tipo==='fallo'){
     // Disposición de FALLOS DE PAGO (spec de Carme)
     if(contacto==='no_localizada'){
-      botones=[['pagado','💰 Pagado','win'],['cobro_manual','💳 Cobro manual',''],['pausa','⏸️ Pausa',''],['cancelar_definitivo','❌ Cancelar definitivamente','full bad'],['pendiente','⏳ Pendiente · volver a intentar','full']];
+      botones=[['pagado','💰 Pagado','win'],['cobro_manual','💳 Cobro manual',''],['pausa','⏸️ Pausa',''],['pendiente','⏳ Volver a intentar',''],['cancelar_definitivo','❌ Cancelar','bad']];
     } else {
-      botones=[['pagado','💰 Pagado','win'],['cobro_manual','💳 Cobro manual',''],['actualizar_pago','🔄 Actualizar el pago',''],['pendiente_cobro','📅 Pendiente de cobro',''],['cancelar_final','❌ Cancelar finalmente','full bad']];
+      botones=[['pagado','💰 Pagado','win'],['cobro_manual','💳 Cobro manual',''],['actualizar_pago','🔄 Actualizar pago',''],['pausa','⏸️ Pausa',''],['pendiente_cobro','📅 Pendiente cobro',''],['cancelar_final','❌ Cancelar','bad']];
     }
   } else {
     // Disposición de BAJAS y DERIVADAS (spec de Carme + Upsell)
     if(contacto==='no_localizada'){
-      botones=[['pausa','⏸️ Pausa',''],['pendiente','⏳ Pendiente · volver a llamar','full'],['cancelar','❌ Cancelar','full bad']];
+      botones=[['pausa','⏸️ Pausa',''],['pendiente','⏳ Volver a llamar',''],['cancelar','❌ Cancelar','bad']];
     } else {
-      botones=[['pausa','⏸️ Pausa',''],['cambio_producto','🔄 Cambio de producto',''],['cambio_fecha','📅 Cambio de fecha',''],['venta_cruzada','🚀 Venta cruzada','win'],['retenida','💚 Retenida','win'],['upsell','⬆️ Upsell','win'],['cancelado','❌ Cancelado','full bad']];
+      botones=[['pausa','⏸️ Pausa',''],['cambio_producto','🔄 Cambio producto',''],['cambio_fecha','📅 Cambio fecha',''],['venta_cruzada','🚀 Venta cruzada','win'],['retenida','💚 Retenida','win'],['upsell','⬆️ Upsell','win'],['cancelado','❌ Cancelado','bad']];
     }
   }
   document.getElementById('res'+i).innerHTML=
@@ -514,7 +515,7 @@ async function guardar(i,contacto,resultado,btn){
 function abrirEdit(i,gId){
   const g=GALL.find(x=>String(x.id)===String(gId)); if(!g) return;
   const d=document.getElementById('d'+i); d.hidden=false; d.dataset.edit=String(gId);
-  d.innerHTML=`<div class="dispo-head"><span class="dispo-title">Editar la gestión</span><button class="dispo-close" onclick="cerrar(${i})">✕ Cerrar</button></div>
+  d.innerHTML=`<div class="dispo-head"><span class="dispo-title">Editar la gestión</span><button class="dispo-close" onclick="cerrar(${i})" title="Cerrar">✕</button></div>
     <div class="dispo-q">¿Has podido hablar con ella?</div>
     <div class="seg"><button class="segb${g.contacto!=='no_localizada'?' on':''}" onclick="paso2(${i},'localizada',this)">Sí, localizada</button><button class="segb${g.contacto==='no_localizada'?' on':''}" onclick="paso2(${i},'no_localizada',this)">No localizada</button></div>
     <div id="res${i}"></div>`;
