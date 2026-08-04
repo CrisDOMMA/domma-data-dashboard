@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>DOMMA · Incidencias de pedido</title>
+<style>
+  :root{
+    --navy:#1C296A; --navy-2:#2C3A85; --bg:#F8F7F5; --card:#ffffff;
+    --text:#101637; --muted:#6A6E85; --border:#E7E4DE; --line:#EFEDE8;
+    --green:#1F9D6B; --amber:#C8860A; --red:#C0453B; --track:#EFEDF0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  a{color:var(--navy)}
+  .wrap{max-width:1200px;margin:0 auto;padding:24px 20px 80px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+  .brand h1{font-size:20px;font-weight:650;margin:0;letter-spacing:-.01em}
+  .brand .tag{font-size:12px;color:var(--muted);margin-top:2px}
+  .muted{color:var(--muted)}
+  html.embed header{display:none}
+
+  /* Login */
+  .overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .login{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 40px rgba(28,41,106,.08);padding:34px 30px;width:360px;text-align:center}
+  .login h2{font-size:19px;margin:0 0 4px}
+  .login p{font-size:13px;color:var(--muted);margin:0 0 20px}
+  input,select,textarea{font-family:inherit;font-size:14px}
+  .login input{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:9px;outline:none;margin-bottom:12px}
+  .login input:focus{border-color:var(--navy)}
+  .btn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:12px 18px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+  .btn:hover{background:var(--navy-2)}
+  .btn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--border)}
+  .btn.ghost:hover{border-color:var(--navy)}
+  .login .btn{width:100%}
+  .err{color:var(--red);font-size:13px;margin-top:10px;min-height:16px}
+
+  /* Controls */
+  .controls{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:0 0 18px;
+    background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .field input,.field select{padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;background:#fff;font-size:13px}
+  .field input:focus,.field select:focus{border-color:var(--navy)}
+  .spacer{flex:1}
+
+  /* Tabs internas */
+  .tabs{display:flex;gap:4px;border-bottom:1.5px solid var(--border);margin-bottom:22px;flex-wrap:wrap}
+  .tab{background:none;border:none;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;
+    padding:10px 14px;font-size:13.5px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit;
+    display:flex;align-items:center;gap:7px}
+  .tab:hover{color:var(--text)}
+  .tab.on{color:var(--navy);border-bottom-color:var(--navy)}
+  .badge{background:var(--red);color:#fff;font-size:10.5px;font-weight:700;border-radius:20px;padding:1px 6px;min-width:17px;text-align:center}
+  .badge.calm{background:var(--track);color:var(--muted)}
+
+  .sect{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:26px 0 10px}
+
+  /* KPIs */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+  @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:15px 16px}
+  .kpi .l{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+  .kpi .n{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+  .kpi .s{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.35}
+  .kpi.hero{background:linear-gradient(135deg,#1C296A,#2C3A85);border-color:#1C296A;color:#fff}
+  .kpi.hero .l{color:#C9CEEA} .kpi.hero .s{color:#C9CEEA}
+  .kpi .n.green{color:var(--green)} .kpi .n.red{color:var(--red)} .kpi .n.amber{color:var(--amber)}
+
+  /* Cards + bar rows */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 18px 20px}
+  .card h3{font-size:14px;font-weight:650;margin:0 0 3px}
+  .card .hint{font-size:12px;color:var(--muted);margin:0 0 14px}
+  .row{margin-bottom:11px}
+  .row .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;gap:10px}
+  .row .top .lbl{font-weight:550}
+  .row .top .val{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .row .top .val em{font-style:normal;font-weight:650}
+  .bar{height:9px;background:var(--track);border-radius:6px;overflow:hidden;display:flex}
+  .seg{height:100%}
+  .seg.a{background:var(--navy)} .seg.b{background:var(--amber)} .seg.c{background:var(--green)} .seg.d{background:var(--red)} .seg.e{background:#B9BCCB}
+  .legend{display:flex;gap:16px;font-size:11.5px;color:var(--muted);margin-top:12px;flex-wrap:wrap}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:middle}
+  .i-a{background:var(--navy)} .i-b{background:var(--amber)} .i-c{background:var(--green)} .i-d{background:var(--red)} .i-e{background:#B9BCCB}
+  .vacio{font-size:13px;color:var(--muted);padding:8px 0}
+
+  /* Table */
+  .tablewrap{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:6px 0;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;padding:8px 12px;border-bottom:1.5px solid var(--line);background:var(--card)}
+  td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:hover td{background:#FBFAF8}
+  tr.click{cursor:pointer}
+  .pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap}
+  .pill.abierta{background:#FBE9E7;color:var(--red)}
+  .pill.en_gestion{background:#FCF3E0;color:var(--amber)}
+  .pill.a_la_espera{background:#EDEEF4;color:var(--navy)}
+  .pill.resuelta{background:#E7F5EF;color:var(--green)}
+  .pill.cerrada_sin_solucion{background:#F0EEF6;color:#7A5CC0}
+  .pill.transporte{background:#EDEEF4;color:var(--navy)} .pill.almacen{background:#FCF3E0;color:var(--amber)}
+  .dias{font-weight:650;font-variant-numeric:tabular-nums}
+  .dias.amber{color:var(--amber)} .dias.red{color:var(--red)}
+
+  /* Modal alta/editar */
+  .modal-bg{position:fixed;inset:0;background:rgba(16,22,55,.45);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:30px 16px;overflow-y:auto}
+  .modal-bg.on{display:flex}
+  .modal{background:var(--card);border-radius:14px;width:680px;max-width:100%;padding:24px 24px 20px;box-shadow:0 12px 50px rgba(16,22,55,.25)}
+  .modal h3{margin:0 0 2px;font-size:17px}
+  .modal .sub{font-size:12.5px;color:var(--muted);margin:0 0 16px}
+  .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:640px){.fgrid{grid-template-columns:1fr}}
+  .fgrid .wide{grid-column:1/-1}
+  .fgrid textarea{padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;background:#fff;font-size:13px;resize:vertical;min-height:54px}
+  .fgrid textarea:focus{border-color:var(--navy)}
+  .modal-foot{display:flex;gap:10px;align-items:center;margin-top:18px}
+  .modal-foot .x{margin-left:auto}
+  .foot{font-size:11.5px;color:var(--muted);margin-top:30px}
+  code{background:var(--track);padding:1px 5px;border-radius:4px;font-size:11.5px}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="overlay" id="loginBox">
+  <div class="login">
+    <h2>Incidencias de pedido</h2>
+    <p>Acceso equipo DOMMA (admin u operaciones)</p>
+    <input id="email" type="email" placeholder="Email" autocomplete="username">
+    <input id="pass" type="password" placeholder="Contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    <button class="btn" onclick="login()">Entrar</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<div class="wrap" id="app" style="display:none">
+  <header>
+    <div class="brand">
+      <h1>📦 Incidencias de pedido</h1>
+      <div class="tag">Transporte + almacén · fuente propia para contrastar a Amphora y transportistas</div>
+    </div>
+    <button class="btn ghost" onclick="logout()">Salir</button>
+  </header>
+
+  <div class="controls">
+    <div class="field"><label>Rango</label>
+      <select id="rango" onchange="usarPreset(this.value)">
+        <option value="mes">Mes en curso</option>
+        <option value="prev">Mes anterior</option>
+        <option value="30d">Últimos 30 días</option>
+        <option value="90d">Últimos 90 días</option>
+        <option value="ytd">Año en curso</option>
+        <option value="todo" selected>Todo</option>
+        <option value="custom">Personalizado</option>
+      </select>
+    </div>
+    <div class="field"><label>Desde</label><input type="date" id="desde" onchange="rangoCustom()"></div>
+    <div class="field"><label>Hasta</label><input type="date" id="hasta" onchange="rangoCustom()"></div>
+    <div class="field"><label>Ámbito</label>
+      <select id="fAmbito"><option value="">Todos</option><option value="transporte">Transporte</option><option value="almacen">Almacén</option></select>
+    </div>
+    <button class="btn" onclick="load()">Aplicar</button>
+    <div class="spacer"></div>
+    <button class="btn" onclick="abrirModal()">＋ Nueva incidencia</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" id="tab-resumen" onclick="verTab('resumen')">Resumen</button>
+    <button class="tab" id="tab-listado" onclick="verTab('listado')">Listado <span class="badge calm" id="badgeAbiertas">0</span></button>
+  </div>
+
+  <!-- ── RESUMEN ── -->
+  <div id="vResumen">
+    <div class="kpis" id="kpis"></div>
+    <div class="grid">
+      <div class="card"><h3>Por ámbito y tipo</h3><p class="hint">Dónde se rompe el pedido: transporte vs almacén</p><div id="chTipo"></div></div>
+      <div class="card"><h3>Por transportista</h3><p class="hint">Solo incidencias de transporte · base para GLS vs CEX</p><div id="chTrans"></div>
+        <div class="sect">Por causa / responsable</div><div id="chCausa"></div></div>
+      <div class="card"><h3>Evolución mensual</h3><p class="hint">Incidencias por mes de ocurrencia</p><div id="chMes"></div></div>
+      <div class="card"><h3>Tiempos de resolución</h3><p class="hint">Solo resueltas/cerradas con fechas · abiertas no cuentan aquí</p><div id="chTiempos"></div>
+        <div class="sect">Zona</div><div id="chZona"></div></div>
+      <div class="card"><h3>Coste por acción de resolución</h3><p class="hint">€ registrados por tipo de compensación</p><div id="chCoste"></div></div>
+      <div class="card"><h3>Riesgo de clienta</h3><p class="hint">Incidencias que acabaron en baja de suscripción</p><div id="chBaja"></div></div>
+    </div>
+  </div>
+
+  <!-- ── LISTADO ── -->
+  <div id="vListado" style="display:none">
+    <div class="controls">
+      <div class="field"><label>Estado</label>
+        <select id="fEstado" onchange="pintarLista()">
+          <option value="">Todos</option><option value="vivas" selected>Vivas (sin resolver)</option>
+          <option value="abierta">Abierta</option><option value="en_gestion">En gestión</option>
+          <option value="a_la_espera">A la espera</option><option value="resuelta">Resuelta</option>
+          <option value="cerrada_sin_solucion">Cerrada sin solución</option>
+        </select>
+      </div>
+      <div class="field" style="flex:1"><label>Buscar</label><input id="buscar" placeholder="Clienta, pedido, razón…" oninput="pintarLista()"></div>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Fecha</th><th>Clienta</th><th>Pedido</th><th>Ámbito</th><th>Tipo</th><th>Transportista</th><th>Estado</th><th>Días</th><th>Acción</th><th>Coste</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="foot" id="listaFoot"></div>
+  </div>
+
+  <div class="foot">Panel interno DOMMA · worker <code>domma-incidencias</code> · denominador de pedidos: Shopify Admin API · no compartir enlaces con PII</div>
+</div>
+
+<!-- ── Modal alta / edición ── -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)cerrarModal()">
+  <div class="modal">
+    <h3 id="mTitulo">Nueva incidencia</h3>
+    <p class="sub" id="mSub">Se registra en D1 al momento — adiós Excel</p>
+    <div class="fgrid">
+      <div class="field"><label>Ámbito *</label>
+        <select id="m_ambito" onchange="tiposDelAmbito()">
+          <option value="transporte">Transporte</option><option value="almacen">Almacén</option>
+        </select>
+      </div>
+      <div class="field"><label>Tipo *</label><select id="m_tipo"></select></div>
+      <div class="field"><label>Clienta</label><input id="m_cliente_nombre" placeholder="Nombre y apellidos"></div>
+      <div class="field"><label>Email</label><input id="m_cliente_email" type="email" placeholder="opcional"></div>
+      <div class="field"><label>Nº pedido</label><input id="m_pedido_id" placeholder="p.ej. 44779"></div>
+      <div class="field"><label>Fecha incidencia</label><input id="m_fecha_incidencia" type="date"></div>
+      <div class="field"><label>Fecha pedido</label><input id="m_fecha_pedido" type="date"></div>
+      <div class="field"><label>Transportista</label>
+        <select id="m_transportista" onchange="document.getElementById('m_trans_otro').style.display=this.value==='otro'?'':'none'">
+          <option value="desconocido">Desconocido</option><option value="gls">GLS</option>
+          <option value="cex">CEX (Correos Express)</option><option value="otro">Otro…</option>
+        </select>
+        <input id="m_trans_otro" placeholder="¿cuál?" style="display:none;margin-top:6px">
+      </div>
+      <div class="field"><label>CP</label><input id="m_cp" placeholder="08001"></div>
+      <div class="field"><label>Causa / responsable</label>
+        <select id="m_causa_responsable"><option value="">—</option><option value="transportista">Transportista</option>
+          <option value="almacen">Almacén (Amphora)</option><option value="domma">DOMMA</option><option value="desconocido">Desconocido</option></select>
+      </div>
+      <div class="field wide"><label>Razón / descripción *</label><textarea id="m_razon" placeholder="Qué ha pasado"></textarea></div>
+      <div class="field"><label>Medio de información</label><input id="m_medio_informacion" placeholder="WhatsApp, email, ticket…"></div>
+      <div class="field"><label>Estado</label>
+        <select id="m_estado"><option value="abierta">Abierta</option><option value="en_gestion">En gestión</option>
+          <option value="a_la_espera">A la espera</option><option value="resuelta">Resuelta</option>
+          <option value="cerrada_sin_solucion">Cerrada sin solución</option></select>
+      </div>
+      <div class="field"><label>Acción de resolución</label>
+        <select id="m_accion_resolucion"><option value="">—</option><option value="duplicado">Duplicado</option>
+          <option value="reenvio">Reenvío</option><option value="cupon_tienda">Cupón tienda</option>
+          <option value="reembolso_parcial">Reembolso parcial</option><option value="reembolso_total">Reembolso total</option>
+          <option value="abono_portes">Abono portes</option><option value="sin_coste">Sin coste</option><option value="otro">Otro</option></select>
+      </div>
+      <div class="field"><label>Fecha resolución</label><input id="m_fecha_resolucion" type="date"></div>
+      <div class="field"><label>Coste (€)</label><input id="m_coste_eur" type="number" step="0.01" min="0" placeholder="0,00"></div>
+      <div class="field"><label>Pedido duplicado</label><input id="m_pedido_duplicado_id" placeholder="p.ej. 43937-D"></div>
+      <div class="field"><label>¿Acabó en baja?</label>
+        <select id="m_baja_asociada"><option value="0">No</option><option value="1">Sí</option></select>
+      </div>
+      <div class="field"><label>¿Fotos?</label>
+        <select id="m_registro_fotografico"><option value="0">No</option><option value="1">Sí</option></select>
+      </div>
+      <div class="field wide"><label>Observaciones / gestión</label><textarea id="m_observaciones"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="mGuardar" onclick="guardar()">Guardar</button>
+      <span class="err" id="mErr" style="margin:0"></span>
+      <button class="btn ghost x" onclick="cerrarModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://domma-incidencias.cristina-ed1.workers.dev';
+const AUTH_API = 'https://domma-pro-api.cristina-ed1.workers.dev';
+let ROWS = [], PEDIDOS = null, TAB = 'resumen', EDIT_ID = null;
+
+if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
+(function(){ const m = location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token', decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
+let token = localStorage.getItem('domma_analytics_token') || '';
+
+const TIPOS = {
+  transporte: { perdida_paquete:'Pérdida de paquete', ausente_falso:'Ausente falso', pudo_no_solicitado:'PUDO no solicitado',
+    retraso_entrega:'Retraso de entrega', no_entregado_rechazado:'No entregado / rechazado', deterioro_transito:'Deterioro en tránsito' },
+  almacen: { producto_faltante:'Producto faltante', producto_extra:'Producto extra', producto_incorrecto:'Producto incorrecto',
+    deterioro_producto:'Deterioro de producto', no_procesado_a_tiempo:'No procesado a tiempo', pedido_duplicado_error:'Pedido duplicado por error' },
+};
+const L_TIPO = Object.assign({desconocido:'Sin clasificar'}, TIPOS.transporte, TIPOS.almacen);
+const L_ESTADO = { abierta:'Abierta', en_gestion:'En gestión', a_la_espera:'A la espera', resuelta:'Resuelta', cerrada_sin_solucion:'Cerrada sin solución' };
+const L_ACCION = { duplicado:'Duplicado', reenvio:'Reenvío', cupon_tienda:'Cupón tienda', reembolso_parcial:'Reembolso parcial',
+  reembolso_total:'Reembolso total', abono_portes:'Abono portes', sin_coste:'Sin coste', otro:'Otro' };
+const L_ZONA = { peninsula:'Península', baleares:'Baleares', canarias:'Canarias', ceuta_melilla:'Ceuta/Melilla' };
+const VIVAS = new Set(['abierta','en_gestion','a_la_espera']);
+
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const d2s = d => d.toISOString().slice(0,10);
+const hoy = () => d2s(new Date());
+const addD = (s,n) => { const d=new Date(s+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d2s(d); };
+const eur = n => (n||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+
+function login(){
+  const email=document.getElementById('email').value.trim(), pass=document.getElementById('pass').value;
+  const err=document.getElementById('loginErr'); err.textContent='';
+  fetch(AUTH_API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})})
+    .then(r=>r.json()).then(d=>{
+      const role=d.role||(d.user&&d.user.role);
+      if(d.token&&(role==='admin'||role==='operaciones'||role==='retencion')){ token=d.token; localStorage.setItem('domma_analytics_token',token); arrancar(); }
+      else if(d.token){ err.textContent='Tu usuario no tiene acceso a incidencias'; }
+      else { err.textContent='Credenciales incorrectas'; }
+    }).catch(()=>{ err.textContent='No se pudo conectar'; });
+}
+function logout(){ localStorage.removeItem('domma_analytics_token'); location.reload(); }
+
+const PRESETS = {
+  'mes': ()=>{ const h=hoy(); return {desde:h.slice(0,8)+'01', hasta:h}; },
+  'prev':()=>{ const d=new Date(); const fin=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),0));
+               const ini=new Date(Date.UTC(fin.getUTCFullYear(),fin.getUTCMonth(),1)); return {desde:d2s(ini),hasta:d2s(fin)}; },
+  '30d': ()=>({desde:addD(hoy(),-29), hasta:hoy()}),
+  '90d': ()=>({desde:addD(hoy(),-89), hasta:hoy()}),
+  'ytd': ()=>({desde:hoy().slice(0,4)+'-01-01', hasta:hoy()}),
+  'todo':()=>({desde:'', hasta:''}),
+};
+function usarPreset(k){
+  if(k==='custom') return;
+  const v=PRESETS[k]();
+  document.getElementById('desde').value=v.desde;
+  document.getElementById('hasta').value=v.hasta;
+  load();
+}
+function rangoCustom(){ document.getElementById('rango').value='custom'; }
+
+function api(path, body){
+  return fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body||{})})
+    .then(r=>{ if(r.status===401){ logout(); throw new Error('sesión caducada'); } return r.json(); });
+}
+
+function load(){
+  const desde=document.getElementById('desde').value, hasta=document.getElementById('hasta').value;
+  const ambito=document.getElementById('fAmbito').value;
+  api('/api/incidencias/list',{desde,hasta,ambito}).then(d=>{
+    ROWS=d.incidencias||[]; pintar();
+  });
+  // denominador: si el rango está abierto, desde la primera incidencia de 2026
+  PEDIDOS=null;
+  api('/api/incidencias/pedidos',{desde: desde||'2026-01-01', hasta: hasta||hoy()}).then(d=>{
+    if(d.ok){ PEDIDOS=d.n; pintarKpis(); }
+  }).catch(()=>{});
+}
+
+function verTab(t){
+  TAB=t;
+  document.getElementById('tab-resumen').classList.toggle('on',t==='resumen');
+  document.getElementById('tab-listado').classList.toggle('on',t==='listado');
+  document.getElementById('vResumen').style.display=t==='resumen'?'':'none';
+  document.getElementById('vListado').style.display=t==='listado'?'':'none';
+}
+
+function pintar(){ pintarKpis(); pintarCharts(); pintarLista(); }
+
+// ── KPIs ──
+function pintarKpis(){
+  const n=ROWS.length;
+  const vivas=ROWS.filter(r=>VIVAS.has(r.estado));
+  const cerradas=ROWS.filter(r=>r.fecha_resolucion&&(r.estado==='resuelta'||r.estado==='cerrada_sin_solucion'));
+  const dias=cerradas.map(r=>r.dias).filter(x=>x!=null&&x>=0).sort((a,b)=>a-b);
+  const media=dias.length?(dias.reduce((a,b)=>a+b,0)/dias.length):null;
+  const p95=dias.length?dias[Math.min(dias.length-1,Math.floor(dias.length*0.95))]:null;
+  const coste=ROWS.reduce((a,r)=>a+(r.coste_eur||0),0);
+  const tasa=(PEDIDOS&&n)?(n/PEDIDOS*100):null;
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi hero"><div class="l">Incidencias del periodo</div><div class="n">${n}</div>
+      <div class="s">${ROWS.filter(r=>r.ambito==='transporte').length} transporte · ${ROWS.filter(r=>r.ambito==='almacen').length} almacén</div></div>
+    <div class="kpi"><div class="l">Tasa de incidencia</div><div class="n">${tasa!=null?tasa.toFixed(2)+'%':'…'}</div>
+      <div class="s">${PEDIDOS?`sobre ${PEDIDOS.toLocaleString('es-ES')} pedidos Shopify`:'cargando pedidos…'}</div></div>
+    <div class="kpi"><div class="l">Abiertas ahora</div><div class="n ${vivas.length?'amber':'green'}">${vivas.length}</div>
+      <div class="s">${vivas.filter(r=>r.dias>=7).length} llevan ≥7 días</div></div>
+    <div class="kpi"><div class="l">Resolución media</div><div class="n">${media!=null?media.toFixed(1)+' d':'—'}</div>
+      <div class="s">P95: ${p95!=null?p95+' d':'—'} · sobre ${dias.length} cerradas con fechas</div></div>
+    <div class="kpi"><div class="l">Coste total</div><div class="n">${eur(coste)}</div>
+      <div class="s">solo lo registrado con importe</div></div>`;
+  document.getElementById('badgeAbiertas').textContent=vivas.length;
+  document.getElementById('badgeAbiertas').className='badge'+(vivas.length?'':' calm');
+}
+
+// ── helper: lista de barras ──
+function barras(el, pares, total, colorFn){
+  const cont=document.getElementById(el);
+  if(!pares.length){ cont.innerHTML='<div class="vacio">Sin datos en el periodo</div>'; return; }
+  const max=Math.max(...pares.map(p=>p[1]));
+  cont.innerHTML=pares.map(([k,v,extra])=>`
+    <div class="row"><div class="top"><span class="lbl">${esc(k)}</span>
+      <span class="val"><em>${typeof v==='number'&&!Number.isInteger(v)?eur(v):v}</em>${total?` · ${(v/total*100).toFixed(0)}%`:''}${extra?` <span class="muted">${esc(extra)}</span>`:''}</span></div>
+      <div class="bar"><div class="seg ${colorFn?colorFn(k):'a'}" style="width:${max?(v/max*100):0}%"></div></div></div>`).join('');
+}
+function cuenta(rows, fn){
+  const m={};
+  rows.forEach(r=>{ const k=fn(r); if(k==null)return; m[k]=(m[k]||0)+1; });
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+}
+
+// ── Charts ──
+function pintarCharts(){
+  const n=ROWS.length;
+  // tipo, agrupado con etiqueta de ámbito
+  barras('chTipo', cuenta(ROWS, r=>`${r.ambito==='transporte'?'🚚':'🏭'} ${L_TIPO[r.tipo]||r.tipo}`), n,
+    k=>k.startsWith('🚚')?'a':'b');
+  // transportista (solo transporte)
+  const trans=ROWS.filter(r=>r.ambito==='transporte');
+  barras('chTrans', cuenta(trans, r=>(r.transportista||'desconocido').toUpperCase()), trans.length,
+    k=>k==='GLS'?'a':(k==='CEX'?'c':'e'));
+  barras('chCausa', cuenta(ROWS, r=>({transportista:'Transportista',almacen:'Almacén (Amphora)',domma:'DOMMA',desconocido:'Desconocido'}[r.causa_responsable]||'Desconocido')), n,
+    k=>k==='Transportista'?'a':(k.startsWith('Almacén')?'b':'e'));
+  // evolución mensual (orden cronológico; solo filas con fecha de incidencia real,
+  // las importadas sin fecha inflarían el mes del import)
+  const meses={};
+  let sinFecha=0;
+  ROWS.forEach(r=>{ if(!r.fecha_incidencia){sinFecha++;return;} const m=r.fecha_incidencia.slice(0,7); meses[m]=(meses[m]||0)+1; });
+  barras('chMes', Object.entries(meses).sort((a,b)=>a[0]<b[0]?-1:1), null, ()=>'a');
+  if(sinFecha) document.getElementById('chMes').insertAdjacentHTML('beforeend',`<div class="vacio">+ ${sinFecha} sin fecha de incidencia (fuera del gráfico)</div>`);
+  // tiempos de resolución (cerradas)
+  const cerradas=ROWS.filter(r=>r.fecha_resolucion&&(r.estado==='resuelta'||r.estado==='cerrada_sin_solucion')&&r.dias!=null&&r.dias>=0);
+  const buckets=[['<48h',r=>r.dias<2],['48–72h',r=>r.dias>=2&&r.dias<3],['3–7 días',r=>r.dias>=3&&r.dias<=7],['>7 días',r=>r.dias>7]];
+  barras('chTiempos', buckets.map(([l,f])=>[l,cerradas.filter(f).length]).filter(p=>p[1]||true), cerradas.length,
+    k=>k==='<48h'?'c':(k==='>7 días'?'d':'b'));
+  barras('chZona', cuenta(ROWS.filter(r=>r.zona), r=>L_ZONA[r.zona]||r.zona), null, k=>k==='Canarias'?'d':'a');
+  // coste por acción
+  const costes={};
+  ROWS.forEach(r=>{ if(!r.coste_eur)return; const k=L_ACCION[r.accion_resolucion]||'Sin acción'; costes[k]=(costes[k]||0)+r.coste_eur; });
+  const accs=cuenta(ROWS.filter(r=>r.accion_resolucion), r=>L_ACCION[r.accion_resolucion]);
+  barras('chCoste', accs.map(([k,v])=>[k, v, costes[k]?eur(costes[k]):'0 €']), ROWS.filter(r=>r.accion_resolucion).length, ()=>'b');
+  // baja asociada
+  const conBaja=ROWS.filter(r=>r.baja_asociada).length;
+  barras('chBaja', [['Acabó en baja',conBaja],['Sin baja',n-conBaja]], n, k=>k==='Acabó en baja'?'d':'c');
+}
+
+// ── Listado ──
+function pintarLista(){
+  const filtro=document.getElementById('fEstado').value;
+  const q=(document.getElementById('buscar').value||'').toLowerCase();
+  let rows=ROWS;
+  if(filtro==='vivas') rows=rows.filter(r=>VIVAS.has(r.estado));
+  else if(filtro) rows=rows.filter(r=>r.estado===filtro);
+  if(q) rows=rows.filter(r=>[r.cliente_nombre,r.cliente_email,r.pedido_id,r.razon,r.observaciones].join(' ').toLowerCase().includes(q));
+  document.getElementById('tbody').innerHTML=rows.map(r=>{
+    const viva=VIVAS.has(r.estado);
+    const dcls=viva?(r.dias>=7?'red':(r.dias>=3?'amber':'')):'';
+    return `<tr class="click" onclick="abrirModal(${r.id})">
+      <td>${esc(r.fecha_incidencia||r.fecha_registro||'')}</td>
+      <td>${esc(r.cliente_nombre||'—')}</td>
+      <td>${r.pedido_id?'#'+esc(r.pedido_id):'—'}</td>
+      <td><span class="pill ${r.ambito}">${r.ambito==='transporte'?'Transporte':'Almacén'}</span></td>
+      <td>${esc(L_TIPO[r.tipo]||r.tipo||'—')}</td>
+      <td>${r.ambito==='transporte'?esc((r.transportista||'desconocido').toUpperCase()):'—'}</td>
+      <td><span class="pill ${r.estado}">${L_ESTADO[r.estado]||r.estado}</span></td>
+      <td class="dias ${dcls}">${r.dias!=null?r.dias+' d':'—'}${viva&&r.dias>=3?' ⚠️':''}</td>
+      <td>${esc(L_ACCION[r.accion_resolucion]||'—')}</td>
+      <td>${r.coste_eur?eur(r.coste_eur):'—'}</td></tr>`;
+  }).join('');
+  document.getElementById('listaFoot').textContent=`${rows.length} incidencias · clic en una fila para editar/cerrar`;
+}
+
+// ── Modal ──
+function tiposDelAmbito(sel){
+  const amb=document.getElementById('m_ambito').value;
+  const s=document.getElementById('m_tipo');
+  s.innerHTML=Object.entries(TIPOS[amb]).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')
+    +'<option value="desconocido">Sin clasificar</option>';
+  if(sel) s.value=sel;
+}
+const M_CAMPOS=['cliente_nombre','cliente_email','pedido_id','fecha_incidencia','fecha_pedido','cp',
+  'causa_responsable','razon','medio_informacion','estado','accion_resolucion','fecha_resolucion',
+  'coste_eur','pedido_duplicado_id','baja_asociada','registro_fotografico','observaciones'];
+function abrirModal(id){
+  EDIT_ID=id||null;
+  const r=id?ROWS.find(x=>x.id===id):null;
+  document.getElementById('mTitulo').textContent=r?`Incidencia #${r.id} · ${r.cliente_nombre||''}`:'Nueva incidencia';
+  document.getElementById('mSub').textContent=r?`Registrada ${r.fecha_registro||r.created_at||''}${r.gestionado_por?' · '+r.gestionado_por:''}`:'Se registra en D1 al momento — adiós Excel';
+  document.getElementById('m_ambito').value=r?r.ambito:'transporte';
+  tiposDelAmbito(r?r.tipo:null);
+  M_CAMPOS.forEach(c=>{ const el=document.getElementById('m_'+c); el.value=r&&r[c]!=null?r[c]:(c==='estado'?'abierta':(c==='baja_asociada'||c==='registro_fotografico'?'0':'')); });
+  if(!r) document.getElementById('m_fecha_incidencia').value=hoy();
+  const t=r?(r.transportista||'desconocido'):'desconocido';
+  const std=['gls','cex','desconocido'];
+  document.getElementById('m_transportista').value=std.includes(t)?t:'otro';
+  document.getElementById('m_trans_otro').style.display=std.includes(t)?'none':'';
+  document.getElementById('m_trans_otro').value=std.includes(t)?'':t;
+  document.getElementById('mErr').textContent='';
+  document.getElementById('modalBg').classList.add('on');
+}
+function cerrarModal(){ document.getElementById('modalBg').classList.remove('on'); }
+function guardar(){
+  const b={ ambito:document.getElementById('m_ambito').value, tipo:document.getElementById('m_tipo').value };
+  M_CAMPOS.forEach(c=>{ b[c]=document.getElementById('m_'+c).value; });
+  const t=document.getElementById('m_transportista').value;
+  b.transportista=t==='otro'?(document.getElementById('m_trans_otro').value.trim().toLowerCase()||'otro'):t;
+  b.coste_eur=b.coste_eur?Number(b.coste_eur):'';
+  b.baja_asociada=Number(b.baja_asociada); b.registro_fotografico=Number(b.registro_fotografico);
+  const err=document.getElementById('mErr'); err.textContent='';
+  if(!b.razon&&!EDIT_ID){ err.textContent='Falta la razón'; return; }
+  if(!b.cliente_nombre&&!b.pedido_id){ err.textContent='Hace falta clienta o nº de pedido'; return; }
+  const btn=document.getElementById('mGuardar'); btn.disabled=true;
+  const p=EDIT_ID?api('/api/incidencias/editar',Object.assign({id:EDIT_ID},b)):api('/api/incidencias/alta',b);
+  p.then(d=>{
+    btn.disabled=false;
+    if(d.error){ err.textContent=d.error; return; }
+    cerrarModal(); load();
+  }).catch(e=>{ btn.disabled=false; err.textContent='Error: '+e.message; });
+}
+
+function arrancar(){
+  document.getElementById('loginBox').style.display='none';
+  document.getElementById('app').style.display='';
+  usarPreset('todo');
+}
+// arranque: si hay token probamos directamente; si el worker devuelve 401, logout() → login
+if(token){ arrancar(); } else { document.getElementById('loginBox').style.display='flex'; }
+</script>
+</body>
+</html>

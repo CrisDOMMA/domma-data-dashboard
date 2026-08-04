@@ -93,6 +93,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button class="sb-item" data-view="luna" onclick="nav('luna',this)"><span class="ic">🌙</span> Dashboard LUNA</button>
       <button class="sb-item" data-view="bajas" onclick="nav('bajas',this)"><span class="ic">🔄</span> Gestión suscripciones</button>
       <button class="sb-item" data-view="retencion" onclick="nav('retencion',this)"><span class="ic">💳</span> Fallos de pago</button>
+      <button class="sb-item" data-view="incidencias" onclick="nav('incidencias',this)"><span class="ic">📦</span> Incidencias</button>
     </nav>
     <div class="sb-spacer"></div>
     <div class="sb-user">
@@ -111,13 +112,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script>
 const AUTH_API='https://domma-pro-api.cristina-ed1.workers.dev';
-const VIEWS={ llamadas:'/llamadas?embed=1', metrics:'/metrics?embed=1', quiz:'/quiz', luna:'/luna', bajas:'/bajas?embed=1', retencion:'/retencion?embed=1' };
+const VIEWS={ llamadas:'/llamadas?embed=1', metrics:'/metrics?embed=1', quiz:'/quiz', luna:'/luna', bajas:'/bajas?embed=1', retencion:'/retencion?embed=1', incidencias:'/incidencias?embed=1' };
 let token=localStorage.getItem('domma_analytics_token');
 
 // Pestañas permitidas por rol. 'admin' = todas. 'retencion' (equipo comercial/ayuda) = solo
-// Gestión suscripciones + Acciones retención. La seguridad REAL está en los workers (cada
-// endpoint valida el rol del JWT); esto es la capa de UI.
-const ROLE_VIEWS = { retencion: ['llamadas','bajas','retencion'] };
+// Gestión suscripciones + Acciones retención. 'operaciones' (ayuda@/compras@) = solo
+// Incidencias. La seguridad REAL está en los workers (cada endpoint valida el rol del
+// JWT); esto es la capa de UI.
+const ROLE_VIEWS = { retencion: ['llamadas','bajas','retencion','incidencias'], operaciones: ['incidencias'] };
 function aplicarPermisos(){
   const role = localStorage.getItem('domma_role') || 'admin';
   const allowed = ROLE_VIEWS[role]; // undefined para admin → todas
@@ -164,7 +166,7 @@ function doLogin(){
   fetch(AUTH_API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})})
     .then(r=>r.json()).then(d=>{
       const role=d.role||(d.user&&d.user.role);
-      if(d.token&&(role==='admin'||role==='retencion')){
+      if(d.token&&(role==='admin'||role==='retencion'||role==='operaciones')){
         token=d.token;
         localStorage.setItem('domma_analytics_token',token);
         localStorage.setItem('domma_role',role);
