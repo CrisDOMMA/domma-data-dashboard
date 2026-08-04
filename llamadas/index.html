@@ -71,6 +71,7 @@
   .cname a{color:var(--indigo);text-decoration:none;border-bottom:1px solid transparent}
   .cname a:hover{border-color:var(--indigo)}
   .cwhy{font-size:13px;color:var(--muted);margin-top:2px;font-weight:600}
+  .antig{color:var(--indigo)}
   .cmeta-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:6px;flex-wrap:wrap}
   .cmeta{font-size:12.5px;color:var(--muted);word-break:break-word;flex:1;min-width:0}
   .cmeta b{color:var(--ink);font-weight:600}
@@ -417,7 +418,7 @@ function tarjeta(c,i){
   return `<div class="card" data-state="${(c.resuelto||(c.gestionada&&!c.noLoc))?'green':'amber'}" id="c${i}">
     <div class="stripe"></div>
     <div class="body">
-      <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div>${chip}</div>
+      <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${(diasEspera(c)>0&&!c.gestionada)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div>${chip}</div>
       <div class="cmeta-row"><span class="cmeta">${meta}</span>${nHist?`<a class="histlink" href="#" data-n="${nHist}" onclick="toggleHist(${i},this);return false">Ver historial · ${nHist}</a>`:''}</div>
       <div class="hist" id="hist${i}" hidden>${histInner(c,i)}</div>
       <div class="actions">
