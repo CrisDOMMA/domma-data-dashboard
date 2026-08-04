@@ -420,14 +420,14 @@ function paso2(i,contacto,btn){
   if(caso.tipo==='fallo'){
     // Disposición de FALLOS DE PAGO (spec de Carme)
     if(contacto==='no_localizada'){
-      botones=[['cobro_manual','💳 Cobro manual',''],['cancelar_definitivo','❌ Cancelar definitivamente','full bad'],['pendiente','⏳ Pendiente · volver a intentar','full']];
+      botones=[['cobro_manual','💳 Cobro manual',''],['pausa','⏸️ Pausa',''],['cancelar_definitivo','❌ Cancelar definitivamente','full bad'],['pendiente','⏳ Pendiente · volver a intentar','full']];
     } else {
       botones=[['cobro_manual','💳 Cobro manual',''],['actualizar_pago','🔄 Actualizar el pago',''],['pendiente_cobro','📅 Pendiente de cobro',''],['cancelar_final','❌ Cancelar finalmente','full bad']];
     }
   } else {
     // Disposición de BAJAS y DERIVADAS (spec de Carme + Upsell)
     if(contacto==='no_localizada'){
-      botones=[['pendiente','⏳ Pendiente · volver a llamar','full'],['cancelar','❌ Cancelar','full bad']];
+      botones=[['pausa','⏸️ Pausa',''],['pendiente','⏳ Pendiente · volver a llamar','full'],['cancelar','❌ Cancelar','full bad']];
     } else {
       botones=[['pausa','⏸️ Pausa',''],['cambio_producto','🔄 Cambio de producto',''],['cambio_fecha','📅 Cambio de fecha',''],['venta_cruzada','🚀 Venta cruzada','win'],['retenida','💚 Retenida','win'],['upsell','⬆️ Upsell','win'],['cancelado','❌ Cancelado','full bad']];
     }
