@@ -99,6 +99,9 @@
   /* Acción principal de la tarjeta */
   .b-manage{background:var(--indigo);color:#fff;margin-left:auto}
   .b-manage:hover{background:var(--indigo-2)}
+  .b-validar{background:var(--green);color:#fff}
+  .b-validar:hover{filter:brightness(1.05)}
+  .b-validar:disabled{opacity:.6;cursor:default}
 
   .dispo{margin-top:15px;padding-top:13px;border-top:1px dashed var(--line)}
   .dispo-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
@@ -205,10 +208,11 @@ const API_TEL='https://gestorsubs-domma.cristina-ed1.workers.dev/telefonos-shopi
 const AUTH_API='https://domma-pro-api.cristina-ed1.workers.dev';
 const SHOP_ADMIN='https://admin.shopify.com/store/wearedomma', APPSTLE_APP='subscription-by-rhem';
 const AGENTES=['Carme','Vale','Ana','Marta'];
-const WINS={retenida:'💚 Retenida', venta_cruzada:'🚀 Venta cruzada', upsell:'⬆️ Upsell', pagado:'💰 Pagado'};
-const COBROS=new Set(['pagado','cobro_manual','actualizar_pago']);   // resultados = clienta cobrada
+const WINS={retenida:'💚 Retenida', venta_cruzada:'🚀 Venta cruzada', upsell:'⬆️ Upsell', pagado:'💰 Pagado', cobro_manual:'💳 Cobro hecho'};
+const COBROS=new Set(['pagado','cobro_manual','actualizar_pago']);   // recuperaciones (para el motivador)
+const COBRO_HECHO=new Set(['cobro_manual','actualizar_pago']);       // Carme hizo el cobro → PENDIENTE de validar
 const RES_LABEL={retenida:'Retenida',cambio_producto:'Cambio de producto',cambio_fecha:'Cambio de fecha',venta_cruzada:'Venta cruzada',upsell:'Upsell',pausa:'Pausa',cancelado:'Cancelado',cancelar:'Cancelar',pendiente:'Volver a llamar',no_contesta:'No contesta',
-  cobro_manual:'Cobro manual',actualizar_pago:'Actualizar el pago',pendiente_cobro:'Pendiente de cobro',cancelar_final:'Cancelar finalmente',cancelar_definitivo:'Cancelar definitivamente',pagado:'Pagado'};
+  cobro_manual:'Cobro hecho',actualizar_pago:'Actualizar el pago',pendiente_cobro:'Pendiente de cobro',cancelar_final:'Cancelar finalmente',cancelar_definitivo:'Cancelar definitivamente',pagado:'Pagado'};
 const RES_TONE={retenida:'green',cambio_producto:'green',cambio_fecha:'green',venta_cruzada:'green',upsell:'green',pausa:'green',pendiente:'amber',no_contesta:'amber',cancelado:'red',cancelar:'red',
   cobro_manual:'green',actualizar_pago:'green',pendiente_cobro:'amber',cancelar_final:'red',cancelar_definitivo:'red',pagado:'green'};
 
@@ -363,7 +367,7 @@ function gestionadasCards(soloContacto){
     const t=g.tipo_caso==='fallo_pago'?'fallo':(g.tipo_caso==='baja'?'baja':'derivada');
     const res=RES_LABEL[g.resultado]||g.resultado||'';
     const prox=g.proxima_llamada?` · 📅 próx. ${fechaCorta(g.proxima_llamada)}`:'';
-    out.push({tipo:t, gestionada:true, noLoc, cobrada:COBROS.has(g.resultado), nombre:g.nombre, email:g.email, phone:g.phone,
+    out.push({tipo:t, gestionada:true, noLoc, esPagado:g.resultado==='pagado', esCobroHecho:COBRO_HECHO.has(g.resultado), gestId:g.id, nombre:g.nombre, email:g.email, phone:g.phone,
       customer_id:g.customer_id, contract_id:g.contract_id, fecha:(g.created_at||'').slice(0,10),
       why:`${noLoc?'No localizada':'Localizada'}${res?' · '+res:''}${g.agente?' · '+g.agente:''} · ${fechaCorta(g.created_at)}${prox}`});
   }
@@ -383,7 +387,7 @@ function render(){
   const contactadas = dfil(gestionadasCards('localizada'));
   const nolocal     = dfil(gestionadasCards('no_localizada'));
   const counts={todas:vivas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:vivas.filter(x=>x.tipo==='derivada').length, fallo:vivas.filter(x=>x.tipo==='fallo').length, gestionadas:contactadas.length, nolocal:nolocal.length};
-  const defs=[['todas','Todas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['gestionadas','✓ Contactadas'],['nolocal','☎️ No contactadas']];
+  const defs=[['todas','Todas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['gestionadas','Contactadas'],['nolocal','No contactadas']];
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
   document.getElementById('dateClear').style.display=fechaFil?'inline-block':'none';
   // Búsqueda: encuentra a CUALQUIERA — pendientes de llamar + contactadas + no contactadas
@@ -412,11 +416,13 @@ function setFecha(v){ fechaFil=v||''; const el=document.getElementById('dateFil'
 
 function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
-  const chip = c.resuelto?'<span class="chip green">✅ Ya pagó</span>':c.gestionada?(c.cobrada?'<span class="chip green">💰 Cobrada</span>':c.noLoc?'<span class="chip amber">☎️ No contactada</span>':'<span class="chip green">✓ Contactada</span>'):c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
+  const chip = c.resuelto?'<span class="chip green">Ya pagó</span>'
+    : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.noLoc?'<span class="chip amber">No contactada</span>':'<span class="chip green">Contactada</span>')
+    : c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
   const nHist=histDe(c).length;
   const meta=(c.email?`✉️ <b>${esc(c.email)}</b>`:'')+(c.email&&c.phone?' · ':'')+(c.phone?`📱 <b>${esc(c.phone)}</b>`:'')+((!c.email&&!c.phone)?'<span style="color:var(--amber)">sin contacto — abre su ficha</span>':'');
-  return `<div class="card" data-state="${(c.resuelto||(c.gestionada&&!c.noLoc))?'green':'amber'}" id="c${i}">
+  return `<div class="card" data-state="${(c.resuelto||c.esPagado||(c.gestionada&&!c.noLoc&&!c.esCobroHecho))?'green':'amber'}" id="c${i}">
     <div class="stripe"></div>
     <div class="body">
       <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${(diasEspera(c)>0&&!c.gestionada)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div>${chip}</div>
@@ -426,6 +432,7 @@ function tarjeta(c,i){
         ${tel?`<button class="b b-call" onclick="llamar('${esc(c.phone)}',this)">📞 Llamar</button>`:`<span class="b b-call dis" title="No tenemos su teléfono">📞 Llamar</span>`}
         ${tel?`<a class="b b-wa" href="#" onclick="wati('${esc(c.phone)}');return false">💬 WhatsApp</a>`:`<span class="b b-wa dis" title="No tenemos su teléfono">💬 WhatsApp</span>`}
         ${c.email?`<a class="b b-email" href="mailto:${esc(c.email)}">✉️ Email</a>`:`<span class="b b-email dis" title="No tenemos su email">✉️ Email</span>`}
+        ${(c.esCobroHecho&&c.gestId)?`<button class="b b-validar" onclick="marcarPagado(${i},'${esc(String(c.gestId))}',this)" title="Validar que el cobro se ha realizado">✓ Marcar pagado</button>`:''}
         <button class="b b-manage" onclick="reveal(${i})">Registrar</button>
       </div>
       <div class="dispo" id="d${i}" hidden></div>
@@ -450,9 +457,9 @@ function paso2(i,contacto,btn,pre){
   if(caso.tipo==='fallo'){
     // Disposición de FALLOS DE PAGO (spec de Carme)
     if(contacto==='no_localizada'){
-      botones=[['pagado','💰 Pagado','win'],['cobro_manual','💳 Cobro manual',''],['pausa','⏸️ Pausa',''],['pendiente','⏳ Volver a intentar',''],['cancelar_definitivo','❌ Cancelar','bad']];
+      botones=[['cobro_manual','💳 Cobro hecho',''],['pausa','⏸️ Pausa',''],['pendiente','⏳ Volver a intentar',''],['cancelar_definitivo','❌ Cancelar','bad']];
     } else {
-      botones=[['pagado','💰 Pagado','win'],['cobro_manual','💳 Cobro manual',''],['actualizar_pago','🔄 Actualizar pago',''],['pausa','⏸️ Pausa',''],['pendiente_cobro','📅 Pendiente cobro',''],['cancelar_final','❌ Cancelar','bad']];
+      botones=[['cobro_manual','💳 Cobro hecho',''],['actualizar_pago','🔄 Actualizar pago',''],['pausa','⏸️ Pausa',''],['pendiente_cobro','📅 Pendiente cobro',''],['cancelar_final','❌ Cancelar','bad']];
     }
   } else {
     // Disposición de BAJAS y DERIVADAS (spec de Carme + Upsell)
@@ -470,6 +477,18 @@ function paso2(i,contacto,btn,pre){
 }
 // Reconstruye los índices GEST a partir de GALL (más reciente primero). Tras registrar o editar.
 function rebuildGEST(){ GEST={byC:{},byCust:{}}; GALL.forEach(g=>{ const c=nid(g.contract_id),cu=String(g.customer_id||''); if(c)(GEST.byC[c]=GEST.byC[c]||[]).push(g); if(cu)(GEST.byCust[cu]=GEST.byCust[cu]||[]).push(g); }); }
+// Validación: marca una gestión de «cobro hecho» como PAGADO (confirmado que el cobro se realizó).
+async function marcarPagado(i, gId, btn){
+  const g=GALL.find(x=>String(x.id)===String(gId)); if(!g) return;
+  if(btn){ btn.disabled=true; btn.textContent='Validando…'; }
+  try{
+    const r=await fetch(API_BAJAS+'/api/dashboard/gestion-editar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({id:gId, contacto:g.contacto, resultado:'pagado', nota:g.nota, proxima_llamada:g.proxima_llamada})});
+    const d=await r.json();
+    if(!d||!d.ok){ if(btn){ btn.textContent='⚠️ error'; btn.disabled=false; } return; }
+    const idx=GALL.findIndex(x=>String(x.id)===String(gId)); if(idx>=0 && d.gestion) GALL[idx]=d.gestion;
+    rebuildGEST(); motivador(); render();   // validación = confirma (sin confetti; ya se celebró al hacer el cobro)
+  }catch(e){ if(btn){ btn.textContent='⚠️ sin conexión'; btn.disabled=false; } }
+}
 
 async function guardar(i,contacto,resultado,btn){
   const caso=VIS[i];
