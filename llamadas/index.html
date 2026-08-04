@@ -386,8 +386,9 @@ function render(){
   const dfil=l=>fechaFil?l.filter(c=>c.fecha===fechaFil):l;
   const contactadas = dfil(gestionadasCards('localizada'));
   const nolocal     = dfil(gestionadasCards('no_localizada'));
-  const counts={todas:vivas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:vivas.filter(x=>x.tipo==='derivada').length, fallo:vivas.filter(x=>x.tipo==='fallo').length, gestionadas:contactadas.length, nolocal:nolocal.length};
-  const defs=[['todas','Todas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['gestionadas','Contactadas'],['nolocal','No contactadas']];
+  const porValidar  = dfil(gestionadasCards()).filter(c=>c.esCobroHecho);   // cobros hechos pendientes de validar
+  const counts={todas:vivas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:vivas.filter(x=>x.tipo==='derivada').length, fallo:vivas.filter(x=>x.tipo==='fallo').length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length};
+  const defs=[['todas','Todas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['gestionadas','Contactadas'],['nolocal','No contactadas'],['porvalidar','Pagos por validar']];
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
   document.getElementById('dateClear').style.display=fechaFil?'inline-block':'none';
   // Búsqueda: encuentra a CUALQUIERA — pendientes de llamar + contactadas + no contactadas
@@ -398,13 +399,15 @@ function render(){
     for(const c of [...vivas, ...contactadas, ...nolocal]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||''); if(seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
   } else if(filtro==='gestionadas'){ VIS=contactadas; }
   else if(filtro==='nolocal'){ VIS=nolocal; }
+  else if(filtro==='porvalidar'){ VIS=porValidar; }
   else { VIS = filtro==='todas' ? vivas : vivas.filter(x=>x.tipo===filtro); }
   // Ordenar por antigüedad (por defecto, las que llevan más tiempo esperando primero).
   VIS = VIS.slice().sort((a,b)=> orden==='antiguas' ? diasEspera(b)-diasEspera(a) : diasEspera(a)-diasEspera(b));
   document.getElementById('left').textContent = busca ? `${VIS.length} resultado${VIS.length===1?'':'s'}`
     : filtro==='gestionadas' ? `${VIS.length} contactada${VIS.length===1?'':'s'}`
-    : filtro==='nolocal' ? `${VIS.length} sin contactar` : (VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉'));
-  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin contactar 👌':'Nada por llamar aquí. 👌';
+    : filtro==='nolocal' ? `${VIS.length} sin contactar`
+    : filtro==='porvalidar' ? `${VIS.length} por validar` : (VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉'));
+  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin contactar 👌':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':'Nada por llamar aquí. 👌';
   document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${vacio}</div>`;
 }
 function setBusca(v){ busca=(v||'').toLowerCase().trim(); render(); }
