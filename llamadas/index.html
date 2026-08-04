@@ -208,7 +208,7 @@ const API_TEL='https://gestorsubs-domma.cristina-ed1.workers.dev/telefonos-shopi
 const AUTH_API='https://domma-pro-api.cristina-ed1.workers.dev';
 const SHOP_ADMIN='https://admin.shopify.com/store/wearedomma', APPSTLE_APP='subscription-by-rhem';
 const AGENTES=['Carme','Vale','Ana','Marta'];
-const WINS={retenida:'💚 Retenida', venta_cruzada:'🚀 Venta cruzada', upsell:'⬆️ Upsell', pagado:'💰 Pagado', cobro_manual:'💳 Cobro hecho'};
+const WINS={retenida:'💚 Retenida', venta_cruzada:'🚀 Venta cruzada', upsell:'⬆️ Upsell', pagado:'💰 Pagado', cobro_manual:'💳 Cobro hecho', pausa:'💚 Retenida (pausa)'};
 const COBROS=new Set(['pagado','cobro_manual','actualizar_pago']);   // recuperaciones (para el motivador)
 const COBRO_HECHO=new Set(['cobro_manual','actualizar_pago']);       // Carme hizo el cobro → PENDIENTE de validar
 const RES_LABEL={retenida:'Retenida',cambio_producto:'Cambio de producto',cambio_fecha:'Cambio de fecha',venta_cruzada:'Venta cruzada',upsell:'Upsell',pausa:'Pausa',cancelado:'Cancelado',cancelar:'Cancelar',pendiente:'Volver a llamar',no_contesta:'No contesta',
@@ -367,7 +367,7 @@ function gestionadasCards(soloContacto){
     const t=g.tipo_caso==='fallo_pago'?'fallo':(g.tipo_caso==='baja'?'baja':'derivada');
     const res=RES_LABEL[g.resultado]||g.resultado||'';
     const prox=g.proxima_llamada?` · 📅 próx. ${fechaCorta(g.proxima_llamada)}`:'';
-    out.push({tipo:t, gestionada:true, noLoc, esPagado:g.resultado==='pagado', esCobroHecho:COBRO_HECHO.has(g.resultado), gestId:g.id, nombre:g.nombre, email:g.email, phone:g.phone,
+    out.push({tipo:t, gestionada:true, noLoc, esPagado:g.resultado==='pagado', esCobroHecho:COBRO_HECHO.has(g.resultado), esPausa:g.resultado==='pausa', prox:g.proxima_llamada||'', gestId:g.id, nombre:g.nombre, email:g.email, phone:g.phone,
       customer_id:g.customer_id, contract_id:g.contract_id, fecha:(g.created_at||'').slice(0,10),
       why:`${noLoc?'No localizada':'Localizada'}${res?' · '+res:''}${g.agente?' · '+g.agente:''} · ${fechaCorta(g.created_at)}${prox}`});
   }
@@ -384,10 +384,12 @@ function render(){
   document.getElementById('progreso').innerHTML = totalDia
     ? `<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt"><b>${gestHoy}</b> gestionada${gestHoy===1?'':'s'} hoy · quedan <b>${vivas.length}</b></div></div>` : '';
   const dfil=l=>fechaFil?l.filter(c=>c.fecha===fechaFil):l;
-  const contactadas = dfil(gestionadasCards('localizada'));
-  const nolocal     = dfil(gestionadasCards('no_localizada'));
+  const contactadas = dfil(gestionadasCards('localizada')).filter(c=>!c.esPausa);   // las pausas van a Derivadas
+  const nolocal     = dfil(gestionadasCards('no_localizada')).filter(c=>!c.esPausa);
   const porValidar  = dfil(gestionadasCards()).filter(c=>c.esCobroHecho);   // cobros hechos pendientes de validar
-  const counts={todas:vivas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:vivas.filter(x=>x.tipo==='derivada').length, fallo:vivas.filter(x=>x.tipo==='fallo').length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length};
+  const pausas      = dfil(gestionadasCards()).filter(c=>c.esPausa);        // retenidas por pausa → seguimiento en Derivadas
+  const derivPend   = vivas.filter(x=>x.tipo==='derivada');
+  const counts={todas:vivas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausas.length, fallo:vivas.filter(x=>x.tipo==='fallo').length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length};
   const defs=[['todas','Todas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['gestionadas','Contactadas'],['nolocal','No contactadas'],['porvalidar','Pagos por validar']];
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
   document.getElementById('dateClear').style.display=fechaFil?'inline-block':'none';
@@ -396,10 +398,11 @@ function render(){
   const matchB=c=>((c.nombre||'')+' '+(c.email||'')+' '+(c.phone||'')).toLowerCase().includes(busca);
   if(busca){
     const seen=new Set(); VIS=[];
-    for(const c of [...vivas, ...contactadas, ...nolocal]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||''); if(seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
+    for(const c of [...vivas, ...contactadas, ...nolocal, ...pausas]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||''); if(seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
   } else if(filtro==='gestionadas'){ VIS=contactadas; }
   else if(filtro==='nolocal'){ VIS=nolocal; }
   else if(filtro==='porvalidar'){ VIS=porValidar; }
+  else if(filtro==='derivada'){ VIS=[...derivPend, ...pausas]; }   // derivadas a Ana + retenidas por pausa (seguimiento)
   else { VIS = filtro==='todas' ? vivas : vivas.filter(x=>x.tipo===filtro); }
   // Ordenar por antigüedad (por defecto, las que llevan más tiempo esperando primero).
   VIS = VIS.slice().sort((a,b)=> orden==='antiguas' ? diasEspera(b)-diasEspera(a) : diasEspera(a)-diasEspera(b));
@@ -420,7 +423,7 @@ function setFecha(v){ fechaFil=v||''; const el=document.getElementById('dateFil'
 function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
   const chip = c.resuelto?'<span class="chip green">Ha pagado</span>'
-    : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.noLoc?'<span class="chip amber">No contactada</span>':'<span class="chip green">Contactada</span>')
+    : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.esPausa?'<span class="chip green">Retenida · pausa</span>':c.noLoc?'<span class="chip amber">No contactada</span>':'<span class="chip green">Contactada</span>')
     : c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
   const nHist=histDe(c).length;
@@ -549,7 +552,12 @@ function motivador(){
   const ag=agActual(), hoy=hoyISO();
   const mios=GALL.filter(g=>g.agente===ag && String(g.created_at||'').slice(0,10)===hoy);
   const n={retenida:0,venta_cruzada:0,upsell:0}; let cobros=0;
-  mios.forEach(g=>{ if(n[g.resultado]!=null) n[g.resultado]++; if(g.resultado==='pagado'||g.resultado==='cobro_manual'||g.resultado==='actualizar_pago') cobros++; });
+  mios.forEach(g=>{
+    if(g.resultado==='retenida'||g.resultado==='pausa') n.retenida++;   // pausa = retención activa de Carme
+    else if(g.resultado==='venta_cruzada') n.venta_cruzada++;
+    else if(g.resultado==='upsell') n.upsell++;
+    if(COBROS.has(g.resultado)) cobros++;
+  });
   bump('n-reten',n.retenida); bump('n-cross',n.venta_cruzada); bump('n-upsell',n.upsell); bump('n-pagado',cobros);
   const total=n.retenida+n.venta_cruzada+n.upsell+cobros;
   const frases=['Empieza el día — cada llamada cuenta 💪','¡Vas genial! Sigue así 💪','¡Imparable! 🔥','¡Qué crack! 🌟','¡El equipo lo nota 💜!'];
