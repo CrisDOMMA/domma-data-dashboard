@@ -497,6 +497,8 @@ function guardar(){
   M_CAMPOS.forEach(c=>{ b[c]=document.getElementById('m_'+c).value; });
   const t=document.getElementById('m_transportista').value;
   b.transportista=t==='otro'?(document.getElementById('m_trans_otro').value.trim().toLowerCase()||'otro'):t;
+  // cerrar sin fecha de resolución → hoy (el worker también lo cubre; esto lo hace visible al instante)
+  if((b.estado==='resuelta'||b.estado==='cerrada_sin_solucion')&&!b.fecha_resolucion) b.fecha_resolucion=hoy();
   b.coste_eur=b.coste_eur?Number(b.coste_eur):'';
   b.baja_asociada=Number(b.baja_asociada); b.registro_fotografico=Number(b.registro_fotografico);
   const err=document.getElementById('mErr'); err.textContent='';
