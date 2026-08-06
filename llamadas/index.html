@@ -219,7 +219,7 @@ const RES_TONE={retenida:'green',cambio_producto:'green',cambio_fecha:'green',ve
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
 (function(){ const m=location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token',decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
 let token=localStorage.getItem('domma_analytics_token')||'';
-let LISTA=[], GEST={byC:{},byCust:{}}, GALL=[], filtro='todas', fechaFil='', busca='', orden='antiguas';
+let LISTA=[], REGISTRO=[], GEST={byC:{},byCust:{}}, GALL=[], filtro='todas', fechaFil='', busca='', orden='antiguas';
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hoyISO=()=>new Date().toISOString().slice(0,10);
 const nid=v=>String(v==null?'':v).split('.')[0].trim();
@@ -248,7 +248,7 @@ function arrancar(){
   cargar();
 }
 
-const labelMotivo=m=>({gate_2pedidos:'Menos de 2 pedidos',min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Fallo de pago',coach:'Derivada a Ana'}[m]||m||'—');
+const labelMotivo=m=>({gate_2pedidos:'Menos de 2 pedidos',min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Fallo de pago',salud:'Motivo médico',coach:'Derivada a Ana'}[m]||m||'—');
 function porQue(s){ const CM={min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Tiene un fallo de pago'}; const c=(s.comentario||'').trim(); return CM[c]||(c&&c.length<=60?c:'')||labelMotivo(s.motivo)||'Derivada a Ana'; }
 
 async function cargar(){
@@ -315,6 +315,22 @@ async function cargar(){
     ...fa,
     ...resueltas,
   ];
+  // REGISTRO del formulario: TODAS las clientas que pasaron por el flujo de gestión/baja y ya NO
+  // están en la cola activa (bajas directas, solicitudes ya tramitadas, derivadas, pausas). Es SOLO
+  // para consulta: cuando una clienta llama o escribe por WhatsApp diciendo "ya envié el formulario
+  // de cancelación", Carme la busca por nombre y confirma con certeza que quedó registrada, cuándo y
+  // con qué desenlace. Se excluyen las que siguen en la cola activa (esas ya salen en sus pestañas).
+  {
+    const pend=new Set(LISTA.map(c=>nid(c.contract_id)||String(c.customer_id||'')||(c.email||'')));
+    const vistos=new Set();
+    const ESTL={baja:'Baja directa registrada',solicitud_baja:'Baja solicitada',coach:'Derivada a Marta',gate:'Derivada a Marta',pausa:'Pausada'};
+    REGISTRO=((bajas.repesca&&bajas.repesca.lista)||[])
+      .filter(x=>{ const k=nid(x.contract_id)||String(x.customer_id||'')||(x.email||''); if(!k||pend.has(k)||vistos.has(k))return false; vistos.add(k); return true; })
+      .map(x=>({tipo:'registro', registro:true, cancelacion:(x.estado==='baja'||x.estado==='solicitud_baja'), directa:x.estado==='baja',
+        estado:x.estado, nombre:x.nombre, email:x.email, phone:x.phone,
+        customer_id:x.customer_id, contract_id:x.contract_id, fecha:(x.fecha||'').slice(0,10),
+        why:`${ESTL[x.estado]||'Registrada'} · ${labelMotivo(x.motivo)}${x.reactivada?' · reactivada después':''}`}));
+  }
   motivador();
   render();
   enriquecerTelefonos();   // en segundo plano: rellena el móvil que falta (Appstle no lo trae) desde Shopify
@@ -389,8 +405,10 @@ function render(){
   const porValidar  = dfil(gestionadasCards()).filter(c=>c.esCobroHecho);   // cobros hechos pendientes de validar
   const pausas      = dfil(gestionadasCards()).filter(c=>c.esPausa);        // retenidas por pausa → seguimiento en Derivadas
   const derivPend   = vivas.filter(x=>x.tipo==='derivada');
-  const counts={todas:vivas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausas.length, fallo:vivas.filter(x=>x.tipo==='fallo').length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length};
-  const defs=[['todas','Todas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['gestionadas','Contactadas'],['nolocal','No contactadas'],['porvalidar','Pagos por validar']];
+  const reg         = dfil(REGISTRO);                       // registro completo del formulario (búsqueda)
+  const cancel      = reg.filter(c=>c.cancelacion);         // subconjunto "cancelaciones" para el chip
+  const counts={todas:vivas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausas.length, fallo:vivas.filter(x=>x.tipo==='fallo').length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length, cancelada:cancel.length};
+  const defs=[['todas','Todas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['cancelada','Canceladas'],['gestionadas','Contactadas'],['nolocal','No contactadas'],['porvalidar','Pagos por validar']];
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
   document.getElementById('dateClear').style.display=fechaFil?'inline-block':'none';
   // Búsqueda: encuentra a CUALQUIERA — pendientes de llamar + contactadas + no contactadas
@@ -398,10 +416,11 @@ function render(){
   const matchB=c=>((c.nombre||'')+' '+(c.email||'')+' '+(c.phone||'')).toLowerCase().includes(busca);
   if(busca){
     const seen=new Set(); VIS=[];
-    for(const c of [...vivas, ...contactadas, ...nolocal, ...pausas]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||''); if(seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
+    for(const c of [...vivas, ...contactadas, ...nolocal, ...pausas, ...reg]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||''); if(seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
   } else if(filtro==='gestionadas'){ VIS=contactadas; }
   else if(filtro==='nolocal'){ VIS=nolocal; }
   else if(filtro==='porvalidar'){ VIS=porValidar; }
+  else if(filtro==='cancelada'){ VIS=cancel; }   // bajas médicas ya ejecutadas (solo consulta)
   else if(filtro==='derivada'){ VIS=[...derivPend, ...pausas]; }   // derivadas a Ana + retenidas por pausa (seguimiento)
   else { VIS = filtro==='todas' ? vivas : vivas.filter(x=>x.tipo===filtro); }
   // Ordenar por antigüedad (por defecto, las que llevan más tiempo esperando primero).
@@ -409,8 +428,9 @@ function render(){
   document.getElementById('left').textContent = busca ? `${VIS.length} resultado${VIS.length===1?'':'s'}`
     : filtro==='gestionadas' ? `${VIS.length} contactada${VIS.length===1?'':'s'}`
     : filtro==='nolocal' ? `${VIS.length} sin contactar`
+    : filtro==='cancelada' ? `${VIS.length} baja${VIS.length===1?'':'s'} registrada${VIS.length===1?'':'s'}`
     : filtro==='porvalidar' ? `${VIS.length} por validar` : (VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉'));
-  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin contactar 👌':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':'Nada por llamar aquí. 👌';
+  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin contactar 👌':filtro==='cancelada'?'Ninguna baja registrada por el formulario todavía.':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':'Nada por llamar aquí. 👌';
   document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${vacio}</div>`;
 }
 function setBusca(v){ busca=(v||'').toLowerCase().trim(); render(); }
@@ -422,16 +442,17 @@ function setFecha(v){ fechaFil=v||''; const el=document.getElementById('dateFil'
 
 function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
-  const chip = c.resuelto?'<span class="chip green">Ha pagado</span>'
+  const chip = c.registro?`<span class="chip ${(c.directa||c.estado==='pausa')?'green':'amber'}">${c.directa?'Baja ✓':c.estado==='solicitud_baja'?'Baja solicitada':c.estado==='pausa'?'Pausada':'Derivada'}</span>`
+    : c.resuelto?'<span class="chip green">Ha pagado</span>'
     : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.esPausa?'<span class="chip green">Retenida · pausa</span>':c.noLoc?'<span class="chip amber">No contactada</span>':'<span class="chip green">Contactada</span>')
     : c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
   const nHist=histDe(c).length;
   const meta=(c.email?`✉️ <b>${esc(c.email)}</b>`:'')+(c.email&&c.phone?' · ':'')+(c.phone?`📱 <b>${esc(c.phone)}</b>`:'')+((!c.email&&!c.phone)?'<span style="color:var(--amber)">sin contacto — abre su ficha</span>':'');
-  return `<div class="card" data-state="${(c.resuelto||c.esPagado||(c.gestionada&&!c.noLoc&&!c.esCobroHecho))?'green':'amber'}" id="c${i}">
+  return `<div class="card" data-state="${((c.registro&&(c.directa||c.estado==='pausa'))||c.resuelto||c.esPagado||(c.gestionada&&!c.noLoc&&!c.esCobroHecho))?'green':'amber'}" id="c${i}">
     <div class="stripe"></div>
     <div class="body">
-      <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${(diasEspera(c)>0&&!c.gestionada)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div>${chip}</div>
+      <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div>${chip}</div>
       <div class="cmeta-row"><span class="cmeta">${meta}</span>${nHist?`<a class="histlink" href="#" data-n="${nHist}" onclick="toggleHist(${i},this);return false">Ver historial · ${nHist}</a>`:''}</div>
       <div class="hist" id="hist${i}" hidden>${histInner(c,i)}</div>
       <div class="actions">
@@ -439,7 +460,7 @@ function tarjeta(c,i){
         ${tel?`<a class="b b-wa" href="#" onclick="wati('${esc(c.phone)}');return false">💬 WhatsApp</a>`:`<span class="b b-wa dis" title="No tenemos su teléfono">💬 WhatsApp</span>`}
         ${c.email?`<a class="b b-email" href="mailto:${esc(c.email)}">✉️ Email</a>`:`<span class="b b-email dis" title="No tenemos su email">✉️ Email</span>`}
         ${(c.esCobroHecho&&c.gestId)?`<button class="b b-validar" onclick="marcarPagado(${i},'${esc(String(c.gestId))}',this)" title="Validar que el cobro se ha realizado">✓ Marcar pagado</button>`:''}
-        <button class="b b-manage" onclick="reveal(${i})">Registrar</button>
+        ${c.registro?'':`<button class="b b-manage" onclick="reveal(${i})">Registrar</button>`}
       </div>
       <div class="dispo" id="d${i}" hidden></div>
       <div class="done" id="done${i}" hidden></div>
