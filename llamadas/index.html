@@ -529,9 +529,19 @@ function seleccionar(i,contacto,r,btn){
   const gb=document.getElementById('gbtn'+i); if(gb) gb.disabled=false;
   const msg=document.getElementById('msg'+i); if(msg) msg.textContent='';
 }
-// Rehacer/Reset: deja el editor como estaba al abrirlo (sin cambios). En edición vuelve a los
-// valores originales de la gestión; en registro nuevo, a cero.
-function rehacer(i){ const d=document.getElementById('d'+i); const gId=d.dataset.edit; if(gId){ abrirEdit(i,gId); } else { reveal(i); } }
+// Rehacer/Reset: descarta lo marcado SIN cerrar la pantalla, para que se vea el efecto.
+// En edición vuelve a los valores originales guardados; en registro nuevo, deselecciona la
+// opción y limpia nota/fecha (y vuelve a bloquear Guardar) — quedándose en la misma pantalla.
+function rehacer(i){
+  const d=document.getElementById('d'+i); const gId=d.dataset.edit;
+  if(gId){ abrirEdit(i,gId); const m=document.getElementById('msg'+i); if(m){ m.textContent='↺ Cambios descartados — como estaba guardado.'; m.style.color='var(--muted)'; } return; }
+  d.dataset.sel='';
+  d.querySelectorAll('.dgrid .d.sel').forEach(b=>b.classList.remove('sel'));
+  const nota=document.getElementById('nota'+i); if(nota) nota.value='';
+  const prox=document.getElementById('prox'+i); if(prox) prox.value='';
+  const gb=document.getElementById('gbtn'+i); if(gb) gb.disabled=true;
+  const m=document.getElementById('msg'+i); if(m){ m.textContent='↺ Marcado borrado — vuelve a elegir una opción.'; m.style.color='var(--muted)'; }
+}
 // Deshacer gestión: borra la gestión mal marcada (por id) → la clienta vuelve a quedar pendiente.
 async function borrarGestion(i,gId){
   if(!confirm('¿Deshacer esta gestión?\n\nSe borra el registro de la llamada y la clienta vuelve a quedar como estaba antes de marcarla. No afecta a su suscripción.')) return;
