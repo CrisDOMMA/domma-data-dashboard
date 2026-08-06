@@ -102,6 +102,9 @@
   .b-validar{background:var(--green);color:#fff}
   .b-validar:hover{filter:brightness(1.05)}
   .b-validar:disabled{opacity:.6;cursor:default}
+  .b-undo{background:var(--red-bg);color:var(--red);border:1.5px solid transparent}
+  .b-undo:hover{filter:brightness(.97)}
+  .b-undo:disabled{opacity:.6;cursor:default}
 
   .dispo{margin-top:15px;padding-top:13px;border-top:1px dashed var(--line)}
   .dispo-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
@@ -129,8 +132,6 @@
   .dfbtn{border:none;border-radius:11px;padding:11px 18px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit}
   .dguardar{background:var(--indigo);color:#fff} .dguardar:hover{background:var(--indigo-2)}
   .dguardar:disabled{opacity:.4;cursor:not-allowed}
-  .drehacer{background:#EFEDF4;color:var(--ink)} .drehacer:hover{background:#E4E1EC}
-  .dborrar{background:var(--red-bg);color:var(--red);margin-left:auto} .dborrar:hover{filter:brightness(.97)}
   .done{margin-top:13px;padding:13px 15px;background:var(--green-bg);border-radius:12px;font-size:15.5px;font-weight:800;color:var(--green)}
   .card[data-state="red"] .done{background:var(--red-bg);color:var(--red)}
   .card[data-state="amber"] .done{background:var(--amber-bg);color:var(--amber)}
@@ -451,6 +452,8 @@ function setFecha(v){ fechaFil=v||''; const el=document.getElementById('dateFil'
 
 function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
+  // Última gestión de esta clienta (para el botón fijo «Deshacer»). No aplica a las de solo consulta (registro).
+  const ultGestId = !c.registro ? (c.gestId || ((histDe(c)[0]||{}).id)) : null;
   const chip = c.registro?`<span class="chip ${(c.directa||c.estado==='pausa')?'green':'amber'}">${c.directa?'Baja ✓':c.estado==='solicitud_baja'?'Baja solicitada':c.estado==='pausa'?'Pausada':'Derivada'}</span>`
     : c.resuelto?'<span class="chip green">Ha pagado</span>'
     : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.esPausa?'<span class="chip green">Retenida · pausa</span>':c.esCancelada?'<span class="chip red">Cancelada</span>':c.noLoc?'<span class="chip amber">No contactada</span>':'<span class="chip green">Contactada</span>')
@@ -469,6 +472,7 @@ function tarjeta(c,i){
         ${tel?`<a class="b b-wa" href="#" onclick="wati('${esc(c.phone)}');return false">💬 WhatsApp</a>`:`<span class="b b-wa dis" title="No tenemos su teléfono">💬 WhatsApp</span>`}
         ${c.email?`<a class="b b-email" href="mailto:${esc(c.email)}">✉️ Email</a>`:`<span class="b b-email dis" title="No tenemos su email">✉️ Email</span>`}
         ${(c.esCobroHecho&&c.gestId)?`<button class="b b-validar" onclick="marcarPagado(${i},'${esc(String(c.gestId))}',this)" title="Validar que el cobro se ha realizado">✓ Marcar pagado</button>`:''}
+        ${ultGestId?`<button class="b b-undo" onclick="borrarGestion('${esc(String(ultGestId))}',this)" title="Deshacer la última gestión de esta clienta: vuelve a quedar como antes. No afecta a su suscripción.">🗑 Deshacer</button>`:''}
         ${c.registro?'':`<button class="b b-manage" onclick="reveal(${i})">Registrar</button>`}
       </div>
       <div class="dispo" id="d${i}" hidden></div>
@@ -516,8 +520,6 @@ function paso2(i,contacto,btn,pre){
      <textarea class="nota" id="nota${i}" rows="2" placeholder="Nota (opcional): qué dijo, próximo paso…">${pre&&pre.nota?esc(pre.nota):''}</textarea>
      <div class="dispo-foot">
        <button class="dfbtn dguardar" id="gbtn${i}" onclick="guardar(${i})" ${pre&&pre.resultado?'':'disabled'}>✓ Guardar</button>
-       <button class="dfbtn drehacer" onclick="rehacer(${i})" title="Deshacer los cambios y dejarlo como estaba">↺ Rehacer</button>
-       ${editId?`<button class="dfbtn dborrar" onclick="borrarGestion(${i},'${editId}')" title="Borrar esta gestión: la clienta vuelve a quedar como antes de marcarla">🗑 Deshacer gestión</button>`:''}
      </div>
      <div class="msg" id="msg${i}"></div>`;
 }
@@ -529,30 +531,18 @@ function seleccionar(i,contacto,r,btn){
   const gb=document.getElementById('gbtn'+i); if(gb) gb.disabled=false;
   const msg=document.getElementById('msg'+i); if(msg) msg.textContent='';
 }
-// Rehacer/Reset: descarta lo marcado SIN cerrar la pantalla, para que se vea el efecto.
-// En edición vuelve a los valores originales guardados; en registro nuevo, deselecciona la
-// opción y limpia nota/fecha (y vuelve a bloquear Guardar) — quedándose en la misma pantalla.
-function rehacer(i){
-  const d=document.getElementById('d'+i); const gId=d.dataset.edit;
-  if(gId){ abrirEdit(i,gId); const m=document.getElementById('msg'+i); if(m){ m.textContent='↺ Cambios descartados — como estaba guardado.'; m.style.color='var(--muted)'; } return; }
-  d.dataset.sel='';
-  d.querySelectorAll('.dgrid .d.sel').forEach(b=>b.classList.remove('sel'));
-  const nota=document.getElementById('nota'+i); if(nota) nota.value='';
-  const prox=document.getElementById('prox'+i); if(prox) prox.value='';
-  const gb=document.getElementById('gbtn'+i); if(gb) gb.disabled=true;
-  const m=document.getElementById('msg'+i); if(m){ m.textContent='↺ Marcado borrado — vuelve a elegir una opción.'; m.style.color='var(--muted)'; }
-}
-// Deshacer gestión: borra la gestión mal marcada (por id) → la clienta vuelve a quedar pendiente.
-async function borrarGestion(i,gId){
-  if(!confirm('¿Deshacer esta gestión?\n\nSe borra el registro de la llamada y la clienta vuelve a quedar como estaba antes de marcarla. No afecta a su suscripción.')) return;
-  const msg=document.getElementById('msg'+i); if(msg){ msg.textContent='Deshaciendo…'; msg.style.color='var(--muted)'; }
+// Deshacer la ÚLTIMA gestión de una clienta. Botón FIJO en su tarjeta (un clic, sin editar).
+// Borra el registro de la llamada → la clienta vuelve a quedar como estaba. No toca Appstle.
+async function borrarGestion(gId,btn){
+  if(!confirm('¿Deshacer la última gestión de esta clienta?\n\nSe borra el registro de la llamada y vuelve a quedar como estaba antes de marcarla. No afecta a su suscripción.')) return;
+  const orig=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Deshaciendo…'; }
   try{
     const r=await fetch(API_BAJAS+'/api/dashboard/gestion-eliminar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({id:gId})});
     const d=await r.json();
-    if(!d||!d.ok){ if(msg){ msg.textContent='No se pudo deshacer'; msg.style.color='var(--red)'; } return; }
+    if(!d||!d.ok){ if(btn){ btn.textContent='⚠️ no se pudo'; setTimeout(()=>{btn.textContent=orig;btn.disabled=false;},2000); } return; }
     const idx=GALL.findIndex(x=>String(x.id)===String(gId)); if(idx>=0) GALL.splice(idx,1);
-    rebuildGEST(); cerrar(i); motivador(); render();
-  }catch(e){ if(msg){ msg.textContent='Error de conexión'; msg.style.color='var(--red)'; } }
+    rebuildGEST(); motivador(); render();
+  }catch(e){ if(btn){ btn.textContent='⚠️ sin conexión'; setTimeout(()=>{btn.textContent=orig;btn.disabled=false;},2000); } }
 }
 // Reconstruye los índices GEST a partir de GALL (más reciente primero). Tras registrar o editar.
 function rebuildGEST(){ GEST={byC:{},byCust:{}}; GALL.forEach(g=>{ const c=nid(g.contract_id),cu=String(g.customer_id||''); if(c)(GEST.byC[c]=GEST.byC[c]||[]).push(g); if(cu)(GEST.byCust[cu]=GEST.byCust[cu]||[]).push(g); }); }
