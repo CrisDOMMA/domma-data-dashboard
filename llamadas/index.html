@@ -125,6 +125,12 @@
   .hedit:hover{text-decoration:underline}
   .nota{width:100%;margin-top:9px;padding:9px 11px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:13.5px;resize:vertical;box-sizing:border-box}
   .msg{font-size:13px;font-weight:700;margin-top:8px}
+  .dispo-foot{display:flex;gap:9px;margin-top:13px;flex-wrap:wrap;align-items:center}
+  .dfbtn{border:none;border-radius:11px;padding:11px 18px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit}
+  .dguardar{background:var(--indigo);color:#fff} .dguardar:hover{background:var(--indigo-2)}
+  .dguardar:disabled{opacity:.4;cursor:not-allowed}
+  .drehacer{background:#EFEDF4;color:var(--ink)} .drehacer:hover{background:#E4E1EC}
+  .dborrar{background:var(--red-bg);color:var(--red);margin-left:auto} .dborrar:hover{filter:brightness(.97)}
   .done{margin-top:13px;padding:13px 15px;background:var(--green-bg);border-radius:12px;font-size:15.5px;font-weight:800;color:var(--green)}
   .card[data-state="red"] .done{background:var(--red-bg);color:var(--red)}
   .card[data-state="amber"] .done{background:var(--amber-bg);color:var(--amber)}
@@ -355,6 +361,9 @@ function histDe(caso){ const c=nid(caso.contract_id); const cu=String(caso.custo
 // Resultados que "cierran" el caso por hoy. Los no terminales (volver a llamar / no contesta)
 // mantienen la clienta en la lista, porque hay que reintentarla.
 const TERMINAL=new Set(['retenida','cambio_producto','cambio_fecha','venta_cruzada','upsell','pausa','cancelado','cancelar','cobro_manual','actualizar_pago','pendiente_cobro','cancelar_final','cancelar_definitivo','pagado']);
+// Resultados de CANCELACIÓN (cierran el caso como baja). El chip debe decir «Cancelada»,
+// aunque haya sido no localizada (si no, se quedaba «No contactada» y confundía a Carme).
+const CANCELAR=new Set(['cancelar','cancelado','cancelar_final','cancelar_definitivo']);
 function gestionadaHoy(caso){ return histDe(caso).some(g=>String(g.created_at||'').slice(0,10)===hoyISO() && TERMINAL.has(g.resultado)); }
 const fechaCorta=s=>{ if(!s)return''; const d=new Date(String(s).replace(' ','T')+'Z'); return isNaN(d)?esc(s):d.toLocaleDateString('es-ES',{day:'2-digit',month:'short'}); };
 function histInner(caso, i){
@@ -383,7 +392,7 @@ function gestionadasCards(soloContacto){
     const t=g.tipo_caso==='fallo_pago'?'fallo':(g.tipo_caso==='baja'?'baja':'derivada');
     const res=RES_LABEL[g.resultado]||g.resultado||'';
     const prox=g.proxima_llamada?` · 📅 próx. ${fechaCorta(g.proxima_llamada)}`:'';
-    out.push({tipo:t, gestionada:true, noLoc, esPagado:g.resultado==='pagado', esCobroHecho:COBRO_HECHO.has(g.resultado), esPausa:g.resultado==='pausa', prox:g.proxima_llamada||'', gestId:g.id, nombre:g.nombre, email:g.email, phone:g.phone,
+    out.push({tipo:t, gestionada:true, noLoc, esPagado:g.resultado==='pagado', esCobroHecho:COBRO_HECHO.has(g.resultado), esPausa:g.resultado==='pausa', esCancelada:CANCELAR.has(g.resultado), prox:g.proxima_llamada||'', gestId:g.id, nombre:g.nombre, email:g.email, phone:g.phone,
       customer_id:g.customer_id, contract_id:g.contract_id, fecha:(g.created_at||'').slice(0,10),
       why:`${noLoc?'No localizada':'Localizada'}${res?' · '+res:''}${g.agente?' · '+g.agente:''} · ${fechaCorta(g.created_at)}${prox}`});
   }
@@ -444,12 +453,12 @@ function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
   const chip = c.registro?`<span class="chip ${(c.directa||c.estado==='pausa')?'green':'amber'}">${c.directa?'Baja ✓':c.estado==='solicitud_baja'?'Baja solicitada':c.estado==='pausa'?'Pausada':'Derivada'}</span>`
     : c.resuelto?'<span class="chip green">Ha pagado</span>'
-    : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.esPausa?'<span class="chip green">Retenida · pausa</span>':c.noLoc?'<span class="chip amber">No contactada</span>':'<span class="chip green">Contactada</span>')
+    : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.esPausa?'<span class="chip green">Retenida · pausa</span>':c.esCancelada?'<span class="chip red">Cancelada</span>':c.noLoc?'<span class="chip amber">No contactada</span>':'<span class="chip green">Contactada</span>')
     : c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
   const nHist=histDe(c).length;
   const meta=(c.email?`✉️ <b>${esc(c.email)}</b>`:'')+(c.email&&c.phone?' · ':'')+(c.phone?`📱 <b>${esc(c.phone)}</b>`:'')+((!c.email&&!c.phone)?'<span style="color:var(--amber)">sin contacto — abre su ficha</span>':'');
-  return `<div class="card" data-state="${((c.registro&&(c.directa||c.estado==='pausa'))||c.resuelto||c.esPagado||(c.gestionada&&!c.noLoc&&!c.esCobroHecho))?'green':'amber'}" id="c${i}">
+  return `<div class="card" data-state="${c.esCancelada?'red':((c.registro&&(c.directa||c.estado==='pausa'))||c.resuelto||c.esPagado||(c.gestionada&&!c.noLoc&&!c.esCobroHecho))?'green':'amber'}" id="c${i}">
     <div class="stripe"></div>
     <div class="body">
       <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div>${chip}</div>
@@ -469,7 +478,7 @@ function tarjeta(c,i){
 function toggleHist(i,el){ const d=document.getElementById('hist'+i); if(!d)return; d.hidden=!d.hidden; el.textContent=(d.hidden?'Ver':'Ocultar')+' historial · '+el.dataset.n; }
 function reveal(i){
   const d=document.getElementById('d'+i);
-  d.hidden=false; d.dataset.c=''; d.dataset.edit='';
+  d.hidden=false; d.dataset.c=''; d.dataset.edit=''; d.dataset.sel=''; d.dataset.contacto='';
   d.innerHTML=`<div class="dispo-head"><span class="dispo-title">Registrar la llamada</span><button class="dispo-close" onclick="cerrar(${i})" title="Cerrar">✕</button></div>
     <div class="dispo-q">¿Has podido hablar con ella?</div>
     <div class="seg"><button class="segb" onclick="paso2(${i},'localizada',this)">Sí, localizada</button><button class="segb" onclick="paso2(${i},'no_localizada',this)">No localizada</button></div>
@@ -479,7 +488,12 @@ function reveal(i){
 function cerrar(i){ const d=document.getElementById('d'+i); if(d){ d.hidden=true; d.innerHTML=''; } }
 function paso2(i,contacto,btn,pre){
   const caso=VIS[i];
-  document.getElementById('d'+i).querySelectorAll('.segb').forEach(b=>b.classList.remove('on')); if(btn) btn.classList.add('on');
+  const d=document.getElementById('d'+i);
+  d.querySelectorAll('.segb').forEach(b=>b.classList.remove('on')); if(btn) btn.classList.add('on');
+  // Estado del editor (dos pasos): guardamos la selección en el dataset; sólo se escribe al pulsar Guardar.
+  d.dataset.contacto=contacto;
+  d.dataset.sel = (pre&&pre.resultado) ? pre.resultado : '';   // en edición, arranca con lo que ya tenía
+  const editId=d.dataset.edit||'';
   let botones;
   if(caso.tipo==='fallo'){
     // Disposición de FALLOS DE PAGO (spec de Carme)
@@ -497,10 +511,38 @@ function paso2(i,contacto,btn,pre){
     }
   }
   document.getElementById('res'+i).innerHTML=
-    `<div class="dgrid">${botones.map(([r,l,cls])=>`<button class="d ${cls}${pre&&pre.resultado===r?' sel':''}" onclick="guardar(${i},'${contacto}','${r}',this)">${l}</button>`).join('')}</div>
+    `<div class="dgrid">${botones.map(([r,l,cls])=>`<button class="d ${cls}${pre&&pre.resultado===r?' sel':''}" onclick="seleccionar(${i},'${contacto}','${r}',this)">${l}</button>`).join('')}</div>
      <div class="prox-row"><label class="prox-lbl">📅 Próxima llamada <span>(opcional)</span></label><input type="date" id="prox${i}" class="proxin" value="${pre&&pre.prox?esc(String(pre.prox).slice(0,10)):''}"></div>
      <textarea class="nota" id="nota${i}" rows="2" placeholder="Nota (opcional): qué dijo, próximo paso…">${pre&&pre.nota?esc(pre.nota):''}</textarea>
+     <div class="dispo-foot">
+       <button class="dfbtn dguardar" id="gbtn${i}" onclick="guardar(${i})" ${pre&&pre.resultado?'':'disabled'}>✓ Guardar</button>
+       <button class="dfbtn drehacer" onclick="rehacer(${i})" title="Deshacer los cambios y dejarlo como estaba">↺ Rehacer</button>
+       ${editId?`<button class="dfbtn dborrar" onclick="borrarGestion(${i},'${editId}')" title="Borrar esta gestión: la clienta vuelve a quedar como antes de marcarla">🗑 Deshacer gestión</button>`:''}
+     </div>
      <div class="msg" id="msg${i}"></div>`;
+}
+// Paso 1 de "verificar antes de guardar": seleccionar una disposición sólo la resalta y
+// habilita Guardar; NO escribe nada hasta que Carme pulsa Guardar.
+function seleccionar(i,contacto,r,btn){
+  const d=document.getElementById('d'+i); d.dataset.sel=r; d.dataset.contacto=contacto;
+  btn.closest('.dgrid').querySelectorAll('.d').forEach(b=>b.classList.remove('sel')); btn.classList.add('sel');
+  const gb=document.getElementById('gbtn'+i); if(gb) gb.disabled=false;
+  const msg=document.getElementById('msg'+i); if(msg) msg.textContent='';
+}
+// Rehacer/Reset: deja el editor como estaba al abrirlo (sin cambios). En edición vuelve a los
+// valores originales de la gestión; en registro nuevo, a cero.
+function rehacer(i){ const d=document.getElementById('d'+i); const gId=d.dataset.edit; if(gId){ abrirEdit(i,gId); } else { reveal(i); } }
+// Deshacer gestión: borra la gestión mal marcada (por id) → la clienta vuelve a quedar pendiente.
+async function borrarGestion(i,gId){
+  if(!confirm('¿Deshacer esta gestión?\n\nSe borra el registro de la llamada y la clienta vuelve a quedar como estaba antes de marcarla. No afecta a su suscripción.')) return;
+  const msg=document.getElementById('msg'+i); if(msg){ msg.textContent='Deshaciendo…'; msg.style.color='var(--muted)'; }
+  try{
+    const r=await fetch(API_BAJAS+'/api/dashboard/gestion-eliminar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({id:gId})});
+    const d=await r.json();
+    if(!d||!d.ok){ if(msg){ msg.textContent='No se pudo deshacer'; msg.style.color='var(--red)'; } return; }
+    const idx=GALL.findIndex(x=>String(x.id)===String(gId)); if(idx>=0) GALL.splice(idx,1);
+    rebuildGEST(); cerrar(i); motivador(); render();
+  }catch(e){ if(msg){ msg.textContent='Error de conexión'; msg.style.color='var(--red)'; } }
 }
 // Reconstruye los índices GEST a partir de GALL (más reciente primero). Tras registrar o editar.
 function rebuildGEST(){ GEST={byC:{},byCust:{}}; GALL.forEach(g=>{ const c=nid(g.contract_id),cu=String(g.customer_id||''); if(c)(GEST.byC[c]=GEST.byC[c]||[]).push(g); if(cu)(GEST.byCust[cu]=GEST.byCust[cu]||[]).push(g); }); }
@@ -517,11 +559,17 @@ async function marcarPagado(i, gId, btn){
   }catch(e){ if(btn){ btn.textContent='⚠️ sin conexión'; btn.disabled=false; } }
 }
 
-async function guardar(i,contacto,resultado,btn){
+async function guardar(i){
   const caso=VIS[i];
   const dispo=document.getElementById('d'+i);
   const editId=dispo?dispo.dataset.edit:'';
-  const msg=document.getElementById('msg'+i); msg.textContent=editId?'Actualizando…':'Guardando…'; msg.style.color='var(--muted)';
+  const contacto=dispo?dispo.dataset.contacto:'';
+  const resultado=dispo?dispo.dataset.sel:'';
+  const msg=document.getElementById('msg'+i);
+  if(!contacto){ if(msg){ msg.textContent='Primero indica si la has localizado.'; msg.style.color='var(--red)'; } return; }
+  if(!resultado){ if(msg){ msg.textContent='Elige una opción antes de guardar.'; msg.style.color='var(--red)'; } return; }
+  msg.textContent=editId?'Actualizando…':'Guardando…'; msg.style.color='var(--muted)';
+  const gb=document.getElementById('gbtn'+i); if(gb) gb.disabled=true;
   document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=true);
   const prox=(document.getElementById('prox'+i)||{}).value||'';
   const nota=(document.getElementById('nota'+i).value||'').trim();
@@ -530,7 +578,7 @@ async function guardar(i,contacto,resultado,btn){
       // ── EDITAR una gestión ya registrada ──
       const r=await fetch(API_BAJAS+'/api/dashboard/gestion-editar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({id:editId, contacto, resultado, nota, proxima_llamada:prox})});
       const d=await r.json();
-      if(!d||!d.ok){ msg.textContent='No se pudo actualizar'; msg.style.color='var(--red)'; document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=false); return; }
+      if(!d||!d.ok){ msg.textContent='No se pudo actualizar'; msg.style.color='var(--red)'; document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=false); if(gb)gb.disabled=false; return; }
       const idx=GALL.findIndex(x=>String(x.id)===String(editId)); if(idx>=0 && d.gestion) GALL[idx]=d.gestion;
       rebuildGEST();
       if(WINS[resultado]){ motivador(); celebrate(); }
@@ -541,7 +589,7 @@ async function guardar(i,contacto,resultado,btn){
     const body={tipo_caso:caso.tipo==='fallo'?'fallo_pago':'baja', customer_id:caso.customer_id||'', contract_id:caso.contract_id||'', nombre:caso.nombre||'', email:caso.email||'', phone:caso.phone||'', contacto, resultado, agente:agActual(), nota, proxima_llamada:prox};
     const r=await fetch(API_BAJAS+'/api/dashboard/gestion',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
     const d=await r.json();
-    if(!d||!d.ok){ msg.textContent='No se pudo guardar'; msg.style.color='var(--red)'; document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=false); return; }
+    if(!d||!d.ok){ msg.textContent='No se pudo guardar'; msg.style.color='var(--red)'; document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=false); if(gb)gb.disabled=false; return; }
     const g=d.gestion||{...body,created_at:hoyISO()};
     GALL.unshift(g); rebuildGEST();
     const card=document.getElementById('c'+i);
@@ -554,7 +602,7 @@ async function guardar(i,contacto,resultado,btn){
     // llamar» / «no contesta» NO son terminales: se quedan para reintentar.
     if(TERMINAL.has(resultado)){ card.style.transition='opacity .5s,transform .5s'; setTimeout(()=>{ card.style.opacity='0'; card.style.transform='translateX(12px)'; }, WINS[resultado]?1100:500); setTimeout(render, WINS[resultado]?1700:1050); }
     else { setTimeout(render, 900); }
-  }catch(e){ msg.textContent='Error de conexión'; msg.style.color='var(--red)'; document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=false); }
+  }catch(e){ msg.textContent='Error de conexión'; msg.style.color='var(--red)'; document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=false); if(gb)gb.disabled=false; }
 }
 // Abre la disposición para EDITAR la última gestión de una clienta (corregir estado / próxima
 // llamada). Pre-rellena contacto, resultado, nota y fecha; guardar() la actualiza por id.
