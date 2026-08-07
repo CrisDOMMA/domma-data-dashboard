@@ -614,6 +614,9 @@ async function guardar(i){
   const nota=(document.getElementById('nota'+i).value||'').trim();
   // «Agendar 2ª llamada» sin fecha no es agendar: pide la fecha antes de guardar.
   if(resultado==='segunda_llamada' && !prox){ if(msg){ msg.textContent='Pon la fecha de la 2ª llamada (📅 Próxima llamada).'; msg.style.color='var(--red)'; } return; }
+  // «Pausa» sin fecha de recontacto = aparcamiento que se acumula. La pausa lleva SIEMPRE
+  // fecha (fin de pausa, recomendado 4-6 semanas) para que salga en Derivadas y se resuelva.
+  if(resultado==='pausa' && !prox){ if(msg){ msg.textContent='Pon la fecha de recontacto (fin de pausa, recomendado 4-6 semanas).'; msg.style.color='var(--red)'; } return; }
   // Cancelación = acción REAL en Appstle (no solo registro) → confirmación explícita.
   if(CANCELA_APPSTLE.has(resultado)){
     const quien=(caso&&caso.nombre)?caso.nombre:'esta clienta';
