@@ -263,9 +263,6 @@
   .fpill b{font-variant-numeric:tabular-nums}
   .rz-warn{background:#FDF6E9;border:1px solid #EAD9B0;border-radius:12px;padding:12px 18px;margin-bottom:12px;font-size:13px;color:#7a5a12;font-weight:600;align-items:center;gap:10px}
   .rz-warn b{color:#5f4609}
-  .rz-med{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px;padding:11px 18px;background:var(--card,#fff);border:1px solid var(--line);border-radius:12px;font-size:13px;color:var(--muted)}
-  .rz-med .mtag{font-weight:800;color:var(--ink)}
-  .rz-med b{color:#1C296A}
   .rz-cols{display:grid;grid-template-columns:1fr 1.25fr;gap:14px;margin-bottom:12px}
   .rz-cpad{padding:18px 20px}
   .rz-cpad .mrow{margin-bottom:12px}
@@ -372,7 +369,6 @@
       <div class="rz-funnel" id="funnel"></div>
     </div>
     <div class="rz-warn" id="pausaWarn" style="display:none"></div>
-    <div class="rz-med" id="medResumen" style="display:none"></div>
     <div class="rz-cols">
       <div class="card rz-cpad"><div class="rz-ct">Por qué se van · motivos reales</div><div id="motivosMini"></div></div>
       <div class="card rz-cpad"><div class="rz-ct">Qué producto se cancela · y en qué mes</div><div id="heatmap"></div></div>
@@ -657,19 +653,8 @@ function render(){
   if(pausas){ warn.style.display='flex'; warn.innerHTML = `⚠️ <span>Las <b>${money(pausas)} pausas son de las clientas</b> (self-service), <b>no son rescate</b> — y muchas pueden ser <b>bajas encubiertas</b>. Vigila cuántas reactivan vs cancelan.</span>`; }
   else warn.style.display='none';
 
-  // Métrica pasiva: bajas por motivo MÉDICO del periodo (se cancelan solas desde el formulario).
-  // Cuenta las que acabaron en baja efectiva. Vive aquí (Gestión suscripciones), no en la estación.
-  const medEl = document.getElementById('medResumen');
-  if(medEl){
-    const bajasDe = k => { const m=(d.por_motivo||[]).find(x=>x.motivo===k)||{}; return (m.baja||0); };
-    const nSalud=bajasDe('salud'), nInc=bajasDe('incompatible');
-    medEl.style.display='flex';
-    medEl.innerHTML = `<span class="mtag">🩺 Bajas por motivo médico</span>`
-      + `<span>total <b>${nSalud+nInc}</b></span>`
-      + `<span>· efectos secundarios <b>${nSalud}</b></span>`
-      + `<span>· incompatibilidad con tratamiento <b>${nInc}</b></span>`
-      + `<span style="margin-left:auto;font-size:12px">se registran solas desde el formulario · siguen el periodo filtrado</span>`;
-  }
+  // (Las bajas médicas NO van separadas: salen como un motivo más en el desglose «por motivo»
+  // — decisión Cristina 07/08.)
 
   // Motivos reales (sin ruido)
   const RUIDO = new Set(['(sin motivo)','gate_2pedidos','min_2_pedidos','min_permanencia','fallo_pago','(sin producto)']);
