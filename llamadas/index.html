@@ -382,16 +382,21 @@ async function cargar(){
 // Muchas clientas no traen móvil desde Appstle, pero Shopify sí (cacheado en KV). Rellenamos
 // los que faltan para que Llamar/WhatsApp queden operativos, y re-pintamos.
 async function enriquecerTelefonos(){
-  const faltan=LISTA.filter(c=>!String(c.phone||'').replace(/\D/g,'') && c.email);
-  if(!faltan.length) return;
-  const emails=[...new Set(faltan.map(c=>c.email))].slice(0,80);
-  try{
-    const r=await fetch(API_TEL+'?'+new URLSearchParams({emails:emails.join(','), max:'80'}));
-    const d=await r.json(); const tel=d.telefonos||{};
-    let cambios=false;
-    LISTA.forEach(c=>{ if(!String(c.phone||'').replace(/\D/g,'') && c.email && tel[c.email]){ c.phone=tel[c.email]; c.telShopify=true; cambios=true; } });
-    if(cambios) render();
-  }catch(e){}
+  // Cubre pendientes (LISTA) Y el registro del formulario (REGISTRO: búsqueda/Canceladas),
+  // en lotes de 80 HASTA AGOTAR (antes solo se pedía el primer lote → ~20 tarjetas se
+  // quedaban sin teléfono aunque Shopify sí lo tenía — bug reportado por Carme 07/08).
+  const sinTel = c => !String(c.phone||'').replace(/\D/g,'') && c.email;
+  const objetivo = [...LISTA, ...REGISTRO];
+  const emails = [...new Set(objetivo.filter(sinTel).map(c=>c.email))];
+  for(let i=0; i<emails.length; i+=80){
+    try{
+      const r=await fetch(API_TEL+'?'+new URLSearchParams({emails:emails.slice(i,i+80).join(','), max:'80'}));
+      const d=await r.json(); const tel=d.telefonos||{};
+      let cambios=false;
+      objetivo.forEach(c=>{ if(sinTel(c) && tel[c.email]){ c.phone=tel[c.email]; c.telShopify=true; cambios=true; } });
+      if(cambios) render();
+    }catch(e){ break; }
+  }
 }
 
 function histDe(caso){ const c=nid(caso.contract_id); const cu=String(caso.customer_id||''); return (c&&GEST.byC[c])||(cu&&GEST.byCust[cu])||[]; }
