@@ -221,13 +221,45 @@ const API_TEL='https://gestorsubs-domma.cristina-ed1.workers.dev/telefonos-shopi
 const AUTH_API='https://domma-pro-api.cristina-ed1.workers.dev';
 const SHOP_ADMIN='https://admin.shopify.com/store/wearedomma', APPSTLE_APP='subscription-by-rhem';
 const AGENTES=['Carme','Vale','Ana','Marta'];
-const WINS={retenida:'💚 Retenida', venta_cruzada:'🚀 Venta cruzada', upsell:'⬆️ Upsell', pagado:'💰 Pagado', cobro_manual:'💳 Cobro hecho', pausa:'💚 Retenida (pausa)'};
+// ── CATÁLOGO ÚNICO de resultados (spec Cristina 06/08) ─────────────────────────────────
+// UNA sola fuente de verdad para los 3 flujos (Bajas / Fallos / recontactos de seguimiento):
+// cada módulo pinta un SUBCONJUNTO de estos códigos, nadie inventa códigos fuera de aquí.
+// term:  la gestión cierra el caso por hoy (sale de la lista del día).
+// win:   cuenta y celebra en el motivador.
+// cancela: al guardarse, el worker CANCELA la suscripción en Appstle (no solo registra).
+// legacy: código antiguo — se sigue mostrando en historiales pero ya no tiene botón.
+const CATALOGO={
+  retenida:               {l:'Retenida',                    b:'💚 Retenida',                    tone:'green', term:1, win:'💚 Retenida'},
+  pausa:                  {l:'Pausa',                       b:'⏸️ Pausa',                       tone:'green', term:1, win:'💚 Retenida (pausa)'},
+  cambio_producto:        {l:'Cambio de producto',          b:'🔄 Cambio producto',             tone:'green', term:1},
+  cambio_fecha:           {l:'Cambio de fecha',             b:'📅 Cambio fecha',                tone:'green', term:1},
+  venta_cruzada:          {l:'Venta cruzada',               b:'🚀 Venta cruzada',               tone:'green', term:1, win:'🚀 Venta cruzada'},
+  upsell:                 {l:'Upsell',                      b:'⬆️ Upsell',                      tone:'green', term:1, win:'⬆️ Upsell'},
+  cobro_manual:           {l:'Cobro hecho',                 b:'💳 Cobro hecho',                 tone:'green', term:1, win:'💳 Cobro hecho'},
+  actualizar_pago:        {l:'Actualizar el pago',          b:'🔄 Actualizar pago',             tone:'green', term:1},
+  pendiente_cobro:        {l:'Pendiente de cobro',          b:'📅 Pendiente cobro',             tone:'amber', term:1},
+  ajuste_duplicada:       {l:'Ajuste cuenta duplicada',     b:'👥 Ajuste duplicada',            tone:'green', term:1},
+  segunda_llamada:        {l:'2ª llamada agendada',         b:'📞 Agendar 2ª llamada',          tone:'amber', term:1},
+  compra_unica_cancelacion:{l:'Compra única + cancelación', b:'🛍 Compra única + cancelación',  tone:'red',   term:1, cancela:1},
+  cancelacion:            {l:'Cancelación',                 b:'❌ Cancelación',                 tone:'red',   term:1, cancela:1},
+  intento_1:              {l:'Intento 1 (negativo)',        b:'1️⃣ Intento 1 (negativo)',       tone:'amber', term:1},
+  intento_2:              {l:'Intento 2 (negativo)',        b:'2️⃣ Intento 2 (negativo)',       tone:'amber', term:1},
+  pagado:                 {l:'Pagado',                      b:'💰 Pagado',                      tone:'green', term:1, win:'💰 Pagado'},  // validación de Cristina, sin botón
+  // legacy (historial de antes del catálogo único — sin botón):
+  cancelar:               {l:'Cancelar',                    tone:'red',   term:1, legacy:1},
+  cancelado:              {l:'Cancelado',                   tone:'red',   term:1, legacy:1},
+  cancelar_final:         {l:'Cancelar finalmente',         tone:'red',   term:1, legacy:1},
+  cancelar_definitivo:    {l:'Cancelar definitivamente',    tone:'red',   term:1, legacy:1},
+  pendiente:              {l:'Volver a llamar',             tone:'amber', legacy:1},
+  no_contesta:            {l:'No contesta',                 tone:'amber', legacy:1},
+};
+// Sets/mapas derivados del catálogo (mismos nombres que usaba el código de la estación).
+const WINS=Object.fromEntries(Object.entries(CATALOGO).filter(([,v])=>v.win).map(([k,v])=>[k,v.win]));
+const RES_LABEL=Object.fromEntries(Object.entries(CATALOGO).map(([k,v])=>[k,v.l]));
+const RES_TONE=Object.fromEntries(Object.entries(CATALOGO).map(([k,v])=>[k,v.tone]));
+const CANCELA_APPSTLE=new Set(Object.keys(CATALOGO).filter(k=>CATALOGO[k].cancela));   // ejecutan cancelación real
 const COBROS=new Set(['pagado','cobro_manual','actualizar_pago']);   // recuperaciones (para el motivador)
 const COBRO_HECHO=new Set(['cobro_manual','actualizar_pago']);       // Carme hizo el cobro → PENDIENTE de validar
-const RES_LABEL={retenida:'Retenida',cambio_producto:'Cambio de producto',cambio_fecha:'Cambio de fecha',venta_cruzada:'Venta cruzada',upsell:'Upsell',pausa:'Pausa',cancelado:'Cancelado',cancelar:'Cancelar',pendiente:'Volver a llamar',no_contesta:'No contesta',
-  cobro_manual:'Cobro hecho',actualizar_pago:'Actualizar el pago',pendiente_cobro:'Pendiente de cobro',cancelar_final:'Cancelar finalmente',cancelar_definitivo:'Cancelar definitivamente',pagado:'Pagado'};
-const RES_TONE={retenida:'green',cambio_producto:'green',cambio_fecha:'green',venta_cruzada:'green',upsell:'green',pausa:'green',pendiente:'amber',no_contesta:'amber',cancelado:'red',cancelar:'red',
-  cobro_manual:'green',actualizar_pago:'green',pendiente_cobro:'amber',cancelar_final:'red',cancelar_definitivo:'red',pagado:'green'};
 
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
 (function(){ const m=location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token',decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
@@ -380,12 +412,15 @@ async function enriquecerTelefonos(){
 }
 
 function histDe(caso){ const c=nid(caso.contract_id); const cu=String(caso.customer_id||''); return (c&&GEST.byC[c])||(cu&&GEST.byCust[cu])||[]; }
-// Resultados que "cierran" el caso por hoy. Los no terminales (volver a llamar / no contesta)
-// mantienen la clienta en la lista, porque hay que reintentarla.
-const TERMINAL=new Set(['retenida','cambio_producto','cambio_fecha','venta_cruzada','upsell','pausa','cancelado','cancelar','cobro_manual','actualizar_pago','pendiente_cobro','cancelar_final','cancelar_definitivo','pagado']);
+// Resultados que "cierran" el caso por hoy (derivado del catálogo). Los no terminales
+// (volver a llamar / no contesta, legacy) mantienen la clienta en la lista para reintentarla.
+// Los intentos negativos SÍ cierran el día (suelen ser días distintos): la clienta reaparece
+// mañana mientras siga en la worklist. Sin gate: nunca bloquean Pausa/Cancelación.
+const TERMINAL=new Set(Object.keys(CATALOGO).filter(k=>CATALOGO[k].term));
 // Resultados de CANCELACIÓN (cierran el caso como baja). El chip debe decir «Cancelada»,
 // aunque haya sido no localizada (si no, se quedaba «No contactada» y confundía a Carme).
-const CANCELAR=new Set(['cancelar','cancelado','cancelar_final','cancelar_definitivo']);
+// Incluye el código único nuevo + los 4 legacy del historial.
+const CANCELAR=new Set(['cancelacion','compra_unica_cancelacion','cancelar','cancelado','cancelar_final','cancelar_definitivo']);
 function gestionadaHoy(caso){ return histDe(caso).some(g=>String(g.created_at||'').slice(0,10)===hoyISO() && TERMINAL.has(g.resultado)); }
 const fechaCorta=s=>{ if(!s)return''; const d=new Date(String(s).replace(' ','T')+'Z'); return isNaN(d)?esc(s):d.toLocaleDateString('es-ES',{day:'2-digit',month:'short'}); };
 function histInner(caso, i){
@@ -414,7 +449,7 @@ function gestionadasCards(soloContacto){
     const t=g.tipo_caso==='fallo_pago'?'fallo':(g.tipo_caso==='baja'?'baja':'derivada');
     const res=RES_LABEL[g.resultado]||g.resultado||'';
     const prox=g.proxima_llamada?` · 📅 próx. ${fechaCorta(g.proxima_llamada)}`:'';
-    out.push({tipo:t, gestionada:true, noLoc, esPagado:g.resultado==='pagado', esCobroHecho:COBRO_HECHO.has(g.resultado), esPausa:g.resultado==='pausa', esCancelada:CANCELAR.has(g.resultado), prox:g.proxima_llamada||'', gestId:g.id, nombre:g.nombre, email:g.email, phone:g.phone,
+    out.push({tipo:t, gestionada:true, noLoc, esPagado:g.resultado==='pagado', esCobroHecho:COBRO_HECHO.has(g.resultado), esPausa:g.resultado==='pausa', esSegunda:g.resultado==='segunda_llamada', esCancelada:CANCELAR.has(g.resultado), prox:g.proxima_llamada||'', gestId:g.id, nombre:g.nombre, email:g.email, phone:g.phone,
       customer_id:g.customer_id, contract_id:g.contract_id, fecha:(g.created_at||'').slice(0,10),
       why:`${noLoc?'No localizada':'Localizada'}${res?' · '+res:''}${g.agente?' · '+g.agente:''} · ${fechaCorta(g.created_at)}${prox}`});
   }
@@ -431,10 +466,11 @@ function render(){
   document.getElementById('progreso').innerHTML = totalDia
     ? `<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt"><b>${gestHoy}</b> gestionada${gestHoy===1?'':'s'} hoy · quedan <b>${vivas.length}</b></div></div>` : '';
   const dfil=l=>fechaFil?l.filter(c=>c.fecha===fechaFil):l;
-  const contactadas = dfil(gestionadasCards('localizada')).filter(c=>!c.esPausa);   // las pausas van a Derivadas
-  const nolocal     = dfil(gestionadasCards('no_localizada')).filter(c=>!c.esPausa);
+  const esSeguim    = c=>c.esPausa||c.esSegunda;                            // seguimiento = pausas + 2ªs llamadas agendadas
+  const contactadas = dfil(gestionadasCards('localizada')).filter(c=>!esSeguim(c));   // las de seguimiento van a Derivadas
+  const nolocal     = dfil(gestionadasCards('no_localizada')).filter(c=>!esSeguim(c));
   const porValidar  = dfil(gestionadasCards()).filter(c=>c.esCobroHecho);   // cobros hechos pendientes de validar
-  const pausas      = dfil(gestionadasCards()).filter(c=>c.esPausa);        // retenidas por pausa → seguimiento en Derivadas
+  const pausas      = dfil(gestionadasCards()).filter(esSeguim);            // recontactos (fin de pausa / 2ª llamada) → Derivadas
   const derivPend   = vivas.filter(x=>x.tipo==='derivada');
   const reg         = dfil(REGISTRO);                       // registro completo del formulario (búsqueda)
   const cancel      = reg.filter(c=>c.cancelacion);         // subconjunto "cancelaciones" para el chip
@@ -477,7 +513,7 @@ function tarjeta(c,i){
   const ultGestId = !c.registro ? (c.gestId || ((histDe(c)[0]||{}).id)) : null;
   const chip = c.registro?`<span class="chip ${(c.directa||c.estado==='pausa')?'green':'amber'}">${c.directa?'Baja ✓':c.estado==='solicitud_baja'?'Baja solicitada':c.estado==='pausa'?'Pausada':'Derivada'}</span>`
     : c.resuelto?'<span class="chip green">Ha pagado</span>'
-    : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.esPausa?'<span class="chip green">Retenida · pausa</span>':c.esCancelada?'<span class="chip red">Cancelada</span>':c.noLoc?'<span class="chip amber">No contactada</span>':'<span class="chip green">Contactada</span>')
+    : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.esPausa?'<span class="chip green">Retenida · pausa</span>':c.esSegunda?'<span class="chip amber">2ª llamada</span>':c.esCancelada?'<span class="chip red">Cancelada</span>':c.noLoc?'<span class="chip amber">No contactada</span>':'<span class="chip green">Contactada</span>')
     : c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
   const nHist=histDe(c).length;
@@ -519,22 +555,22 @@ function paso2(i,contacto,btn,pre){
   d.dataset.contacto=contacto;
   d.dataset.sel = (pre&&pre.resultado) ? pre.resultado : '';   // en edición, arranca con lo que ya tenía
   const editId=d.dataset.edit||'';
-  let botones;
-  if(caso.tipo==='fallo'){
-    // Disposición de FALLOS DE PAGO (spec de Carme)
-    if(contacto==='no_localizada'){
-      botones=[['cobro_manual','💳 Cobro hecho',''],['pausa','⏸️ Pausa',''],['pendiente','⏳ Volver a intentar',''],['cancelar_definitivo','❌ Cancelar','bad']];
-    } else {
-      botones=[['cobro_manual','💳 Cobro hecho',''],['actualizar_pago','🔄 Actualizar pago',''],['pausa','⏸️ Pausa',''],['pendiente_cobro','📅 Pendiente cobro',''],['cancelar_final','❌ Cancelar','bad']];
-    }
+  // Subconjuntos del CATÁLOGO ÚNICO por módulo (los códigos y etiquetas viven solo en CATALOGO).
+  // No localizada es IGUAL en todos los flujos: Intento 1/2 (negativo) + Pausa/Cancelación
+  // siempre disponibles (los intentos solo se registran para el conteo, no gatean nada).
+  let codigos;
+  if(contacto==='no_localizada'){
+    codigos = caso.tipo==='fallo'
+      ? ['intento_1','intento_2','cobro_manual','pausa','cancelacion']
+      : ['intento_1','intento_2','pausa','cancelacion'];
+  } else if(caso.tipo==='fallo'){
+    codigos=['cobro_manual','actualizar_pago','pausa','pendiente_cobro','segunda_llamada','ajuste_duplicada','compra_unica_cancelacion','cancelacion'];
   } else {
-    // Disposición de BAJAS y DERIVADAS (spec de Carme + Upsell)
-    if(contacto==='no_localizada'){
-      botones=[['pausa','⏸️ Pausa',''],['pendiente','⏳ Volver a llamar',''],['cancelar','❌ Cancelar','bad']];
-    } else {
-      botones=[['pausa','⏸️ Pausa',''],['cambio_producto','🔄 Cambio producto',''],['cambio_fecha','📅 Cambio fecha',''],['venta_cruzada','🚀 Venta cruzada','win'],['retenida','💚 Retenida','win'],['upsell','⬆️ Upsell','win'],['cancelado','❌ Cancelado','bad']];
-    }
+    codigos=['retenida','pausa','cambio_producto','cambio_fecha','venta_cruzada','upsell','segunda_llamada','ajuste_duplicada','compra_unica_cancelacion','cancelacion'];
   }
+  const botones=codigos.map(k=>{const c=CATALOGO[k];return [k, c.b||c.l, CANCELA_APPSTLE.has(k)?'bad':(c.win?'win':'')];});
+  // En edición, deja seleccionable también el resultado legacy que ya tenía (para no perderlo al re-guardar).
+  if(pre&&pre.resultado&&!codigos.includes(pre.resultado)&&CATALOGO[pre.resultado]) botones.unshift([pre.resultado, CATALOGO[pre.resultado].b||CATALOGO[pre.resultado].l, '']);
   document.getElementById('res'+i).innerHTML=
     `<div class="dgrid">${botones.map(([r,l,cls])=>`<button class="d ${cls}${pre&&pre.resultado===r?' sel':''}" onclick="seleccionar(${i},'${contacto}','${r}',this)">${l}</button>`).join('')}</div>
      <div class="prox-row"><label class="prox-lbl">📅 Próxima llamada <span>(opcional)</span></label><input type="date" id="prox${i}" class="proxin" value="${pre&&pre.prox?esc(String(pre.prox).slice(0,10)):''}"></div>
@@ -555,7 +591,9 @@ function seleccionar(i,contacto,r,btn){
 // Deshacer la ÚLTIMA gestión de una clienta. Botón FIJO en su tarjeta (un clic, sin editar).
 // Borra el registro de la llamada → la clienta vuelve a quedar como estaba. No toca Appstle.
 async function borrarGestion(gId,btn){
-  if(!confirm('¿Deshacer la última gestión de esta clienta?\n\nSe borra el registro de la llamada y vuelve a quedar como estaba antes de marcarla. No afecta a su suscripción.')) return;
+  const g=GALL.find(x=>String(x.id)===String(gId));
+  const avisoCancel=(g&&CANCELAR.has(g.resultado))?'\n\n⚠️ OJO: esta gestión fue una CANCELACIÓN. Deshacer borra el registro pero NO reactiva la suscripción en Appstle — si se canceló por error, reactívala en Appstle.':'\n\nNo afecta a su suscripción.';
+  if(!confirm('¿Deshacer la última gestión de esta clienta?\n\nSe borra el registro de la llamada y vuelve a quedar como estaba antes de marcarla.'+avisoCancel)) return;
   const orig=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Deshaciendo…'; }
   try{
     const r=await fetch(API_BAJAS+'/api/dashboard/gestion-eliminar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({id:gId})});
@@ -589,11 +627,20 @@ async function guardar(i){
   const msg=document.getElementById('msg'+i);
   if(!contacto){ if(msg){ msg.textContent='Primero indica si la has localizado.'; msg.style.color='var(--red)'; } return; }
   if(!resultado){ if(msg){ msg.textContent='Elige una opción antes de guardar.'; msg.style.color='var(--red)'; } return; }
+  const prox=(document.getElementById('prox'+i)||{}).value||'';
+  const nota=(document.getElementById('nota'+i).value||'').trim();
+  // «Agendar 2ª llamada» sin fecha no es agendar: pide la fecha antes de guardar.
+  if(resultado==='segunda_llamada' && !prox){ if(msg){ msg.textContent='Pon la fecha de la 2ª llamada (📅 Próxima llamada).'; msg.style.color='var(--red)'; } return; }
+  // Cancelación = acción REAL en Appstle (no solo registro) → confirmación explícita.
+  if(CANCELA_APPSTLE.has(resultado)){
+    const quien=(caso&&caso.nombre)?caso.nombre:'esta clienta';
+    if(editId){
+      if(!confirm(`Vas a cambiar el registro a «${RES_LABEL[resultado]}».\n\nOJO: editar un registro NO cancela la suscripción en Appstle. Si hay que cancelarla de verdad, hazlo desde «Registrar» o directamente en Appstle.\n\n¿Guardar el cambio?`)) return;
+    } else if(!confirm(`⚠️ Esto CANCELA AHORA la suscripción de ${quien} en Appstle (no solo registra la llamada).\n\n«Deshacer» después solo borra el registro: NO reactiva la suscripción.\n\n¿Cancelar su suscripción?`)) return;
+  }
   msg.textContent=editId?'Actualizando…':'Guardando…'; msg.style.color='var(--muted)';
   const gb=document.getElementById('gbtn'+i); if(gb) gb.disabled=true;
   document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=true);
-  const prox=(document.getElementById('prox'+i)||{}).value||'';
-  const nota=(document.getElementById('nota'+i).value||'').trim();
   try{
     if(editId){
       // ── EDITAR una gestión ya registrada ──
@@ -617,6 +664,13 @@ async function guardar(i){
     card.dataset.state = RES_TONE[resultado] || 'amber';
     card.querySelector('.dispo').hidden=true; card.querySelector('.actions').style.display='none';
     const done=document.getElementById('done'+i); done.hidden=false;
+    // Si la cancelación en Appstle NO se pudo ejecutar, avisar SIN ambigüedad (la gestión sí quedó registrada).
+    if(d.appstle_cancel && !d.appstle_cancel.ok){
+      done.textContent='⚠️ Gestión guardada, pero NO se pudo cancelar en Appstle ('+(d.appstle_cancel.error||'error')+'). Cancélala a mano en Appstle (botón con su nombre → Appstle).';
+      done.style.color='var(--red)';
+      alert('⚠️ La gestión se ha guardado, pero la CANCELACIÓN EN APPSTLE HA FALLADO.\n\nCancela la suscripción a mano en Appstle (clic en el nombre de la clienta).');
+      setTimeout(render, 6000); return;
+    }
     done.textContent=(WINS[resultado]?'🎉 ':'')+(RES_LABEL[resultado]||resultado)+(WINS[resultado]?' · ¡bien hecho!':'')+(prox?' · 📅 próx. '+fechaCorta(prox):'');
     if(WINS[resultado]){ motivador(); celebrate(); }
     // Gestión terminal → la clienta sale de la lista del día (se desvanece). «Volver a

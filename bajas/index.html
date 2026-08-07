@@ -959,18 +959,23 @@ async function abrirWati(customer_id, phone){
 /* ══════════════════ CRM: gestión de casos (disposición) ══════════════════ */
 // Solo REGISTRA lo que pasó en la llamada; no ejecuta nada en Appstle.
 const AGENTES = ['Carma','Vale','Ana','Marta'];
+// CATÁLOGO ÚNICO de gestión (mismo que la estación /llamadas — no crecer por separado).
+// «cancelacion» y «compra_unica_cancelacion» EJECUTAN la cancelación real en Appstle al guardarse.
 const DISPO = {
   baja: {
-    localizada:    [['pausa','Pausa'],['cambio_producto','Cambio de producto'],['venta_cruzada','Venta cruzada'],['retenida','Retenida'],['cancelado','Cancelado']],
-    no_localizada: [['pendiente','Pendiente · volver a llamar'],['cancelar','Cancelar']],
+    localizada:    [['retenida','Retenida'],['pausa','Pausa'],['cambio_producto','Cambio de producto'],['cambio_fecha','Cambio de fecha'],['venta_cruzada','Venta cruzada'],['upsell','Upsell'],['segunda_llamada','Agendar 2ª llamada'],['ajuste_duplicada','Ajuste cuenta duplicada'],['compra_unica_cancelacion','Compra única + cancelación'],['cancelacion','Cancelación']],
+    no_localizada: [['intento_1','Intento 1 (negativo)'],['intento_2','Intento 2 (negativo)'],['pausa','Pausa'],['cancelacion','Cancelación']],
   },
   fallo_pago: {
-    localizada:    [['cobro_manual','Cobro manual'],['actualizar_pago','Actualizar el pago'],['pendiente_cobro','Pendiente de cobro'],['cancelar_final','Cancelar finalmente']],
-    no_localizada: [['cobro_manual','Cobro manual'],['cancelar_definitivo','Cancelar definitivamente'],['pendiente','Pendiente · volver a llamar']],
+    localizada:    [['cobro_manual','Cobro hecho'],['actualizar_pago','Actualizar el pago'],['pausa','Pausa'],['pendiente_cobro','Pendiente de cobro'],['segunda_llamada','Agendar 2ª llamada'],['ajuste_duplicada','Ajuste cuenta duplicada'],['compra_unica_cancelacion','Compra única + cancelación'],['cancelacion','Cancelación']],
+    no_localizada: [['intento_1','Intento 1 (negativo)'],['intento_2','Intento 2 (negativo)'],['cobro_manual','Cobro hecho'],['pausa','Pausa'],['cancelacion','Cancelación']],
   },
 };
-const RES_LABEL = {pausa:'Pausa',cambio_producto:'Cambio de producto',venta_cruzada:'Venta cruzada',retenida:'Retenida',cancelado:'Cancelado',pendiente:'Pendiente',cancelar:'Cancelar',cobro_manual:'Cobro manual',actualizar_pago:'Actualizar pago',pendiente_cobro:'Pendiente de cobro',cancelar_final:'Cancelar finalmente',cancelar_definitivo:'Cancelar definitivamente'};
-const RES_TONE  = {retenida:'ok',pausa:'ok',venta_cruzada:'ok',cambio_producto:'ok',cobro_manual:'ok',actualizar_pago:'ok',pendiente_cobro:'warn',pendiente:'warn',cancelado:'bad',cancelar:'bad',cancelar_final:'bad',cancelar_definitivo:'bad'};
+const CANCELA_APPSTLE = new Set(['cancelacion','compra_unica_cancelacion']);
+const RES_LABEL = {retenida:'Retenida',pausa:'Pausa',cambio_producto:'Cambio de producto',cambio_fecha:'Cambio de fecha',venta_cruzada:'Venta cruzada',upsell:'Upsell',segunda_llamada:'2ª llamada agendada',ajuste_duplicada:'Ajuste cuenta duplicada',compra_unica_cancelacion:'Compra única + cancelación',cancelacion:'Cancelación',intento_1:'Intento 1 (negativo)',intento_2:'Intento 2 (negativo)',cobro_manual:'Cobro hecho',actualizar_pago:'Actualizar pago',pendiente_cobro:'Pendiente de cobro',pagado:'Pagado',
+  cancelado:'Cancelado',pendiente:'Pendiente',cancelar:'Cancelar',cancelar_final:'Cancelar finalmente',cancelar_definitivo:'Cancelar definitivamente'};   // 2ª línea = legacy, solo historial
+const RES_TONE  = {retenida:'ok',pausa:'ok',venta_cruzada:'ok',cambio_producto:'ok',cambio_fecha:'ok',upsell:'ok',segunda_llamada:'warn',ajuste_duplicada:'ok',compra_unica_cancelacion:'bad',cancelacion:'bad',intento_1:'warn',intento_2:'warn',cobro_manual:'ok',actualizar_pago:'ok',pendiente_cobro:'warn',pagado:'ok',
+  pendiente:'warn',cancelado:'bad',cancelar:'bad',cancelar_final:'bad',cancelar_definitivo:'bad'};
 
 let GEST = {byC:{}, byCust:{}};   // contract_id / customer_id → [gestiones más reciente primero]
 async function cargarGestiones(){
@@ -1073,6 +1078,8 @@ function pickResult(val){
 async function guardarGestion(){
   if(!GM||!GM.contacto||!GM.resultado) return;
   const btn=document.getElementById('gmSave'), msg=document.getElementById('gmMsg'), c0=GM.caso;
+  // Cancelación = acción REAL en Appstle (no solo registro) → confirmación explícita.
+  if(CANCELA_APPSTLE.has(GM.resultado) && !confirm(`⚠️ Esto CANCELA AHORA la suscripción de ${c0.nombre||c0.email||'esta clienta'} en Appstle (no solo registra la llamada).\n\n¿Cancelar su suscripción?`)) return;
   btn.disabled=true; msg.textContent='Guardando…'; msg.className='gest-msg';
   const ag=document.getElementById('gmAgente').value||agenteActual();
   const body={tipo_caso:c0.tipo_caso||'baja', customer_id:c0.customer_id||'', contract_id:c0.contract_id||c0.contrato||'', nombre:c0.nombre||'', email:c0.email||'', phone:c0.phone||'', contacto:GM.contacto, resultado:GM.resultado, agente:ag, nota:(document.getElementById('gmNota').value||'').trim(), es_test:c0.es_test?1:0};
@@ -1085,7 +1092,10 @@ async function guardarGestion(){
       if(c){ GEST.byC[c]=GEST.byC[c]||[]; GEST.byC[c].unshift(g); }
       if(cu){ GEST.byCust[cu]=GEST.byCust[cu]||[]; GEST.byCust[cu].unshift(g); }
       const cell=document.getElementById(GM.uid+'-gest'); if(cell) cell.innerHTML=gestPill(g);
-      msg.textContent='Guardada ✓'; msg.className='gest-msg ok';
+      if(d.appstle_cancel && !d.appstle_cancel.ok){
+        alert('⚠️ La gestión se ha guardado, pero la CANCELACIÓN EN APPSTLE HA FALLADO ('+(d.appstle_cancel.error||'error')+').\n\nCancela la suscripción a mano en Appstle.');
+        msg.textContent='Guardada, pero Appstle falló'; msg.className='gest-msg bad';
+      } else { msg.textContent='Guardada ✓'; msg.className='gest-msg ok'; }
       setTimeout(cerrarGestion, 550);
     } else { msg.textContent=d&&d.error==='faltan_datos'?'Elige un resultado':'No se pudo guardar'; msg.className='gest-msg bad'; btn.disabled=false; }
   }catch(e){ msg.textContent='Error de conexión'; msg.className='gest-msg bad'; btn.disabled=false; }
