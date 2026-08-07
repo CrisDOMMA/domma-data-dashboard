@@ -675,8 +675,10 @@ async function guardar(i){
       alert('⚠️ La pausa se ha registrado, pero APPSTLE NO HA MOVIDO EL COBRO.\n\nMuévele la próxima fecha de cobro a mano en Appstle (clic en el nombre de la clienta).');
       setTimeout(render, 6000); return;
     }
-    // Protocolo fallo de pago: al registrar el Intento 2 el worker manda el email de 72h.
-    const mailInfo = (d.dunning_email && d.dunning_email.ok) ? ' · 📧 email 72h enviado' : '';
+    // Protocolo fallo de pago: al registrar el Intento 2 el worker manda el email de 72h
+    // (salvo que la clienta YA haya pagado: entonces no se le envía nada).
+    const mailInfo = (d.dunning_email && d.dunning_email.ok) ? ' · 📧 email 72h enviado'
+      : (d.dunning_email && d.dunning_email.error==='ya_pagado') ? ' · 💰 ya ha pagado — sin email' : '';
     done.textContent=(WINS[resultado]?'🎉 ':'')+(RES_LABEL[resultado]||resultado)+(WINS[resultado]?' · ¡bien hecho!':'')+(prox?' · 📅 próx. '+fechaCorta(prox):'')+mailInfo;
     if(WINS[resultado]){ motivador(); celebrate(); }
     // Gestión terminal → la clienta sale de la lista del día (se desvanece). «Volver a
