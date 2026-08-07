@@ -105,9 +105,6 @@
   .b-undo{background:var(--red-bg);color:var(--red);border:1.5px solid transparent}
   .b-undo:hover{filter:brightness(.97)}
   .b-undo:disabled{opacity:.6;cursor:default}
-  .medbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 14px;padding:11px 15px;background:var(--card);border:1px solid var(--line);border-radius:12px;font-size:13.5px;color:var(--muted)}
-  .medbar .mtag{font-weight:800;color:var(--ink)}
-  .medbar b{color:var(--indigo)}
 
   .dispo{margin-top:15px;padding-top:13px;border-top:1px dashed var(--line)}
   .dispo-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
@@ -195,7 +192,6 @@
   </div>
 
   <!-- Resumen pasivo de bajas médicas (solo lectura para Carme; se cancelan solas por el formulario) -->
-  <div class="medbar" id="medResumen" hidden></div>
 
   <div class="filbar">
     <input type="search" id="buscador" class="buscador" placeholder="🔍 Buscar clienta por nombre, email o teléfono…" oninput="setBusca(this.value)" autocomplete="off">
@@ -376,25 +372,12 @@ async function cargar(){
         customer_id:x.customer_id, contract_id:x.contract_id, fecha:(x.fecha||'').slice(0,10),
         why:`${ESTL[x.estado]||'Registrada'} · ${labelMotivo(x.motivo)}${x.reactivada?' · reactivada después':''}`}));
   }
-  pintarMedResumen(bajas);
   motivador();
   render();
   enriquecerTelefonos();   // en segundo plano: rellena el móvil que falta (Appstle no lo trae) desde Shopify
 }
-// Resumen PASIVO de bajas médicas para Carme (solo lectura; se cancelan solas desde el formulario).
-// Sale de bajas.por_motivo, que ya desglosa por motivo. Cuenta las que acabaron en baja efectiva.
-function pintarMedResumen(bajas){
-  const el=document.getElementById('medResumen'); if(!el) return;
-  const pm=(bajas&&bajas.por_motivo)||[];
-  const bajasDe=k=>{ const m=pm.find(x=>x.motivo===k)||{}; return (m.baja||0); };
-  const nSalud=bajasDe('salud'), nInc=bajasDe('incompatible'), tot=nSalud+nInc;
-  el.hidden=false;
-  el.innerHTML=`<span class="mtag">🩺 Bajas por motivo médico</span>`
-    +`<span>total <b>${tot}</b></span>`
-    +`<span>· efectos <b>${nSalud}</b></span>`
-    +`<span>· incompatibilidad <b>${nInc}</b></span>`
-    +`<span style="margin-left:auto;font-size:12px;color:var(--muted)">se registran solas desde el formulario</span>`;
-}
+// (La métrica de bajas médicas vive en el Resumen de «Gestión suscripciones» /bajas — aquí no:
+// Carme no hace nada con ellas, se cancelan solas desde el formulario.)
 
 // Muchas clientas no traen móvil desde Appstle, pero Shopify sí (cacheado en KV). Rellenamos
 // los que faltan para que Llamar/WhatsApp queden operativos, y re-pintamos.
