@@ -622,6 +622,12 @@ async function guardar(i){
   // «Pausa» sin fecha de recontacto = aparcamiento que se acumula. La pausa lleva SIEMPRE
   // fecha (fin de pausa, recomendado 4-6 semanas) para que salga en Derivadas y se resuelva.
   if(resultado==='pausa' && !prox){ if(msg){ msg.textContent='Pon la fecha de recontacto (fin de pausa, recomendado 4-6 semanas).'; msg.style.color='var(--red)'; } return; }
+  if(resultado==='pausa' && prox<=hoyISO()){ if(msg){ msg.textContent='La fecha de fin de pausa debe ser futura.'; msg.style.color='var(--red)'; } return; }
+  // La pausa EJECUTA en Appstle (mueve el próximo cobro a la fecha) → confirmación explícita.
+  if(resultado==='pausa' && !editId){
+    const quienP=(caso&&caso.nombre)?caso.nombre:'esta clienta';
+    if(!confirm(`⏸️ Esto APLAZA el próximo cobro de ${quienP} en Appstle al ${fechaCorta(prox)} (fin de pausa).\n\nNo se le cobrará nada hasta esa fecha.\n\n¿Aplicar la pausa?`)) return;
+  }
   // Cancelación = acción REAL en Appstle (no solo registro) → confirmación explícita.
   if(CANCELA_APPSTLE.has(resultado)){
     const quien=(caso&&caso.nombre)?caso.nombre:'esta clienta';
@@ -660,6 +666,13 @@ async function guardar(i){
       done.textContent='⚠️ Gestión guardada, pero NO se pudo cancelar en Appstle ('+(d.appstle_cancel.error||'error')+'). Cancélala a mano en Appstle (botón con su nombre → Appstle).';
       done.style.color='var(--red)';
       alert('⚠️ La gestión se ha guardado, pero la CANCELACIÓN EN APPSTLE HA FALLADO.\n\nCancela la suscripción a mano en Appstle (clic en el nombre de la clienta).');
+      setTimeout(render, 6000); return;
+    }
+    // Ídem para la pausa: si Appstle no movió el cobro, que Carme lo haga a mano sin dudas.
+    if(d.appstle_pausa && !d.appstle_pausa.ok){
+      done.textContent='⚠️ Gestión guardada, pero NO se pudo aplazar el cobro en Appstle ('+(d.appstle_pausa.error||'error')+'). Muévele la fecha a mano (clic en su nombre → Appstle).';
+      done.style.color='var(--red)';
+      alert('⚠️ La pausa se ha registrado, pero APPSTLE NO HA MOVIDO EL COBRO.\n\nMuévele la próxima fecha de cobro a mano en Appstle (clic en el nombre de la clienta).');
       setTimeout(render, 6000); return;
     }
     // Protocolo fallo de pago: al registrar el Intento 2 el worker manda el email de 72h.
