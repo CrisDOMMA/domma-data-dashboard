@@ -353,6 +353,7 @@
     <button class="tab on" data-t="resumen"  onclick="setTab('resumen',this)">Resumen</button>
     <button class="tab"    data-t="porque"   onclick="setTab('porque',this)">Por qué se van</button>
     <button class="tab"    data-t="movimientos" onclick="setTab('movimientos',this)">Movimientos</button>
+    <button class="tab"    data-t="duplicados" onclick="setTab('duplicados',this)">Duplicadas</button>
     <button class="tab"    data-t="clientas" onclick="setTab('clientas',this)">Buscar clienta</button>
   </div>
 
@@ -466,6 +467,21 @@
           <tbody id="listaBody"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- ══════════ TAB: DUPLICADAS ══════════ -->
+  <div class="tabpane" id="tab-duplicados" style="display:none">
+    <div class="card tablecard">
+      <h3>Suscripciones duplicadas <span class="muted" id="dupCount"></span></h3>
+      <p class="hint">Clientas con el <b>mismo producto activo en dos contratos</b>: se les está cobrando dos veces.
+        Casi siempre se han suscrito ellas mismas otra vez desde la web sin saber que ya tenían una activa
+        (el 2º pedido suele caer entre 1 día y 3 semanas después del primero).
+        Se comprueba <b>en vivo contra Appstle</b>, no solo con la foto interna.</p>
+      <p class="hint" style="color:#B45309"><b>Ojo con las «mezcladas»:</b> ahí el producto repetido va dentro de un pack junto a otros.
+        En esas <b>no se cancela el contrato</b> —se llevaría por delante lo que sí quiere— - hay que quitar solo la línea duplicada.</p>
+      <div class="filters"><button class="btn" id="dupReload" onclick="cargarDuplicados(true)">↻ Comprobar ahora</button></div>
+      <div id="dupBody"><div class="loading">Pulsa «Comprobar ahora» (tarda ~30 s: verifica una a una contra Appstle).</div></div>
     </div>
   </div>
 
@@ -782,7 +798,72 @@ function setTab(t, el){
   document.querySelectorAll('.tabpane').forEach(p => p.style.display = 'none');
   const pane = document.getElementById('tab-'+t);
   if(pane && DATA) pane.style.display = 'block';
+  // Duplicadas se carga sola la 1ª vez que se abre: verifica contra Appstle una a una,
+  // así que no tiene sentido pagar esa espera en cada carga del panel.
+  if(t === 'duplicados' && !DUPS) cargarDuplicados();
   if(el) el.blur();
+}
+
+// ── Suscripciones duplicadas ────────────────────────────────────────────────
+// Mismo producto activo en 2 contratos = cobro doble. El worker las detecta desde
+// la foto de contratos y CONFIRMA cada una contra Appstle en vivo (la foto sola
+// da falsos positivos: solo se refresca cuando Appstle marca el contrato tocado).
+let DUPS = null;
+async function cargarDuplicados(force){
+  const cont = document.getElementById('dupBody');
+  const btn = document.getElementById('dupReload');
+  if(DUPS && !force){ pintarDuplicados(); return; }
+  cont.innerHTML = '<div class="loading">Comprobando contra Appstle una a una…</div>';
+  if(btn) btn.disabled = true;
+  try{
+    const r = await api('/api/dashboard/duplicados', {});
+    if(!r.ok){ cont.innerHTML = '<div class="loading">Error del servidor.</div>'; return; }
+    DUPS = await r.json();
+    pintarDuplicados();
+  }catch(e){
+    cont.innerHTML = '<div class="loading">No se pudo comprobar: ' + esc(String(e.message||e)) + '</div>';
+  }finally{ if(btn) btn.disabled = false; }
+}
+
+function pintarDuplicados(){
+  const d = DUPS || {}, cont = document.getElementById('dupBody');
+  const filas = [];
+  (d.duplicados||[]).forEach(c => (c.repetidos||[]).forEach(r => filas.push({c, r})));
+  document.getElementById('dupCount').textContent = filas.length
+    ? filas.length + (filas.length===1 ? ' caso' : ' casos')
+    : '';
+  if(!filas.length){
+    cont.innerHTML = '<div class="empty">Ninguna clienta con producto duplicado. 🎉</div>';
+    return;
+  }
+  // Primero las que más han cobrado de más: ordenamos por pedidos del contrato
+  // redundante (el que menos tiene), que es la cota baja de lo cobrado dos veces.
+  filas.sort((a,b) => menorPedidos(b.r) - menorPedidos(a.r));
+  cont.innerHTML = filas.map(({c,r}) => {
+    const mez = r.tipo === 'mezclado';
+    const chip = mez
+      ? '<span class="pill" style="background:#FEF3C7;color:#92400E">mezclada · quitar solo la línea</span>'
+      : '<span class="pill" style="background:#FEE2E2;color:#991B1B">duplicada</span>';
+    const cts = (r.detalle||[]).map(x =>
+      `<div style="font-size:12.5px;color:var(--muted);padding:2px 0">
+         <code>${esc(x.contractId)}</code> · ${x.pedidos ?? '—'} pedidos · próx. ${esc(x.proxima||'—')}
+         · ${esc((x.productos||[]).join(' + '))}
+       </div>`).join('');
+    return `<div class="card" style="margin:10px 0;padding:12px 14px">
+      <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">
+        <b>${esc(c.nombre||'—')}</b>
+        <span class="muted" style="font-size:12.5px">${esc(c.email||'')}</span>
+        <span style="text-transform:capitalize"><b>${esc(r.producto)}</b> ×${(r.contratos||[]).length}</span>
+        ${chip}
+      </div>${cts}</div>`;
+  }).join('') +
+  `<p class="hint" style="margin-top:12px">Comprobadas ${d.candidatas||0} candidatas contra Appstle; ` +
+  `${d.descartados_por_snapshot||0} descartadas por foto desfasada.` +
+  (d.truncado ? ' <b>Lista truncada</b>: hay más candidatas de las verificadas en una pasada.' : '') + '</p>';
+}
+function menorPedidos(r){
+  const ns = (r.detalle||[]).map(x => Number(x.pedidos)||0);
+  return ns.length ? Math.min(...ns) : 0;
 }
 
 function renderStacked(id, arr, map){
