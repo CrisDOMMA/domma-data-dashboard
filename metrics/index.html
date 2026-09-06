@@ -1485,7 +1485,7 @@ const CUTOVER='2026-03-01'; // Shopify fiable desde aquí; antes, Excel
 let HIST_CACHE=null;
 async function getHistorico(){
   if(HIST_CACHE) return HIST_CACHE;
-  try{ HIST_CACHE=((await (await fetch('/metrics/historico_mensual.json',{cache:'no-cache'})).json()).months)||[]; }
+  try{ HIST_CACHE=((await (await fetch(API+'/api/admin/metrics/historico',{headers:authHeaders(),cache:'no-cache'})).json()).months)||[]; }
   catch(e){ HIST_CACHE=[]; }
   return HIST_CACHE;
 }
@@ -1543,7 +1543,7 @@ const MESES_ES=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','
 async function loadHistorico(){
   const body=document.getElementById('histBody');
   try{
-    const r=await fetch('/metrics/historico_mensual.json',{cache:'no-cache'});
+    const r=await fetch(API+'/api/admin/metrics/historico',{headers:authHeaders(),cache:'no-cache'});
     const d=await r.json();
     const months=(d.months||[]).slice().sort((a,b)=>a.ym<b.ym?1:-1); // recientes arriba
     let html='', curYear=null, acc=null;
