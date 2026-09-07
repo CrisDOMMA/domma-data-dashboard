@@ -186,6 +186,75 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
   .kpis{grid-template-columns:1fr 1fr}
   .kpi .value{font-size:24px}
 }
+/* ══ Overview v2 · panel de periodo con comparable (07/09/2026) ══
+   Todo va prefijado `o2` y anidado bajo #viewOverview: esta página arrastra
+   estilos de 2024 con nombres genéricos (.card, .kpi, .bar, table) y un
+   trasplante sin prefijo los pisaría en las otras cinco pestañas. */
+#viewOverview{--o2up:#0ca30c;--o2down:#d03b3b;--o2bar:#2a78d6;--o2bar2:#c3d7ef;
+  --o2ink2:#5a5f73;--o2ink3:#8d92a3;--o2line:#e3e0da;--o2surf2:#f1efeb}
+#viewOverview .o2num{font-variant-numeric:tabular-nums}
+#viewOverview .o2up{color:var(--o2up)}
+#viewOverview .o2down{color:var(--o2down)}
+#viewOverview .o2flat{color:var(--o2ink3)}
+#viewOverview .o2bar-ctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:11px 14px;box-shadow:var(--shadow);margin-bottom:16px}
+#viewOverview .o2seg{display:flex;background:var(--o2surf2);border-radius:8px;padding:2px;gap:1px}
+#viewOverview .o2seg button{border:0;background:none;color:var(--o2ink2);font:inherit;font-size:12.5px;
+  padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap}
+#viewOverview .o2seg button[aria-pressed="true"]{background:var(--card);color:var(--navy);font-weight:700;
+  box-shadow:0 1px 2px rgba(0,0,0,.08)}
+#viewOverview .o2cmp{font-size:12.5px;color:var(--o2ink2);display:flex;align-items:center;gap:7px;margin-left:auto}
+#viewOverview .o2bar-ctl select,#viewOverview .o2bar-ctl input[type=date]{font:inherit;font-size:12.5px;
+  padding:6px 9px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text)}
+#viewOverview .o2rango{font-size:12px;color:var(--o2ink3);flex-basis:100%;margin-top:-2px}
+#viewOverview .o2rango b{color:var(--o2ink2);font-weight:600}
+#viewOverview .o2avisos{flex-basis:100%;font-size:12px;color:var(--orange);margin-top:2px}
+#viewOverview .o2kpis{display:grid;grid-template-columns:repeat(7,1fr);gap:11px;margin-bottom:16px}
+@media (max-width:1180px){#viewOverview .o2kpis{grid-template-columns:repeat(4,1fr)}}
+@media (max-width:720px){#viewOverview .o2kpis{grid-template-columns:repeat(2,1fr)}}
+#viewOverview .o2kpi{background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:13px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:5px}
+#viewOverview .o2kpi .k{font-size:10.5px;letter-spacing:.075em;text-transform:uppercase;color:var(--o2ink3)}
+#viewOverview .o2kpi .v{font-size:22px;line-height:1.08;letter-spacing:-.02em;font-weight:600;color:var(--navy)}
+#viewOverview .o2kpi .d{font-size:12px;display:flex;align-items:center;gap:5px}
+#viewOverview .o2kpi .d .prev{color:var(--o2ink3)}
+#viewOverview .o2spark{height:26px}
+#viewOverview .o2card{background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:16px 18px;box-shadow:var(--shadow);margin-bottom:16px}
+#viewOverview .o2card h2{margin:0 0 12px;font-size:14px;font-weight:600;color:var(--navy)}
+#viewOverview .o2split{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media (max-width:820px){#viewOverview .o2split{grid-template-columns:1fr}}
+#viewOverview .o2mod{border:1px solid var(--border);border-radius:9px;padding:13px 14px}
+#viewOverview .o2mod.tot{background:var(--o2surf2)}
+#viewOverview .o2mod .h{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+#viewOverview .o2mod .h span:first-child{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--o2ink3)}
+#viewOverview .o2mod .share{font-size:11.5px;color:var(--o2ink2);font-variant-numeric:tabular-nums}
+#viewOverview .o2mod dl{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;margin:0;font-size:13px}
+#viewOverview .o2mod dt{color:var(--o2ink2)}
+#viewOverview .o2mod dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+#viewOverview .o2mod dd b{font-weight:600}
+#viewOverview .o2mod .dd{font-size:11.5px;margin-left:6px}
+#viewOverview .o2barra{height:7px;border-radius:4px;background:var(--o2surf2);overflow:hidden;margin-top:11px}
+#viewOverview .o2barra i{display:block;height:100%}
+#viewOverview .o2grid{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;margin-bottom:16px}
+@media (max-width:920px){#viewOverview .o2grid{grid-template-columns:1fr}}
+#viewOverview .o2grid .o2card{margin-bottom:0}
+#viewOverview .o2leg{font-size:12px;color:var(--o2ink2);display:flex;gap:16px;margin-top:8px}
+#viewOverview .o2leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+#viewOverview table.o2t{border-collapse:collapse;width:100%;font-size:12.5px}
+#viewOverview table.o2t th,#viewOverview table.o2t td{padding:7px 8px;text-align:right;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+#viewOverview table.o2t th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--o2ink3);font-weight:600;border-bottom:1px solid var(--border)}
+#viewOverview table.o2t td:first-child,#viewOverview table.o2t th:first-child{text-align:left}
+#viewOverview table.o2t tbody tr{border-bottom:1px solid var(--o2surf2)}
+#viewOverview table.o2t tr.sec td{padding-top:13px;font-size:10.5px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--o2ink3);font-weight:600;border-bottom:0}
+#viewOverview .o2scroll{overflow-x:auto}
+#viewOverview text.o2lbl{font-size:10px;fill:var(--o2ink3)}
+#o2tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .1s;z-index:60;
+  background:var(--navy);color:#fff;font-size:11.5px;padding:6px 9px;border-radius:6px;max-width:230px}
 </style>
 </head>
 <body>
@@ -254,44 +323,47 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
       <button onclick="loadOverview()" class="preset-btn" style="margin-left:auto">↻ Refrescar</button>
     </div>
 
-    <!-- SELECTOR GLOBAL: afecta a KPIs + Subs + Sparkline -->
-    <div class="filters-bar" style="background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:14px 20px;margin-bottom:20px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:13px">
-      <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
-        <button onclick="setOverviewPreset('today')" class="preset-btn">Hoy</button>
-        <button onclick="setOverviewPreset('yesterday')" class="preset-btn">Ayer</button>
-        <button onclick="setOverviewPreset(7)" class="preset-btn">7d</button>
-        <button onclick="setOverviewPreset(30)" class="preset-btn">30d</button>
-        <button onclick="setOverviewPreset(90)" class="preset-btn">90d</button>
-        <button onclick="setOverviewPreset('mtd')" class="preset-btn">MTD</button>
-        <button onclick="setOverviewPreset('ytd')" class="preset-btn">YTD</button>
-        <button onclick="setOverviewPreset(365)" class="preset-btn">1a</button>
+    <!-- Barra de control: periodo + comparable. Manda sobre TODO el Overview. -->
+    <div class="o2bar-ctl">
+      <div class="o2seg" id="o2preset" role="group" aria-label="Periodo">
+        <button data-p="hoy">Hoy</button>
+        <button data-p="ayer">Ayer</button>
+        <button data-p="7">7 días</button>
+        <button data-p="30" aria-pressed="true">30 días</button>
+        <button data-p="mes">Este mes</button>
+        <button data-p="mesant">Mes pasado</button>
       </div>
-      <span style="color:var(--text-light);margin:0 4px">·</span>
-      <label style="display:flex;flex-direction:column;gap:2px">
-        <span style="font-size:11px;color:var(--text-light);text-transform:uppercase;font-weight:700">Desde</span>
-        <input type="date" id="ovFrom" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px">
+      <input type="date" id="ovFrom" aria-label="Desde"><input type="date" id="ovTo" aria-label="Hasta">
+      <label class="o2cmp">Comparar con
+        <select id="o2cmp">
+          <option value="anterior">periodo anterior</option>
+          <option value="ano_anterior">mismo periodo año anterior</option>
+        </select>
       </label>
-      <label style="display:flex;flex-direction:column;gap:2px">
-        <span style="font-size:11px;color:var(--text-light);text-transform:uppercase;font-weight:700">Hasta</span>
-        <input type="date" id="ovTo" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px">
-      </label>
-      <button onclick="loadOverview()" style="margin-left:auto;background:var(--navy);color:white;border:none;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Aplicar</button>
+      <div class="o2rango" id="o2rango"></div>
+      <div class="o2avisos" id="o2avisos"></div>
     </div>
 
-    <div class="section-title" id="ovKpiSectionTitle">Cómo vamos hoy</div>
-    <div class="kpis kpis-5">
-      <div class="kpi"><div class="kpi-label-top" id="ovRevLabel">REVENUE</div><div class="value" id="ovRevenue">—</div><div class="kpi-delta" id="ovRevenueDelta">—</div><div class="kpi-sub" id="ovRevenueSub">vs periodo previo</div></div>
-      <div class="kpi"><div class="kpi-label-top">PEDIDOS</div><div class="value" id="ovOrders">—</div><div class="kpi-delta" id="ovOrdersDelta">—</div><div class="kpi-sub">vs periodo previo</div></div>
-      <div class="kpi"><div class="kpi-label-top">% SUB (REVENUE)</div><div class="value" id="ovSubPct">—</div><div class="kpi-delta" id="ovSubPctDelta"></div><div class="kpi-sub" id="ovSubPctSub">revenue suscripción / total</div></div>
-      <div class="kpi"><div class="kpi-label-top">AOV</div><div class="value" id="ovAov">—</div><div class="kpi-delta" id="ovAovDelta">—</div><div class="kpi-sub">vs periodo previo</div></div>
-    </div>
+    <div class="o2kpis" id="o2kpis"></div>
 
-    <div class="section-title" id="ovBreakdownTitle">Desglose de pedidos · en el rango</div>
-    <div class="kpis">
-      <div class="kpi green"><div class="kpi-label-top">NUEVAS</div><div class="value" id="bdNuevas">—</div><div class="kpi-sub" id="bdNuevasDetail">clientas que compran por 1ª vez</div></div>
-      <div class="kpi"><div class="kpi-label-top">REPEAT</div><div class="value" id="bdRepeat">—</div><div class="kpi-sub">ya habían comprado</div></div>
-      <div class="kpi blue"><div class="kpi-label-top">SUSCRIPCIÓN</div><div class="value" id="bdSub">—</div><div class="kpi-sub" id="bdSubDetail">renovaciones + nuevas subs</div></div>
-      <div class="kpi orange"><div class="kpi-label-top">ÚNICA</div><div class="value" id="bdUnica">—</div><div class="kpi-sub">compra puntual (sin suscripción)</div></div>
+    <section class="o2card">
+      <h2>Clientas nuevas · por modalidad del primer pedido</h2>
+      <div id="o2nuevas"></div>
+    </section>
+
+    <div class="o2grid">
+      <section class="o2card">
+        <h2>Ingresos por día</h2>
+        <figure style="margin:0"><svg id="o2chart" viewBox="0 0 720 240" role="img" aria-label="Ingresos por día"></svg></figure>
+        <div class="o2leg">
+          <span><i style="background:var(--o2bar)"></i>Periodo actual</span>
+          <span><i style="background:var(--o2bar2)"></i>Comparado</span>
+        </div>
+      </section>
+      <section class="o2card">
+        <h2>Detalle</h2>
+        <div class="o2scroll"><table class="o2t" id="o2tabla"></table></div>
+      </section>
     </div>
 
     <div class="section-title" id="ovSubsSectionTitle">Suscripciones B2C en el rango</div>
@@ -299,19 +371,8 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
       <div class="kpi"><div class="value" id="ovSubsActive">—</div><div class="label">Subs activas</div><div class="kpi-sub" id="ovSubsActiveSub">al final del rango</div></div>
       <div class="kpi green"><div class="value" id="ovSubsNew">—</div><div class="label">Nuevas</div><div class="kpi-sub" id="ovSubsNewSub">en el rango</div></div>
       <div class="kpi orange"><div class="value" id="ovSubsCanc">—</div><div class="label">Canceladas</div><div class="kpi-sub" id="ovSubsCancSub">en el rango</div></div>
-    </div>
-
-    <div class="section-title">Finanzas (snapshot actual)</div>
-    <div class="kpis">
       <div class="kpi blue"><div class="value" id="ovMrr">—</div><div class="label">MRR</div><div class="kpi-sub" id="ovMrrSub">de subs activas</div></div>
       <div class="kpi teal"><div class="value" id="ovArr">—</div><div class="label">ARR</div><div class="kpi-sub">MRR × 12</div></div>
-    </div>
-
-    <div class="section-title" id="ovSparklineTitle">Revenue diario · nuevas vs recurrentes</div>
-    <div class="chart-card" style="margin-bottom:24px">
-      <div class="big" id="ovSparklineBig">—</div>
-      <div style="font-size:12px;margin:4px 0 8px"><span style="color:#16a34a;font-weight:600">● Nuevas</span> &nbsp;&nbsp; <span style="color:#2563eb;font-weight:600">● Recurrentes</span></div>
-      <svg class="chart-svg" id="ovSparkline" style="height:140px"></svg>
     </div>
 
     <div class="section-title">Ventas por producto · en vivo (Shopify)</div>
@@ -325,6 +386,8 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
         <tbody id="ovslBody"><tr><td colspan="5" style="padding:10px;color:#888">Cargando…</td></tr></tbody>
       </table>
     </div>
+
+    <div id="o2tip" role="status"></div>
 
   </div> <!-- /viewOverview -->
 
@@ -1334,18 +1397,6 @@ function initOverviewFilters(){
   document.getElementById('ovTo').value=todayISO();
 }
 
-function setOverviewPreset(preset){
-  const today=todayISO();
-  let from, to=today;
-  if(preset==='today'){ from=today; }
-  else if(preset==='yesterday'){ from=isoNDaysAgo(1); to=isoNDaysAgo(1); }
-  else if(preset==='mtd'){ const d=new Date(); from=new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString().slice(0,10); }
-  else if(preset==='ytd'){ from=new Date().getUTCFullYear()+'-01-01'; }
-  else { from=isoNDaysAgo(preset-1); }
-  document.getElementById('ovFrom').value=from;
-  document.getElementById('ovTo').value=to;
-  loadOverview();
-}
 
 // Etiqueta humana del rango (HOY / 7d / MTD / 19/05 → 20/05)
 function rangeLabel(fromISO, toISO){
@@ -1374,106 +1425,282 @@ function fmtDelta(pct){
   return `<span class="${cls}">${sign}${Math.abs(pct).toFixed(1)}%</span>`;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// OVERVIEW v2 · panel de periodo con comparable (07/09/2026)
+//
+// Todo lo que se ve aquí sale de UNA llamada a /api/admin/metrics/periodo, que
+// envuelve el RPC metrics_periodo. Ni un solo total, ratio ni comparable se
+// calcula en el navegador: si "CAC" o "vs periodo anterior" se recalculasen
+// aquí, tendríamos otra definición más conviviendo con las del deck y las de
+// la capa semántica. Este panel sólo PINTA.
+//
+// Sustituye a los KPIs + desglose + sparkline anteriores, que mezclaban tres
+// fuentes (metrics_overview, order-breakdown en vivo y el modelo híbrido) y
+// daban cifras distintas entre sí en la misma pantalla.
+// ═══════════════════════════════════════════════════════════════
+let O2 = null;              // última respuesta del API
+const o2tip = () => document.getElementById('o2tip');
+
+const o2NF   = dec => ({minimumFractionDigits:dec, maximumFractionDigits:dec, useGrouping:'always'});
+const o2eur  = (v,dec=0) => v==null?'—':Number(v).toLocaleString('es-ES',o2NF(dec))+' €';
+const o2int  = v => v==null?'—':Math.round(v).toLocaleString('es-ES',{useGrouping:'always'});
+const o2rat  = v => v==null?'—':Number(v).toFixed(2).replace('.',',');
+const o2pct  = v => v==null?'—':Number(v).toFixed(1).replace('.',',')+'%';
+const O2MES  = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const o2D    = s => new Date(s+'T00:00:00Z');
+const o2iso  = d => d.toISOString().slice(0,10);
+const o2addD = (s,n) => {const d=o2D(s); d.setUTCDate(d.getUTCDate()+n); return o2iso(d)};
+const o2fecha= s => {const d=o2D(s); return d.getUTCDate()+' '+O2MES[d.getUTCMonth()]};
+
+// El delta lo calcula el panel porque es presentación, no métrica: los dos
+// valores que compara ya vienen decididos por SQL. `inv` marca las métricas
+// donde bajar es bueno (CAC, CPA).
+function o2delta(a,b,inv){
+  if(a==null||b==null||!Number(b)) return {txt:'—',cls:'o2flat'};
+  const p=100*(Number(a)-Number(b))/Math.abs(Number(b));
+  if(Math.abs(p)<0.05) return {txt:'0,0%',cls:'o2flat'};
+  const bueno = inv ? p<0 : p>0;
+  return {txt:(p>0?'+':'')+p.toFixed(1).replace('.',',')+'%', cls:bueno?'o2up':'o2down'};
+}
+
+const O2KPI=[
+  {k:'revenue',      t:'Ingresos',        f:o2eur,              s:'rev'},
+  {k:'orders',       t:'Pedidos',         f:o2int,              s:'ord'},
+  {k:'aov',          t:'Ticket medio',    f:v=>o2eur(v,2),      s:'aov'},
+  {k:'new_customers',t:'Clientas nuevas', f:o2int,              s:'nc'},
+  {k:'t_cost',       t:'Inversión',       f:o2eur,              s:'cost'},
+  {k:'cac',          t:'CAC',             f:v=>o2eur(v,2), inv:true, s:'cac'},
+  {k:'roas_b',       t:'ROAS',            f:o2rat,              s:'roas'}
+];
+const O2FILAS=[
+  ['sec','Ingresos'],
+  ['revenue','Ingresos',o2eur],['orders','Pedidos',o2int],['aov','Ticket medio',v=>o2eur(v,2)],
+  ['sec','Clientas nuevas'],
+  ['new_customers','Nuevas',o2int],['new_revenue','Ingresos de nuevas',o2eur],
+  ['aov_new','Ticket medio nueva',v=>o2eur(v,2)],
+  ['new_cust_sub','→ con suscripción',o2int],['new_rev_sub','&nbsp;&nbsp;&nbsp;ingresos',o2eur],
+  ['aov_new_sub','&nbsp;&nbsp;&nbsp;ticket medio',v=>o2eur(v,2)],
+  ['new_cust_unique','→ compra única',o2int],['new_rev_unique','&nbsp;&nbsp;&nbsp;ingresos',o2eur],
+  ['aov_new_unique','&nbsp;&nbsp;&nbsp;ticket medio',v=>o2eur(v,2)],
+  ['sec','Suscripción'],
+  ['new_sub','Altas',o2int],['renewal_sub','Renovaciones',o2int],
+  ['pct_sub','% pedidos de suscripción',o2pct],
+  ['sec','Inversión'],
+  ['meta_spend','Meta',o2eur],['google_spend','Google',o2eur],['t_cost','Total',o2eur],
+  ['cac','CAC',v=>o2eur(v,2),true],['cpa','CPA',v=>o2eur(v,2),true],['roas_b','ROAS',o2rat]
+];
+
+function o2wire(node, html){
+  const t=o2tip();
+  const mv=e=>{let x=e.clientX+13,y=e.clientY+13;
+    if(x+230>innerWidth)x=e.clientX-230; if(y+70>innerHeight)y=e.clientY-70;
+    t.style.left=x+'px'; t.style.top=y+'px'};
+  node.addEventListener('pointerenter',e=>{t.innerHTML=html;t.style.opacity=1;mv(e)});
+  node.addEventListener('pointermove',mv);
+  node.addEventListener('pointerleave',()=>t.style.opacity=0);
+}
+
 async function loadOverview(){
-  document.getElementById('ovStatusText').textContent='Cargando…';
-  // Asegura que hay valores en los inputs (primera carga)
   if(!document.getElementById('ovFrom').value || !document.getElementById('ovTo').value) initOverviewFilters();
+  const from=document.getElementById('ovFrom').value, to=document.getElementById('ovTo').value;
+  const comp=document.getElementById('o2cmp').value;
+  const st=document.getElementById('ovStatusText');
+  st.textContent='Cargando…';
   try{
-    const qs=buildRangeQS('ovFrom','ovTo');
-    const resp=await fetch(API+'/api/admin/metrics/overview'+(qs?'?'+qs:''),{headers:authHeaders()});
+    const resp=await fetch(`${API}/api/admin/metrics/periodo?from=${from}&to=${to}&comp=${comp}`,{headers:authHeaders()});
     if(resp.status===401||resp.status===403){
-      document.getElementById('ovStatusText').innerHTML='Sesión caducada — <a href="#" onclick="logout();return false" style="color:var(--blue);text-decoration:underline">vuelve a iniciar sesión</a>';
+      st.innerHTML='Sesión caducada — <a href="#" onclick="logout();return false" style="color:var(--blue);text-decoration:underline">vuelve a iniciar sesión</a>';
       return;
     }
     const r=await resp.json();
-    if(r.error){ document.getElementById('ovStatusText').textContent='Error: '+r.error; return; }
-    const k=r.kpis||{}, s=r.sparkline||[], b=r.subs||{}, f=r.finance||{}, rng=r.range||{};
-
-    // Etiquetas dinámicas según rango
-    const label=rangeLabel(rng.from, rng.to);
-    document.getElementById('ovKpiSectionTitle').textContent='Cómo vamos · '+label;
-    document.getElementById('ovSubsSectionTitle').textContent='Suscripciones B2C · '+label;
-    document.getElementById('ovRevLabel').textContent='REVENUE '+(label==='HOY'?'HOY':label==='AYER'?'AYER':rng.days+'d');
-
-    // KPIs principales
-    document.getElementById('ovRevenue').textContent=fmtEUR(k.revenue);
-    document.getElementById('ovRevenueDelta').innerHTML=fmtDelta(deltaPct(k.revenue, k.prev_revenue));
-    document.getElementById('ovRevenueSub').textContent='vs '+fmtEUR(k.prev_revenue||0)+' periodo previo';
-
-    document.getElementById('ovOrders').textContent=fmt(k.orders);
-    document.getElementById('ovOrdersDelta').innerHTML=fmtDelta(deltaPct(k.orders, k.prev_orders));
-
-
-    // %Sub → lo rellena loadBreakdown() en vivo (revenue suscripción / total)
-
-    // AOV
-    document.getElementById('ovAov').textContent=fmtEUR2(k.aov);
-    document.getElementById('ovAovDelta').innerHTML=fmtDelta(deltaPct(k.aov, k.prev_aov));
-
-    // Desglose de pedidos · 4 cards (Excel-like)
-    const bd=r.breakdown||{};
-    document.getElementById('ovBreakdownTitle').textContent='Desglose de pedidos · '+label;
-    // (las tarjetas Nuevas/Repeat/Suscripción/Única las rellena loadBreakdown() en vivo desde Shopify)
-
-    // Subs en el rango
-    document.getElementById('ovSubsActive').textContent=fmt(b.active_end);
-    document.getElementById('ovSubsActiveSub').textContent='al '+rng.to;
-    document.getElementById('ovSubsNew').textContent=fmt(b.new_in_range);
-    document.getElementById('ovSubsCanc').textContent=fmt(b.cancelled_in_range);
-
-    // Finanzas (snapshot)
-    document.getElementById('ovMrr').textContent=fmtEUR(f.mrr||0);
-    document.getElementById('ovMrrSub').textContent=fmt(f.active_subs||0)+' subs activas';
-    document.getElementById('ovArr').textContent=fmtEUR(f.arr||0);
-
-    // El gráfico de revenue diario (nuevas vs recurrentes) lo pinta SOLO loadBreakdown()
-
-    const ts=r.generated_at||new Date().toISOString();
-    document.getElementById('ovStatusText').textContent='Última actualización: '+new Date(ts).toLocaleString('es-ES')+' · '+label;
+    if(r.error){ st.textContent='Error: '+r.error; return; }
+    O2=r; o2render();
+    st.textContent='Actualizado '+new Date().toLocaleTimeString('es-ES');
   }catch(e){
-    document.getElementById('ovStatusText').textContent='Error cargando overview: '+e.message;
+    st.textContent='Error cargando overview: '+e.message;
   }finally{
-    // Datos EN VIVO de Shopify — se ejecuta SIEMPRE y al final (gana sobre el BI). Cuadra al céntimo.
-    loadShopifyLive();
-    loadBreakdown();
+    loadOverviewSubs();   // subs + MRR, del RPC de siempre
+    loadShopifyLive();    // ventas por producto en vivo
   }
 }
 
-// Desglose nuevas/repeat/suscripción/única EN VIVO (reemplaza el conteo manual del Excel)
-async function loadBreakdown(){
-  const set=(id,v)=>{const el=document.getElementById(id); if(el)el.textContent=v;};
-  set('bdNuevas','…'); set('bdRepeat','…'); set('bdSub','…'); set('bdUnica','…');
-  try{
-    const from=document.getElementById('ovFrom').value, to=document.getElementById('ovTo').value;
-    const r=await fetch(API+'/api/admin/metrics/order-breakdown?from='+from+'&to='+to,{headers:authHeaders()}).then(x=>x.json());
-    if(!r.ok){ set('bdNuevas','—');set('bdRepeat','—');set('bdSub','—');set('bdUnica','—'); set('bdSubDetail', r.error||'no disponible'); return; }
-    set('bdNuevas', fmt(r.new_customers));
-    set('bdRepeat', fmt(r.repeat_customers));
-    set('bdSub', fmt(r.sub));
-    set('bdUnica', fmt(r.unique));
-    const det=document.getElementById('bdSubDetail');
-    if(det) det.textContent=fmt(r.renewal)+' renovaciones · '+fmt(r.new_sub)+' nuevas subs';
-    const ndet=document.getElementById('bdNuevasDetail');
-    if(ndet && r.new_cust_sub!=null) ndet.innerHTML='<b style="color:#16a34a">'+fmtEUR(r.new_revenue)+'</b> · '+fmt(r.new_cust_sub)+' susc · '+fmt(r.new_cust_unique)+' única';
-    // % SUB = revenue de suscripción / facturación total
-    if(r.sub_revenue_pct!=null){
-      set('ovSubPct', Number(r.sub_revenue_pct).toFixed(1)+'%');
-      const sd=document.getElementById('ovSubPctDelta'); if(sd) sd.innerHTML='';
-      const ss=document.getElementById('ovSubPctSub'); if(ss) ss.textContent=fmtEUR(r.sub_revenue)+' de '+fmtEUR(r.revenue);
-    }
-    // Gráfico diario nuevas vs recurrentes (lo pinta SOLO esta función)
-    const big=document.getElementById('ovSparklineBig');
-    const ttl=document.getElementById('ovSparklineTitle');
-    if(r.daily && r.daily.length){
-      renderTwoSeriesSVG('ovSparkline', r.daily.map(d=>({bucket:d.day, a:d.nuevas, b:d.recurrentes})), v=>fmtEUR(v));
-      if(big) big.textContent=fmtEUR(r.revenue)+' total · '+fmtEUR(r.new_revenue)+' nuevas';
-      if(ttl) ttl.textContent='Revenue diario · nuevas vs recurrentes';
-    } else {
-      const svg=document.getElementById('ovSparkline'); if(svg) svg.innerHTML='';
-      if(big) big.textContent=fmtEUR(r.revenue||0);
-    }
-  }catch(e){ set('bdNuevas','—');set('bdRepeat','—');set('bdSub','—');set('bdUnica','—'); }
+function o2render(){
+  const A=O2.actual||{}, B=O2.comparado||{}, M=O2.meta||{};
+  const ra=M.rango_actual||{}, rc=M.rango_comparado||{};
+
+  document.getElementById('o2rango').innerHTML =
+    `<b>${o2fecha(ra.desde)} – ${o2fecha(ra.hasta)}</b> · ${M.dias} ${M.dias===1?'día':'días'} · ` +
+    `comparado con ${o2fecha(rc.desde)} – ${o2fecha(rc.hasta)}`;
+
+  // Avisos: se cantan, no se esconden. Un rango que mezcla fuentes de revenue o
+  // al que le faltan modalidades no es comparable sin saberlo.
+  const av=[];
+  if((M.fuentes||[]).length>1) av.push('⚠ el rango mezcla las dos fuentes de revenue (corte 1-mar-2026)');
+  if(A.new_sin_modalidad>0) av.push(`⚠ ${A.new_sin_modalidad} primeras compras sin modalidad resoluble`);
+  document.getElementById('o2avisos').textContent=av.join(' · ');
+
+  document.getElementById('o2kpis').innerHTML = O2KPI.map(m=>{
+    const d=o2delta(A[m.k],B[m.k],m.inv);
+    return `<div class="o2kpi"><div class="k">${m.t}</div>
+      <div class="v o2num">${m.f(A[m.k])}</div>
+      <div class="d"><span class="${d.cls}">${d.txt}</span><span class="prev o2num">vs ${m.f(B[m.k])}</span></div>
+      <svg class="o2spark" data-s="${m.s}" viewBox="0 0 160 26" preserveAspectRatio="none"></svg></div>`;
+  }).join('');
+  document.querySelectorAll('#o2kpis .o2spark').forEach(svg=>o2spark(svg, O2.serie||[], svg.dataset.s));
+
+  o2nuevas(A,B);
+  o2tabla(A,B);
+  o2chart(O2.serie||[], O2.serie_comp||[]);
 }
+
+function o2nuevas(A,B){
+  const bloque=(t,n,nb,rev,revb,tk,tkb,share,col)=>{
+    const dn=o2delta(n,nb), dr=o2delta(rev,revb), dt=o2delta(tk,tkb);
+    return `<div class="o2mod">
+      <div class="h"><span>${t}</span>${share!=null?`<span class="share">${share}% del total</span>`:''}</div>
+      <dl>
+        <dt>Clientas</dt><dd><b>${o2int(n)}</b><span class="dd ${dn.cls}">${dn.txt}</span></dd>
+        <dt>Ingresos</dt><dd><b>${o2eur(rev)}</b><span class="dd ${dr.cls}">${dr.txt}</span></dd>
+        <dt>Ticket medio</dt><dd><b>${o2eur(tk,2)}</b><span class="dd ${dt.cls}">${dt.txt}</span></dd>
+      </dl>
+      <div class="o2barra"><i style="width:${share||0}%;background:${col}"></i></div>
+    </div>`;
+  };
+  const shS = A.new_customers ? Math.round(100*A.new_cust_sub/A.new_customers) : null;
+  const shU = shS==null ? null : 100-shS;
+  const d=(k,inv)=>o2delta(A[k],B[k],inv);
+  document.getElementById('o2nuevas').innerHTML = '<div class="o2split">' +
+    `<div class="o2mod tot"><div class="h"><span>Total nuevas</span></div><dl>
+       <dt>Clientas</dt><dd><b>${o2int(A.new_customers)}</b><span class="dd ${d('new_customers').cls}">${d('new_customers').txt}</span></dd>
+       <dt>Ingresos</dt><dd><b>${o2eur(A.new_revenue)}</b><span class="dd ${d('new_revenue').cls}">${d('new_revenue').txt}</span></dd>
+       <dt>CAC</dt><dd><b>${o2eur(A.cac,2)}</b><span class="dd ${d('cac',true).cls}">${d('cac',true).txt}</span></dd>
+     </dl></div>` +
+    bloque('Entran por suscripción', A.new_cust_sub,B.new_cust_sub, A.new_rev_sub,B.new_rev_sub,
+           A.aov_new_sub,B.aov_new_sub, shS,'var(--o2bar)') +
+    bloque('Entran por compra única', A.new_cust_unique,B.new_cust_unique, A.new_rev_unique,B.new_rev_unique,
+           A.aov_new_unique,B.aov_new_unique, shU,'var(--orange)') +
+    '</div>';
+}
+
+function o2tabla(A,B){
+  document.getElementById('o2tabla').innerHTML =
+    '<thead><tr><th>Métrica</th><th>Actual</th><th>Comparado</th><th>Δ</th></tr></thead><tbody>' +
+    O2FILAS.map(([k,t,f,inv])=>{
+      if(k==='sec') return `<tr class="sec"><td colspan="4">${t}</td></tr>`;
+      const d=o2delta(A[k],B[k],inv);
+      return `<tr><td>${t}</td><td>${f(A[k])}</td>
+        <td style="color:var(--o2ink3)">${f(B[k])}</td>
+        <td class="${d.cls}">${d.txt}</td></tr>`;
+    }).join('') + '</tbody>';
+}
+
+function o2spark(svg, serie, k){
+  svg.innerHTML='';
+  const vals=serie.map(r=>{
+    const c=(r.meta||0)+(r.goog||0);
+    if(k==='cost') return c;
+    if(k==='aov')  return r.ord? r.rev/r.ord : 0;
+    if(k==='cac')  return r.nc? c/r.nc : 0;
+    if(k==='roas') return c? r.rev/c : 0;
+    if(k==='nc')   return r.nc||0;
+    return r[k]||0;
+  });
+  if(vals.length<2) return;
+  const mx=Math.max(...vals), mn=Math.min(...vals), rg=(mx-mn)||1;
+  const pts=vals.map((v,i)=>[i*160/(vals.length-1), 24-((v-mn)/rg)*22]);
+  const ns='http://www.w3.org/2000/svg';
+  const p=document.createElementNS(ns,'path');
+  p.setAttribute('d',pts.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)).join(' '));
+  p.setAttribute('fill','none'); p.setAttribute('stroke','var(--o2ink3)'); p.setAttribute('stroke-width','1.5');
+  svg.appendChild(p);
+  const c=document.createElementNS(ns,'circle');
+  c.setAttribute('cx',pts[pts.length-1][0]); c.setAttribute('cy',pts[pts.length-1][1]);
+  c.setAttribute('r','2.4'); c.setAttribute('fill','var(--o2bar)'); svg.appendChild(c);
+}
+
+function o2chart(serie, comp){
+  const svg=document.getElementById('o2chart'); svg.innerHTML='';
+  const ns='http://www.w3.org/2000/svg', W=720,H=240,L=52,Rr=12,Tp=14,Bt=26;
+  const el=(t,a)=>{const e=document.createElementNS(ns,t);for(const k in a)e.setAttribute(k,a[k]);return e};
+  const n=serie.length; if(!n) return;
+  const mx=Math.max(...serie.map(r=>r.rev), ...comp.map(r=>r.rev), 1);
+  const y=v=>Tp+(H-Tp-Bt)*(1-v/mx);
+  [0,.5,1].forEach(p=>{
+    svg.appendChild(el('line',{x1:L,y1:y(mx*p),x2:W-Rr,y2:y(mx*p),stroke:'var(--border)','stroke-width':1}));
+    const t=el('text',{x:L-7,y:y(mx*p)+3.5,class:'o2lbl','text-anchor':'end'});
+    t.textContent=Math.round(mx*p/1000)+'k'; svg.appendChild(t);
+  });
+  const bw=(W-L-Rr)/n, w=Math.max(1.5,Math.min(bw*.62,22));
+  serie.forEach((r,i)=>{
+    const x=L+i*bw+(bw-w)/2, cv=comp[i];
+    if(cv) svg.appendChild(el('rect',{x:x-1.5,y:y(cv.rev),width:w,
+      height:Math.max(1,y(0)-y(cv.rev)),rx:2,fill:'var(--o2bar2)'}));
+    const b=el('rect',{x,y:y(r.rev),width:w,height:Math.max(1,y(0)-y(r.rev)),rx:2,fill:'var(--o2bar)'});
+    svg.appendChild(b);
+    o2wire(b, `<b>${o2fecha(r.d)}</b> · ${o2eur(r.rev)} · ${r.ord} pedidos` +
+              (cv?`<br>vs ${o2fecha(cv.d)}: ${o2eur(cv.rev)}`:''));
+  });
+  svg.appendChild(el('line',{x1:L,y1:y(0),x2:W-Rr,y2:y(0),stroke:'var(--border)','stroke-width':1}));
+  const paso=Math.max(1,Math.ceil(n/8));
+  serie.forEach((r,i)=>{
+    const ultima=i===n-1;
+    if(!ultima && (i%paso || (n-1-i)<paso*0.6)) return;
+    const t=el('text',{x:L+i*bw+bw/2,y:H-8,class:'o2lbl','text-anchor':'middle'});
+    t.textContent=o2fecha(r.d); svg.appendChild(t);
+  });
+}
+
+// Subs activas / altas / bajas + MRR. Siguen viniendo de metrics_overview:
+// metrics_periodo cubre pedidos y adquisición, no el estado de la base de subs.
+async function loadOverviewSubs(){
+  try{
+    const qs=buildRangeQS('ovFrom','ovTo');
+    const r=await fetch(API+'/api/admin/metrics/overview'+(qs?'?'+qs:''),{headers:authHeaders()}).then(x=>x.json());
+    const b=r.subs||{}, f=r.finance||{}, rng=r.range||{};
+    const set=(id,v)=>{const e=document.getElementById(id); if(e)e.textContent=v;};
+    set('ovSubsActive', fmt(b.active_end));
+    set('ovSubsActiveSub','al '+(rng.to||''));
+    set('ovSubsNew', fmt(b.new_in_range));
+    set('ovSubsCanc', fmt(b.cancelled_in_range));
+    set('ovMrr', fmtEUR(f.mrr||0));
+    set('ovMrrSub', fmt(f.active_subs||0)+' subs activas');
+    set('ovArr', fmtEUR(f.arr||0));
+  }catch(e){ /* el panel principal ya está pintado; esto es complementario */ }
+}
+
+// Presets del panel. `hoy` usa la fecha del navegador; el resto se derivan de ella.
+document.addEventListener('DOMContentLoaded',()=>{
+  const seg=document.getElementById('o2preset');
+  if(seg) seg.addEventListener('click',e=>{
+    const b=e.target.closest('button[data-p]'); if(!b) return;
+    [...seg.querySelectorAll('button')].forEach(x=>x.setAttribute('aria-pressed', x===b));
+    const hoy=todayISO(), p=b.dataset.p;
+    let F,T=hoy;
+    if(p==='hoy'){F=hoy}
+    else if(p==='ayer'){F=T=o2addD(hoy,-1)}
+    else if(p==='7'||p==='30'){F=o2addD(hoy,-(+p-1))}
+    else if(p==='mes'){F=hoy.slice(0,8)+'01'}
+    else if(p==='mesant'){const d=o2D(hoy);
+      const fin=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),0));
+      F=o2iso(fin).slice(0,8)+'01'; T=o2iso(fin)}
+    document.getElementById('ovFrom').value=F;
+    document.getElementById('ovTo').value=T;
+    loadOverview();
+  });
+  ['ovFrom','ovTo'].forEach(id=>{
+    const n=document.getElementById(id);
+    if(n) n.addEventListener('change',()=>{
+      const a=document.getElementById('ovFrom').value, b=document.getElementById('ovTo').value;
+      if(a&&b&&a<=b){
+        document.querySelectorAll('#o2preset button').forEach(x=>x.setAttribute('aria-pressed',false));
+        loadOverview();
+      }
+    });
+  });
+  const c=document.getElementById('o2cmp');
+  if(c) c.addEventListener('change',loadOverview);
+});
+
 
 // ═══════════════════════════════════════════════════════════════
 // MODELO HÍBRIDO de ventas: cuadra SIEMPRE con el master de DOMMA.
@@ -1530,10 +1757,6 @@ async function loadShopifyLive(){
   try{
     const from=document.getElementById('ovFrom').value, to=document.getElementById('ovTo').value;
     const c=await combinedSales(from,to);
-    setLiveKpi('ovRevenue', fmtEUR(c.revenue), 'ovRevenueDelta', 'ovRevenueSub', c.src);
-    setLiveKpi('ovOrders', fmt(c.orders), 'ovOrdersDelta');
-    const aov=(c.orders? c.revenue/c.orders : 0);
-    setLiveKpi('ovAov', fmtEUR2(aov), 'ovAovDelta');
     renderByProduct('ovslBody', c.byProduct, c.src);
   }catch(e){ const b=document.getElementById('ovslBody'); if(b)b.innerHTML='<tr><td colspan="5" style="padding:10px;color:#c33">Error: '+e.message+'</td></tr>'; }
 }
