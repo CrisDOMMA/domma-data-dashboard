@@ -1672,7 +1672,7 @@ def desplegar_github(html_content, excel_path, token):
             print(f"    -> ERROR {status}: {resp.get('error', '')} {resp.get('detail', '')[:200]}")
 
     print("  Despliegue completado.")
-    print(f"  URL: https://crisdomma.github.io/domma-data-dashboard/")
+    print(f"  URL: https://data.wearedomma.com")
 
 
 # ---------------------------------------------------------------------------
@@ -1797,7 +1797,7 @@ def main():
         print("    python3 actualizar_dashboard.py")
         print("  Saltando despliegue.")
     elif args.dry_run:
-        print(f"  [DRY-RUN] Se desplegaria a https://crisdomma.github.io/domma-data-dashboard/")
+        print(f"  [DRY-RUN] Se desplegaria a https://data.wearedomma.com")
         print(f"  Archivos: index.html, DOMMA_Analisis_Menopausia_BA.xlsx")
     else:
         desplegar_github(html_content, str(OUTPUT_XLSX), token)

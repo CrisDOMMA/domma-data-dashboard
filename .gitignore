@@ -8,3 +8,11 @@
 
 # Wrangler
 .wrangler/
+
+# Prototipo del Overview con 629 días de revenue INCRUSTADOS en el HTML.
+# Este repo se despliega solo a data.wearedomma.com, que sirve los ficheros
+# estáticos SIN login (el login es de cliente y se lo salta una URL directa,
+# como ya pasa con metrics/historico_mensual.json). Versionarlo publicaría dos
+# años de facturación diaria en una URL abierta. El panel bueno ya vive en
+# metrics/index.html y pide datos a un endpoint autenticado.
+_nuevo_overview/
