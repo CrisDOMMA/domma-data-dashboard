@@ -129,7 +129,29 @@ function aplicarPermisos(){
   });
   return allowed ? allowed[0] : 'metrics';
 }
-function showApp(){
+// Renovación silenciosa de la sesión. El token dura 7 días; cada vez que se abre el hub
+// se pide uno fresco, así quien entra a diario no vuelve a ver la pantalla de login.
+// Se hace ANTES de cargar los iframes: cada panel lee el token de localStorage al
+// arrancar, así que si renovásemos después se quedarían con el viejo hasta recargar.
+// Si falla (sin red, o token ya caducado) no se toca nada: se sigue con el que hay y,
+// si de verdad ha caducado, el propio panel avisará y mandará a entrar de nuevo.
+async function renovarSesion(){
+  if(!token) return;
+  try{
+    // Con tope: una renovación colgada NO puede dejar el panel sin abrir.
+    const r = await fetch(AUTH_API+'/api/renew',{method:'POST',headers:{'Authorization':'Bearer '+token},signal:AbortSignal.timeout(4000)});
+    if(!r.ok) return;
+    const d = await r.json();
+    if(d && d.token){
+      token = d.token;
+      localStorage.setItem('domma_analytics_token', d.token);
+      if(d.role) localStorage.setItem('domma_role', d.role);
+    }
+  }catch(e){ /* sin red: seguimos con el token actual */ }
+}
+
+async function showApp(){
+  await renovarSesion();
   document.getElementById('loginOverlay').style.display='none';
   document.getElementById('app').style.display='flex';
   if(localStorage.getItem('domma_nav_hidden')==='1') document.getElementById('app').classList.add('nav-hidden');
