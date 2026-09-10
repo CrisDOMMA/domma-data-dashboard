@@ -613,12 +613,28 @@ async function borrarGestion(gId,btn){
   const orig=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Deshaciendo…'; }
   try{
     const r=await fetch(API_BAJAS+'/api/dashboard/gestion-eliminar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({id:gId})});
-    const d=await r.json();
+    const d=await r.json().catch(()=>null);
+    if(sesionCaducada(r,d)){ avisarSesion(null, btn); return; }
     if(!d||!d.ok){ if(btn){ btn.textContent='⚠️ no se pudo'; setTimeout(()=>{btn.textContent=orig;btn.disabled=false;},2000); } return; }
     const idx=GALL.findIndex(x=>String(x.id)===String(gId)); if(idx>=0) GALL.splice(idx,1);
     rebuildGEST(); motivador(); render();
   }catch(e){ if(btn){ btn.textContent='⚠️ sin conexión'; setTimeout(()=>{btn.textContent=orig;btn.disabled=false;},2000); } }
 }
+// ── Sesión caducada ────────────────────────────────────────────────────────
+// El token dura 24 h y la estación se deja abierta todo el día. Cuando caduca, la
+// página sigue mostrando los datos de la última carga buena y CUALQUIER guardado
+// devuelve 401 — pero sólo se comprobaba al cargar. Carme veía «No se pudo guardar»
+// y entendía que fallaba la gestión (reportado 10/09/2026). Que diga la verdad.
+function sesionCaducada(r, d){ return (r && r.status === 401) || (d && d.error === 'no_autorizado'); }
+function avisarSesion(msg, btn){
+  const txt = 'Tu sesión ha caducado. Vuelve a entrar — esto NO se ha guardado.';
+  if(msg){ msg.textContent = txt; msg.style.color = 'var(--red)'; }
+  if(btn){ btn.textContent = '⚠️ sesión caducada'; btn.disabled = true; }
+  if(!msg && !btn) alert(txt);
+  // Un respiro para leerlo antes de mandarla a la pantalla de entrada.
+  setTimeout(logout, 3500);
+}
+
 // Reconstruye los índices GEST a partir de GALL (más reciente primero). Tras registrar o editar.
 function rebuildGEST(){ GEST={byC:{},byCust:{}}; GALL.forEach(g=>{ const c=nid(g.contract_id),cu=String(g.customer_id||''); if(c)(GEST.byC[c]=GEST.byC[c]||[]).push(g); if(cu)(GEST.byCust[cu]=GEST.byCust[cu]||[]).push(g); }); }
 // Validación: marca una gestión de «cobro hecho» como PAGADO (confirmado que el cobro se realizó).
@@ -627,7 +643,8 @@ async function marcarPagado(i, gId, btn){
   if(btn){ btn.disabled=true; btn.textContent='Validando…'; }
   try{
     const r=await fetch(API_BAJAS+'/api/dashboard/gestion-editar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({id:gId, contacto:g.contacto, resultado:'pagado', nota:g.nota, proxima_llamada:g.proxima_llamada})});
-    const d=await r.json();
+    const d=await r.json().catch(()=>null);
+    if(sesionCaducada(r,d)){ avisarSesion(null, btn); return; }
     if(!d||!d.ok){ if(btn){ btn.textContent='⚠️ error'; btn.disabled=false; } return; }
     const idx=GALL.findIndex(x=>String(x.id)===String(gId)); if(idx>=0 && d.gestion) GALL[idx]=d.gestion;
     rebuildGEST(); motivador(); render();   // validación = confirma (sin confetti; ya se celebró al hacer el cobro)
@@ -670,8 +687,9 @@ async function guardar(i){
     if(editId){
       // ── EDITAR una gestión ya registrada ──
       const r=await fetch(API_BAJAS+'/api/dashboard/gestion-editar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({id:editId, contacto, resultado, nota, proxima_llamada:prox})});
-      const d=await r.json();
-      if(!d||!d.ok){ msg.textContent='No se pudo actualizar'; msg.style.color='var(--red)'; document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=false); if(gb)gb.disabled=false; return; }
+      const d=await r.json().catch(()=>null);
+      if(sesionCaducada(r,d)){ avisarSesion(msg, gb); return; }
+      if(!d||!d.ok){ msg.textContent='No se pudo actualizar'+(d&&d.error?' ('+d.error+')':''); msg.style.color='var(--red)'; document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=false); if(gb)gb.disabled=false; return; }
       const idx=GALL.findIndex(x=>String(x.id)===String(editId)); if(idx>=0 && d.gestion) GALL[idx]=d.gestion;
       rebuildGEST();
       if(WINS[resultado]){ motivador(); celebrate(); }
@@ -681,8 +699,9 @@ async function guardar(i){
     // ── REGISTRAR una gestión nueva ──
     const body={tipo_caso:caso.tipo==='fallo'?'fallo_pago':'baja', customer_id:caso.customer_id||'', contract_id:caso.contract_id||'', nombre:caso.nombre||'', email:caso.email||'', phone:caso.phone||'', contacto, resultado, agente:agActual(), nota, proxima_llamada:prox};
     const r=await fetch(API_BAJAS+'/api/dashboard/gestion',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
-    const d=await r.json();
-    if(!d||!d.ok){ msg.textContent='No se pudo guardar'; msg.style.color='var(--red)'; document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=false); if(gb)gb.disabled=false; return; }
+    const d=await r.json().catch(()=>null);
+    if(sesionCaducada(r,d)){ avisarSesion(msg, gb); return; }
+    if(!d||!d.ok){ msg.textContent='No se pudo guardar'+(d&&d.error?' ('+d.error+')':''); msg.style.color='var(--red)'; document.querySelectorAll('#res'+i+' .d').forEach(b=>b.disabled=false); if(gb)gb.disabled=false; return; }
     const g=d.gestion||{...body,created_at:hoyISO()};
     GALL.unshift(g); rebuildGEST();
     const card=document.getElementById('c'+i);
