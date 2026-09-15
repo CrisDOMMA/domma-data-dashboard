@@ -168,7 +168,7 @@
   <div class="head">
     <div class="hi">Hola, <span id="agName">Carme</span> 👋</div>
     <div class="who">
-      <span id="today"></span>
+      <span id="today"></span><span id="frescura" style="margin-left:10px"></span>
       <span class="soy">Soy: <select id="agSel" onchange="setAg(this.value)"></select></span>
       <a href="#" onclick="logout();return false">salir</a>
     </div>
@@ -303,6 +303,7 @@ async function cargar(){
       fetch(API_TOQUES+'?token='+METRICS_TOKEN).then(r=>r.json()).catch(()=>({})),   // toques WhatsApp por teléfono
     ]);
     bajas=rb||{}; hoyFallos=rf||{}; gest=rg||{}; toq=rt||{};
+    pintaFrescura('frescura', bajas._frescura);
   }catch(e){ document.getElementById('list').innerHTML='<div class="empty">No se pudo cargar. Recarga la página.</div>'; return; }
   if(bajas.error==='no_autorizado'){ logout(); return; }
 
@@ -795,4 +796,34 @@ function celebrate(){ if(reduce) return; const px=innerWidth/2, py=innerHeight*0
 function loop(){ cx.clearRect(0,0,cv.width,cv.height); parts.forEach(p=>{ p.vy+=p.g;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;p.life--; cx.save();cx.translate(p.x,p.y);cx.rotate(p.r);cx.fillStyle=p.c;cx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6);cx.restore(); }); parts=parts.filter(p=>p.life>0&&p.y<cv.height+30); if(parts.length) requestAnimationFrame(loop); else cx.clearRect(0,0,cv.width,cv.height); }
 
 if(token) arrancar();
+
+// ── Marca de frescura ────────────────────────────────────────────────────────
+// Qué se enseña: la edad del ÚLTIMO DATO de la fuente, no la hora de la petición.
+// Un "cargado a las 15:42" siempre dice ahora aunque la tabla lleve dos meses sin
+// escribirse — que es exactamente cómo las cohortes del panel estuvieron
+// congeladas dos meses sin que nadie lo notara.
+//
+// Umbrales: verde <24 h · ámbar 24-72 h · rojo >72 h. En fuentes de alta MANUAL
+// (incidencias) no se pinta rojo: que nadie haya registrado nada en tres días
+// puede ser una buena noticia, así que se etiqueta y se deja en gris.
+function pintaFrescura(elId, f){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  if(!f || !f.ultimo_dato){ el.innerHTML = ''; return; }
+  const h = f.horas != null ? f.horas : Math.round((Date.now()-Date.parse(f.ultimo_dato))/36e5);
+  const manual = !!f.alta_manual;
+  const col = manual ? '#8a8f9c' : (h < 24 ? '#027775' : h < 72 ? '#b5730a' : '#b3342f');
+  const punto = manual ? '#c7cad1' : (h < 24 ? '#02a09d' : h < 72 ? '#e0940f' : '#d94b45');
+  const edad = h < 1 ? 'hace menos de 1 h'
+             : h < 24 ? 'hace ' + h + ' h'
+             : 'hace ' + Math.floor(h/24) + ' d';
+  const etiqueta = f.etiqueta || 'último dato';
+  const aviso = (!manual && h >= 72) ? ' — ¿se ha parado el sync?' : '';
+  el.innerHTML =
+    '<span title="' + etiqueta + ': ' + f.ultimo_dato + '  ·  fuente: ' + (f.fuente||'?') +
+    '" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:' + col + '">' +
+    '<i style="width:7px;height:7px;border-radius:50%;background:' + punto + ';display:inline-block"></i>' +
+    etiqueta + ' ' + edad + aviso + '</span>';
+}
+
 </script>
