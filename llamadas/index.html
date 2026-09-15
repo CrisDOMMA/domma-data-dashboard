@@ -45,6 +45,7 @@
   .prog-fill{height:100%;background:linear-gradient(90deg,var(--green),#37b083);border-radius:6px;transition:width .5s ease}
   .prog-txt{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:6px}
   .prog-txt b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .prog-det{font-weight:600;opacity:.75}   /* desglose llamar/registrar, un peldaño por debajo */
   /* Fila de filtro por día */
   .filrow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-left:auto}
   .buscador{flex:1 1 100%;padding:11px 15px;border:1.5px solid var(--line);border-radius:12px;font-size:14.5px;font-family:inherit;outline:none;background:#fff;color:var(--ink)}
@@ -103,6 +104,11 @@
   .b-validar:hover{filter:brightness(1.05)}
   .b-validar:disabled{opacity:.6;cursor:default}
   .b-undo{background:var(--red-bg);color:var(--red);border:1.5px solid transparent}
+  /* Asignación: coger un caso y pasarlo a otra compañera */
+  .b-coger{background:#F1F2FA;color:var(--indigo);border:1.5px solid var(--indigo)}
+  .b-asig{background:#fff;color:var(--muted);border:1.5px solid var(--line);padding:6px 9px;max-width:150px}
+  .owner{font-size:11.5px;font-weight:700;color:var(--indigo);background:#F1F2FA;padding:4px 9px;border-radius:20px;white-space:nowrap}
+  .owner.yo{background:var(--green-bg);color:var(--green)}
   .b-undo:hover{filter:brightness(.97)}
   .b-undo:disabled{opacity:.6;cursor:default}
 
@@ -169,7 +175,7 @@
     <div class="hi">Hola, <span id="agName">Carme</span> 👋</div>
     <div class="who">
       <span id="today"></span><span id="frescura" style="margin-left:10px"></span>
-      <span class="soy">Soy: <select id="agSel" onchange="setAg(this.value)"></select></span>
+      <span class="soy" id="yoEmail"></span>
       <a href="#" onclick="logout();return false">salir</a>
     </div>
   </div>
@@ -216,7 +222,15 @@ const METRICS_TOKEN='ae054e9b8acb290020c6be1d0839832ef34145dfe5ea3acc';
 const API_TEL='https://gestorsubs-domma.cristina-ed1.workers.dev/telefonos-shopify';  // rellena el móvil que falta desde Shopify
 const AUTH_API='https://domma-pro-api.cristina-ed1.workers.dev';
 const SHOP_ADMIN='https://admin.shopify.com/store/wearedomma', APPSTLE_APP='subscription-by-rhem';
-const AGENTES=['Carme','Vale','Ana','Marta'];
+// Equipo de retención al que se puede asignar un caso. Identidad real = la del login
+// (users role='retencion' en domma-pro-db); esta lista sólo alimenta el menú «Pasar a…».
+// Si entra o sale alguien del equipo, se toca AQUÍ y en domma-pro-db, en ningún sitio más.
+const EQUIPO=[
+  {nombre:'Valentina', email:'compras@wearedomma.com'},
+  {nombre:'Martina',   email:'martina.buxade@wearedomma.com'},
+  {nombre:'Ana',       email:'ayuda@wearedomma.com'},   // escalado: lo que no consiguen retener
+];
+let ASIG={};   // contract_id → {agente, agente_email, asignado_por, asignado_at}
 // ── CATÁLOGO ÚNICO de resultados (spec Cristina 06/08) ─────────────────────────────────
 // UNA sola fuente de verdad para los 3 flujos (Bajas / Fallos / recontactos de seguimiento):
 // cada módulo pinta un SUBCONJUNTO de estos códigos, nadie inventa códigos fuera de aquí.
@@ -276,16 +290,67 @@ function login(){
     }).catch(()=>err.textContent='No se pudo conectar');
 }
 function logout(){ localStorage.removeItem('domma_analytics_token'); location.reload(); }
-function agActual(){ return localStorage.getItem('domma_agente')||'Carme'; }
-function setAg(v){ localStorage.setItem('domma_agente',v); document.getElementById('agName').textContent=v; document.getElementById('agSel').value=v; motivador(); }
+
+// ── Quién soy: sale del LOGIN, no de un desplegable ────────────────────────────
+// Antes cada una se elegía a sí misma en «Soy: …» (localStorage). Con casos asignados eso
+// no vale: cualquiera podía registrar en nombre de otra y «asignado a Martina» no significaba
+// nada. Ahora el nombre viene del JWT de domma-pro-api (payload {id,email,role,nombre}),
+// firmado con btoa = base64 ESTÁNDAR, así que se lee con atob.
+function yo(){
+  try{ const p=JSON.parse(atob(token.split('.')[1]));
+       return {nombre:p.nombre||p.email||'?', email:(p.email||'').toLowerCase(), role:p.role||''}; }
+  catch(_){ return {nombre:'?', email:'', role:''}; }
+}
+function agActual(){ return yo().nombre; }
+
+// ── Asignación ────────────────────────────────────────────────────────────────
+// Los fallos entran SIN dueño; cada una coge los suyos y «pasa a Ana» lo que no retiene.
+const asigDe   = c => ASIG[nid(c.contract_id)]||null;
+const duenoDe  = c => (asigDe(c)||{}).agente||'';
+const esMio    = c => duenoDe(c)===agActual();
+const sinDueno = c => !duenoDe(c);
+// Insignia de dueño. Verde si es tuyo, azul si es de otra. Sin dueño = sin insignia
+// (el hueco ya lo dice: aparece el botón «Coger»).
+function insigniaDueno(c){
+  const d=duenoDe(c); if(!d) return '';
+  const a=asigDe(c)||{};
+  const t=a.asignado_por&&a.asignado_por!==d?` · se lo pasó ${a.asignado_por}`:'';
+  return `<span class="owner${d===agActual()?' yo':''}" title="Asignado a ${esc(d)}${esc(t)}">👤 ${esc(d)}</span>`;
+}
+// Botones de asignación. Sólo en fallos de pago (es lo que reparte el equipo) y nunca en las
+// tarjetas de sólo consulta del registro del formulario.
+function botonesAsignacion(c,i){
+  if(c.tipo!=='fallo'||c.registro) return '';
+  const dueno=duenoDe(c);
+  const opts=EQUIPO.filter(p=>p.nombre!==dueno).map(p=>`<option value="${esc(p.nombre)}">↪ Pasar a ${esc(p.nombre)}</option>`).join('');
+  const coger=dueno?'':`<button class="b b-coger" onclick="asignar(${i},'${esc(agActual())}')" title="Este caso pasa a ser tuyo">🙋 Coger</button>`;
+  return `${coger}<select class="b b-asig" onchange="asignarSel(${i},this)" title="Pasar este caso a otra compañera">
+      <option value="">${dueno?'↪ Pasar a…':'↪ Asignar a…'}</option>${opts}${dueno?'<option value="__libre__">— dejar sin dueño —</option>':''}</select>`;
+}
+function asignarSel(i, sel){ const v=sel.value; sel.selectedIndex=0; if(v) asignar(i, v==='__libre__'?'':v); }
+async function asignar(i, agente){
+  const c=VIS[i]; if(!c||!c.contract_id) return;
+  const p=EQUIPO.find(p=>p.nombre===agente);
+  try{
+    const r=await fetch(API_BAJAS+'/api/dashboard/asignar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({contract_id:c.contract_id, agente:agente||'', agente_email:p?p.email:'', tipo_caso:c.tipo==='fallo'?'fallo_pago':'baja'})});
+    if(r.status===401){ avisarSesionCaducada(); return; }
+    const d=await r.json().catch(()=>({}));
+    if(!d.ok){ alert('No se pudo asignar. Inténtalo otra vez.'); return; }
+    const k=nid(c.contract_id);
+    if(agente) ASIG[k]={agente, agente_email:p?p.email:'', asignado_por:agActual(), asignado_at:new Date().toISOString()};
+    else delete ASIG[k];
+    render();
+  }catch(_){ alert('No se pudo asignar. Revisa la conexión.'); }
+}
 
 function arrancar(){
   document.getElementById('overlay').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('today').textContent=new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
-  const ag=agActual();
-  document.getElementById('agSel').innerHTML=AGENTES.map(a=>`<option${a===ag?' selected':''}>${a}</option>`).join('');
-  document.getElementById('agName').textContent=ag;
+  const me=yo();
+  document.getElementById('agName').textContent=me.nombre;
+  document.getElementById('yoEmail').textContent=me.email;
   cargar();
 }
 
@@ -337,12 +402,14 @@ async function cargar(){
     return {tipo:'fallo', backlog:!!row.backlog, resuelto:true, nombre:(row.nombre||'').trim(), email:(row.email||'').trim(),
       phone:(row.phone||'').trim(), customer_id:String(row.customer_id||''), contract_id:row.contract_id,
       dias:diasDe(row.fail_date), fecha:(row.fail_date||'').slice(0,10), wa:null, hasTel:!!tel,
+      last_seen:(row.last_seen||''),   // último día que el fallo seguía VIVO → corte para saber si ya está registrada
       why:'Ha pagado — registra cómo lo gestionaste'+(row.importe?' · '+Number(row.importe).toFixed(2).replace('.',',')+' €':'')};
   };
   let resueltas=[];
   try{
     const payload=fa.map(f=>({contract_id:f.contract_id, customer_id:f.customer_id, nombre:f.nombre, email:f.email, phone:f.phone, importe:f.importe, fail_date:f.fecha, backlog:f.backlog}));
     const wr=await fetch(API_BAJAS+'/api/dashboard/fallos-sync',{method:'POST',headers:H,body:JSON.stringify({fallos:payload})}).then(r=>r.json());
+    ASIG=wr.asignaciones||{};   // de quién es cada caso (viaja con la worklist, sin petición extra)
     const liveIds=new Set([...(hoyFallos.failed||[]), ...(hoyFallos.dunning_skipped||[])].map(f=>nid(f.contract_id)));
     resueltas=(wr.worklist||[]).filter(row=>!liveIds.has(nid(row.contract_id))).map(mkFalloResuelto);
     // Antigüedad REAL del fallo: fail_date es el ÚLTIMO intento (se resetea con cada reintento
@@ -433,6 +500,18 @@ const TERMINAL=new Set(Object.keys(CATALOGO).filter(k=>CATALOGO[k].term));
 // Incluye el código único nuevo + los 4 legacy del historial.
 const CANCELAR=new Set(['cancelacion','compra_unica_cancelacion','cancelar','cancelado','cancelar_final','cancelar_definitivo']);
 function gestionadaHoy(caso){ return histDe(caso).some(g=>String(g.created_at||'').slice(0,10)===hoyISO() && TERMINAL.has(g.resultado)); }
+// Las que YA pagaron sólo esperan que Carme registre cómo lo resolvió. Una vez registrada una
+// gestión terminal, no tienen que volver: `gestionadaHoy` sólo mira HOY, así que reaparecían
+// cada mañana (y a la vez en «Contactadas») hasta que la worklist las purgaba a los 7 días.
+// El corte es `last_seen` = último día que el fallo seguía vivo en /today: sólo cuenta lo
+// registrado DESPUÉS de eso, para que una gestión de un episodio de fallo anterior no tape
+// el registro de este. Sólo aplica a `resuelto`: en un fallo VIVO, intento_1/intento_2 son
+// terminales-del-día y DEBEN reaparecer mañana para volver a llamar (eso es el diseño).
+function yaRegistrada(caso){
+  if(!caso.resuelto) return false;
+  const corte=String(caso.last_seen||caso.fecha||'').slice(0,10);
+  return histDe(caso).some(g=>TERMINAL.has(g.resultado) && String(g.created_at||'').slice(0,10)>=corte);
+}
 const fechaCorta=s=>{ if(!s)return''; const d=new Date(String(s).replace(' ','T')+'Z'); return isNaN(d)?esc(s):d.toLocaleDateString('es-ES',{day:'2-digit',month:'short'}); };
 function histInner(caso, i){
   const h=histDe(caso); if(!h.length) return '';
@@ -471,14 +550,21 @@ let VIS=[];   // lista exacta que se está pintando (índice de las tarjetas →
 function render(){
   RENDER_DIFERIDO=false;   // cualquier render real satisface el aplazado pendiente
   const gestHoy=LISTA.filter(gestionadaHoy).length;                 // ya gestionadas hoy (terminal)
-  let vivas=LISTA.filter(c=>!gestionadaHoy(c));                     // desaparecen del día
+  let vivas=LISTA.filter(c=>!gestionadaHoy(c) && !yaRegistrada(c)); // desaparecen del día
   if(fechaFil) vivas=vivas.filter(c=>c.fecha===fechaFil);          // filtro por día (calendario)
   const waCurso=vivas.filter(x=>x.waCurso);                        // WhatsApp trabajando: fuera de «por llamar», pero visibles y buscables
   vivas=vivas.filter(x=>!x.waCurso);
-  // Barra de progreso del día → da sensación de "hay un final"
-  const totalDia=gestHoy+vivas.length, pct=totalDia?Math.round(gestHoy/totalDia*100):0;
+  const porRegistrar=vivas.filter(x=>x.resuelto);                  // ya pagaron: no son una llamada, son un registro → fuera de «por llamar»
+  vivas=vivas.filter(x=>!x.resuelto);
+  // Barra de progreso del día → da sensación de "hay un final".
+  // «Quedan» = trabajo pendiente REAL: llamadas + las que ya pagaron y solo falta registrar
+  // (decisión Cristina 15/09). Como el titular solo cuenta llamadas, cuando hay registros
+  // pendientes se desglosa: si no, «3 por llamar» y «quedan 4» parecen contradecirse.
+  const pendientes=vivas.length+porRegistrar.length;
+  const desglose=porRegistrar.length?` <span class="prog-det">(${vivas.length} por llamar · ${porRegistrar.length} por registrar)</span>`:'';
+  const totalDia=gestHoy+pendientes, pct=totalDia?Math.round(gestHoy/totalDia*100):0;
   document.getElementById('progreso').innerHTML = totalDia
-    ? `<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt"><b>${gestHoy}</b> gestionada${gestHoy===1?'':'s'} hoy · quedan <b>${vivas.length}</b></div></div>` : '';
+    ? `<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt"><b>${gestHoy}</b> gestionada${gestHoy===1?'':'s'} hoy · quedan <b>${pendientes}</b>${desglose}</div></div>` : '';
   const dfil=l=>fechaFil?l.filter(c=>c.fecha===fechaFil):l;
   const esSeguim    = c=>c.esPausa||c.esSegunda;                            // seguimiento = pausas + 2ªs llamadas agendadas
   const contactadas = dfil(gestionadasCards('localizada')).filter(c=>!esSeguim(c));   // las de seguimiento van a Derivadas
@@ -488,8 +574,12 @@ function render(){
   const derivPend   = vivas.filter(x=>x.tipo==='derivada');
   const reg         = dfil(REGISTRO);                       // registro completo del formulario (búsqueda)
   const cancel      = reg.filter(c=>c.cancelacion);         // subconjunto "cancelaciones" para el chip
-  const counts={todas:vivas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausas.length, fallo:vivas.filter(x=>x.tipo==='fallo').length, wacurso:waCurso.length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length, cancelada:cancel.length};
-  const defs=[['todas','Todas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['wacurso','⏳ WhatsApp en curso'],['cancelada','Canceladas'],['gestionadas','Contactadas'],['nolocal','No contactadas'],['porvalidar','Pagos por validar']];
+  // Asignación: «Míos» es el trabajo propio (llamadas + registros pendientes que son de una);
+  // «Sin dueño» es el pozo del que cada una coge. Sólo aplica a fallos de pago.
+  const mios      = [...vivas, ...porRegistrar].filter(esMio);
+  const sinDuenoL = vivas.filter(x=>x.tipo==='fallo' && sinDueno(x));
+  const counts={todas:vivas.length, mios:mios.length, sindueno:sinDuenoL.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausas.length, fallo:vivas.filter(x=>x.tipo==='fallo').length, wacurso:waCurso.length, porregistrar:porRegistrar.length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length, cancelada:cancel.length};
+  const defs=[['todas','Todas'],['mios','👤 Míos'],['sindueno','Sin dueño'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['wacurso','⏳ WhatsApp en curso'],['porregistrar','✅ Por registrar'],['cancelada','Canceladas'],['gestionadas','Contactadas'],['nolocal','No contactadas'],['porvalidar','Pagos por validar']];
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
   document.getElementById('dateClear').style.display=fechaFil?'inline-block':'none';
   // Búsqueda: encuentra a CUALQUIERA — pendientes de llamar + contactadas + no contactadas
@@ -497,8 +587,11 @@ function render(){
   const matchB=c=>((c.nombre||'')+' '+(c.email||'')+' '+(c.phone||'')).toLowerCase().includes(busca);
   if(busca){
     const seen=new Set(); VIS=[];
-    for(const c of [...vivas, ...waCurso, ...contactadas, ...nolocal, ...pausas, ...reg]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||''); if(seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
+    for(const c of [...vivas, ...waCurso, ...porRegistrar, ...contactadas, ...nolocal, ...pausas, ...reg]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||''); if(seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
   } else if(filtro==='wacurso'){ VIS=waCurso; }
+  else if(filtro==='porregistrar'){ VIS=porRegistrar; }
+  else if(filtro==='mios'){ VIS=mios; }
+  else if(filtro==='sindueno'){ VIS=sinDuenoL; }
   else if(filtro==='gestionadas'){ VIS=contactadas; }
   else if(filtro==='nolocal'){ VIS=nolocal; }
   else if(filtro==='porvalidar'){ VIS=porValidar; }
@@ -512,6 +605,9 @@ function render(){
     : filtro==='nolocal' ? `${VIS.length} sin contactar`
     : filtro==='cancelada' ? `${VIS.length} baja${VIS.length===1?'':'s'} registrada${VIS.length===1?'':'s'}`
     : filtro==='wacurso' ? `${VIS.length} con el WhatsApp trabajando — aún no llamar`
+    : filtro==='porregistrar' ? `${VIS.length} ya ${VIS.length===1?'ha pagado':'han pagado'} — solo falta registrar`
+    : filtro==='mios' ? (VIS.length? `${VIS.length} ${VIS.length===1?'caso tuyo':'casos tuyos'}` : 'no tienes casos asignados')
+    : filtro==='sindueno' ? (VIS.length? `${VIS.length} sin dueño — cógelos` : 'ninguno sin dueño 👌')
     : filtro==='porvalidar' ? `${VIS.length} por validar` : (VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉'));
   const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin contactar 👌':filtro==='cancelada'?'Ninguna baja registrada por el formulario todavía.':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':filtro==='wacurso'?'Ninguna con la secuencia de WhatsApp en curso.':'Nada por llamar aquí. 👌';
   document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${vacio}</div>`;
@@ -539,13 +635,14 @@ function tarjeta(c,i){
     <div class="stripe"></div>
     <div class="body">
       <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div>${chip}</div>
-      <div class="cmeta-row"><span class="cmeta">${meta}</span>${nHist?`<a class="histlink" href="#" data-n="${nHist}" onclick="toggleHist(${i},this);return false">Ver historial · ${nHist}</a>`:''}</div>
+      <div class="cmeta-row"><span class="cmeta">${meta}</span>${insigniaDueno(c)}${nHist?`<a class="histlink" href="#" data-n="${nHist}" onclick="toggleHist(${i},this);return false">Ver historial · ${nHist}</a>`:''}</div>
       <div class="hist" id="hist${i}" hidden>${histInner(c,i)}</div>
       <div class="actions">
         ${tel?`<button class="b b-call" onclick="llamar('${esc(c.phone)}',this)">📞 Llamar</button>`:`<span class="b b-call dis" title="No tenemos su teléfono">📞 Llamar</span>`}
         ${tel?`<a class="b b-wa" href="#" onclick="wati('${esc(c.phone)}');return false">💬 WhatsApp</a>`:`<span class="b b-wa dis" title="No tenemos su teléfono">💬 WhatsApp</span>`}
         ${c.email?`<a class="b b-email" href="mailto:${esc(c.email)}">✉️ Email</a>`:`<span class="b b-email dis" title="No tenemos su email">✉️ Email</span>`}
         ${(c.esCobroHecho&&c.gestId)?`<button class="b b-validar" onclick="marcarPagado(${i},'${esc(String(c.gestId))}',this)" title="Validar que el cobro se ha realizado">✓ Marcar pagado</button>`:''}
+        ${botonesAsignacion(c,i)}
         ${ultGestId?`<button class="b b-undo" onclick="borrarGestion('${esc(String(ultGestId))}',this)" title="Deshacer la última gestión de esta clienta: vuelve a quedar como antes. No afecta a su suscripción.">🗑 Deshacer</button>`:''}
         ${c.registro?'':`<button class="b b-manage" onclick="reveal(${i})">Registrar</button>`}
       </div>
