@@ -334,9 +334,10 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
           <th style="text-align:left;padding:6px 8px">Mes</th>
           <th style="padding:6px 8px">Total</th><th style="padding:6px 8px">B2C</th><th style="padding:6px 8px">B2B</th>
           <th style="padding:6px 8px">Pedidos</th><th style="padding:6px 8px">AOV</th>
-          <th style="padding:6px 8px">% Sub</th><th style="padding:6px 8px">Subs activas</th></tr></thead>
+          <th style="padding:6px 8px">% Sub</th><th style="padding:6px 8px" title="Suscripciones sin fecha de baja al cierre del mes. INCLUYE las pausadas: el estado 'paused' no guarda histórico, así que hacia atrás no se pueden separar. Hoy hay 300 pausadas (13.493 € de MRR), el 95% desde hace más de 3 meses.">Subs vivas <span style="opacity:.55;font-weight:400">ⓘ</span></th></tr></thead>
         <tbody id="histBody"><tr><td colspan="8" style="padding:10px;color:#888">Cargando histórico…</td></tr></tbody>
       </table>
+      <div id="histNotaPausas" style="margin-top:10px;font-size:12px;color:var(--text-light);line-height:1.5"></div>
     </div>
   </div>
 
@@ -1838,6 +1839,7 @@ const MESES_ES=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','
 async function loadHistorico(){
   const body=document.getElementById('histBody');
   try{
+    cargaNotaPausas();
     const r=await fetch(API+'/api/admin/metrics/historico',{headers:authHeaders(),cache:'no-cache'});
     const d=await r.json();
     const months=(d.months||[]).slice().sort((a,b)=>a.ym<b.ym?1:-1); // recientes arriba
@@ -1990,6 +1992,31 @@ async function loadClientesView(){
   }catch(e){
     document.getElementById('cStatusText').textContent='Error cargando datos: '+e.message;
   }
+}
+
+// La columna «Subs vivas» del histórico incluye las pausadas, y hacia atrás no se
+// pueden separar (el estado `paused` no guarda histórico). Lo que sí se puede es
+// decir cuántas hay HOY y cuánto MRR retienen sin facturar — que es el dato
+// accionable: son una lista concreta a la que llamar.
+async function cargaNotaPausas(){
+  const caja = document.getElementById('histNotaPausas');
+  if(!caja) return;
+  try{
+    const r = await fetch(API+'/api/admin/metrics/subs-estado',
+                          {headers:authHeaders(),cache:'no-cache'}).then(x=>x.json());
+    if(!r.ok || !r.pausadas) return;
+    const p = r.pausadas, v = r.pausadas_mas_3_meses || {subs:0,mrr:0};
+    const pctViejas = p.subs ? Math.round(100*v.subs/p.subs) : 0;
+    caja.innerHTML =
+      '<b>Ojo con esta columna:</b> «vivas» = sin fecha de baja, así que '+
+      '<b>incluye las pausadas</b>. Hacia atrás no se pueden separar porque el estado '+
+      '<code>paused</code> no guarda histórico. Hoy son <b>'+fmt(p.subs)+' pausadas</b> '+
+      'que retienen <b>'+fmtEUR(p.mrr)+' de MRR sin facturar</b> ('+
+      (r.pct_pausado_del_mrr??'—')+'% del total)'+
+      (pctViejas>=50
+        ? ', y el <b>'+pctViejas+'% lleva más de 3 meses así</b>: eso no es una pausa, es una baja silenciosa.'
+        : '.');
+  }catch(e){ /* sin dato, la tabla se entiende igual */ }
 }
 
 async function loadCustomersSplit(){
