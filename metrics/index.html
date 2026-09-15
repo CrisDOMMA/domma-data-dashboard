@@ -16,8 +16,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .btn{padding:8px 18px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
 .btn-outline{background:transparent;border:1.5px solid rgba(255,255,255,.4);color:#fff}
 .btn-outline:hover{border-color:#fff;background:rgba(255,255,255,.1)}
-.btn-primary{background:#fff;color:var(--navy)}
-.btn-primary:hover{background:#f0f0f0}
 .btn-sm{padding:6px 14px;font-size:12px}
 
 .container{max-width:1400px;margin:0 auto;padding:24px}
@@ -100,7 +98,6 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
 .product-row .pname{font-weight:600;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .product-row .pval{text-align:right;color:var(--text-light)}
 .product-row .pval.primary{color:var(--blue);font-weight:600}
-.section-divider{height:1px;background:var(--border);margin:32px 0 24px}
 
 /* Filter preset buttons (Metorik-style chips) */
 .preset-btn{background:white;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--text-light);transition:all .15s}
@@ -117,8 +114,6 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
 .metrics-total-row:hover td{background:#e3e8f3 !important}
 
 /* Overview KPIs (5 columnas para fila 1) */
-.kpis-5{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:24px}
-.kpi-label-top{font-size:10px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
 .kpi-delta{font-size:13px;font-weight:600;margin:4px 0}
 .kpi-sub{font-size:11px;color:var(--text-light);margin-top:4px}
 .delta-up{color:#2e7d32}
@@ -130,7 +125,6 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
 .plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
 .plan-card{background:var(--card);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow)}
 .plan-card .pname{font-size:13px;font-weight:600;color:var(--navy);margin-bottom:8px}
-.plan-card .pvals{display:flex;justify-content:space-between;font-size:12px;color:var(--text-light);margin-bottom:6px}
 .plan-card .pcurr{font-size:18px;font-weight:700;color:var(--navy)}
 .plan-card .ptgt{color:var(--text-light);font-size:13px}
 .plan-bar{height:8px;background:#f3f1ed;border-radius:4px;overflow:hidden;margin-bottom:6px}
@@ -1416,26 +1410,6 @@ function initOverviewFilters(){
 }
 
 
-// Etiqueta humana del rango (HOY / 7d / MTD / 19/05 → 20/05)
-function rangeLabel(fromISO, toISO){
-  if(!fromISO||!toISO) return '';
-  const t=todayISO();
-  if(fromISO===t && toISO===t) return 'HOY';
-  if(fromISO===toISO && fromISO===isoNDaysAgo(1)) return 'AYER';
-  const days=Math.round((new Date(toISO+'T00:00:00Z')-new Date(fromISO+'T00:00:00Z'))/86400000)+1;
-  const d=new Date(); const firstMonth=new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString().slice(0,10);
-  if(fromISO===firstMonth && toISO===t) return 'MTD ('+days+'d)';
-  const firstYear=d.getUTCFullYear()+'-01-01';
-  if(fromISO===firstYear && toISO===t) return 'YTD ('+days+'d)';
-  if(toISO===t) return 'Últimos '+days+'d';
-  // Rango custom
-  return fromISO+' → '+toISO+' ('+days+'d)';
-}
-
-function deltaPct(curr, prev){
-  if(prev==null||prev==0||curr==null) return null;
-  return ((Number(curr)-Number(prev))/Number(prev))*100;
-}
 function fmtDelta(pct){
   if(pct==null) return '—';
   const sign = pct>=0?'↑':'↓';
@@ -1828,11 +1802,6 @@ async function combinedSales(from, to){
           : usedExcel ? 'Excel / histórico (periodo pre-migración)' : (shErr||'sin datos');
   return {revenue:exRev+shRev, orders:exOrd+shOrd, byProduct, src, shErr};
 }
-function setLiveKpi(valId, val, note, subId, subText){
-  const v=document.getElementById(valId); if(v)v.textContent=val;
-  if(note){ const d=document.getElementById(note); if(d)d.innerHTML='<span class="delta-up">✓ cuadra</span>'; }
-  if(subId&&subText){ const s=document.getElementById(subId); if(s)s.textContent=subText; }
-}
 
 // ───── HISTÓRICO MENSUAL (JSON estático del master de DOMMA) ─────
 const MESES_ES=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -2019,64 +1988,6 @@ async function cargaNotaPausas(){
   }catch(e){ /* sin dato, la tabla se entiende igual */ }
 }
 
-async function loadCustomersSplit(){
-  const qs=buildRangeQS('cFrom','cTo');
-  try{
-    const r=await fetch(API+'/api/admin/metrics/customers-split?'+qs,{headers:authHeaders()}).then(x=>x.json());
-    if(r.error){ console.warn('customers-split error:', r.error); return; }
-    const n=r.new||{}, rp=r.repeat||{};
-    document.getElementById('cNewTotal').textContent=fmt(n.total||0);
-    document.getElementById('cNewSub').textContent=fmt(n.sub||0);
-    document.getElementById('cNewSubPct').textContent=(n.total||0)>0?'de '+fmt(n.total)+' nuevas':'primer pedido fue sub';
-    document.getElementById('cNewOneTimer').textContent=fmt(n.one_timer||0);
-    document.getElementById('cNewPctSub').textContent=(n.pct_sub!=null?n.pct_sub+'%':'—');
-
-    document.getElementById('cRepTotal').textContent=fmt(rp.total||0);
-    document.getElementById('cRepWithSub').textContent=fmt(rp.with_active_sub||0);
-    document.getElementById('cRepWithoutSub').textContent=fmt(rp.without_sub||0);
-    document.getElementById('cRepPctSub').textContent=(rp.pct_with_sub!=null?rp.pct_with_sub+'%':'—');
-
-    const top=n.top_familias_first_purchase||[];
-    document.getElementById('cNewTopFamilias').innerHTML = top.length
-      ? top.map(t=>(
-          '<div class="product-row" style="grid-template-columns:1fr 100px 100px 120px">'+
-            '<div class="pname">'+t.familia+'</div>'+
-            '<div class="pval primary">'+fmt(t.clientas)+'</div>'+
-            '<div class="pval">'+fmt(t.unidades)+'</div>'+
-            '<div class="pval">'+fmtEUR(Number(t.revenue||0))+'</div>'+
-          '</div>'
-        )).join('')
-      : '<div style="color:var(--text-light);font-size:13px;padding:8px 0">Sin nuevas clientas en el rango seleccionado</div>';
-  }catch(e){
-    console.warn('loadCustomersSplit failed:', e.message);
-  }
-}
-
-// Dos series (nuevas=verde, recurrentes=azul). data=[{bucket,a,b}]
-function renderTwoSeriesSVG(id, data, fmtFn){
-  const svg=document.getElementById(id); if(!svg) return;
-  svg.innerHTML='';
-  if(!data||data.length===0) return;
-  const ns='http://www.w3.org/2000/svg';
-  const w=svg.clientWidth||500, h=160, pad={t:10,r:8,b:24,l:52};
-  const innerW=w-pad.l-pad.r, innerH=h-pad.t-pad.b;
-  const maxV=Math.max(1,...data.map(d=>Math.max(d.a||0,d.b||0)))*1.08;
-  const xStep=data.length>1?innerW/(data.length-1):0;
-  const X=i=>data.length>1?pad.l+i*xStep:pad.l+innerW/2;
-  const Y=v=>pad.t+innerH-(v/maxV)*innerH;
-  for(let i=0;i<=3;i++){ const y=pad.t+innerH*(i/3), v=maxV-maxV*(i/3);
-    const l=document.createElementNS(ns,'line'); l.setAttribute('x1',pad.l);l.setAttribute('y1',y);l.setAttribute('x2',w-pad.r);l.setAttribute('y2',y);l.setAttribute('stroke','#eee'); svg.appendChild(l);
-    const t=document.createElementNS(ns,'text'); t.setAttribute('x',pad.l-6);t.setAttribute('y',y+3);t.setAttribute('text-anchor','end');t.setAttribute('font-size','9');t.setAttribute('fill','#999');t.textContent=fmtFn(Math.round(v)); svg.appendChild(t); }
-  const step=Math.max(1,Math.ceil(data.length/6));
-  data.forEach((d,i)=>{ if(i%step!==0 && i!==data.length-1) return;
-    const t=document.createElementNS(ns,'text'); t.setAttribute('x',X(i));t.setAttribute('y',h-8);t.setAttribute('text-anchor','middle');t.setAttribute('font-size','9');t.setAttribute('fill','#999');t.textContent=(d.bucket||'').replace(/^20\d\d-/,''); svg.appendChild(t); });
-  const draw=(key,color)=>{
-    const pts=data.map((d,i)=>[X(i),Y(d[key]||0)]);
-    if(pts.length>1){ const p=document.createElementNS(ns,'path'); p.setAttribute('d','M '+pts.map(q=>q.join(',')).join(' L '));p.setAttribute('fill','none');p.setAttribute('stroke',color);p.setAttribute('stroke-width','2'); svg.appendChild(p); }
-    pts.forEach(([x,y],i)=>{ const c=document.createElementNS(ns,'circle'); c.setAttribute('cx',x);c.setAttribute('cy',y);c.setAttribute('r',pts.length>1?2.5:4);c.setAttribute('fill',color); const tt=document.createElementNS(ns,'title'); tt.textContent=(data[i].bucket||'')+' · '+(key==='a'?'Nuevas ':'Recurrentes ')+fmtFn(data[i][key]||0); c.appendChild(tt); svg.appendChild(c); });
-  };
-  draw('b','#2563eb'); draw('a','#16a34a');
-}
 function renderTimeSVG(id, series, fmtFn){
   const svg=document.getElementById(id);
   if(!svg) return;
