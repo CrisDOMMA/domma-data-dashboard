@@ -808,6 +808,20 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
       </div>
       <div id="bTopAccounts"></div>
       <div style="font-size:11px;color:var(--text-light);margin-top:8px;font-style:italic" id="bTopAccountsHint">Revenue desde Holded API. Sin facturas todavía si la sync con Holded no está activa.</div>
+      <!-- 16/09/2026 · Esta cifra NO tiene por qué coincidir con la del Histórico
+           y conviene decir por qué, porque al cotejar agosto parecía un error:
+             facturas de Holded fechadas en agosto      2.635,97 €
+             − PARAFARMA2GO, factura del 31/08 cuyo pedido va a septiembre  −303,77
+             + portes que perdió la factura de Onubafarma al rehacerla       +16,08
+             = 2.348,28 €, que es exactamente el maestro y el deck.
+           Son dos preguntas distintas: qué se facturó y qué se vendió. -->
+      <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.5">
+        Esta pestaña cuenta por <strong>fecha de factura</strong> (Holded). El
+        Histórico y el Advisory cuentan por <strong>fecha de pedido</strong>
+        (maestro), así que una factura emitida a fin de mes puede caer en meses
+        distintos. En agosto la diferencia son 303,77 € de una factura del 31/08
+        y 16,08 € de portes que perdió una factura rehecha a mano.
+      </div>
     </div>
 
   </div> <!-- /viewB2B -->
