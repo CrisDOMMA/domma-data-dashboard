@@ -322,14 +322,22 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
   <div id="viewHistorico" style="display:none">
     <div class="section-title">Histórico mensual · 2021 → hoy</div>
     <div class="chart-card" style="margin-bottom:24px;overflow-x:auto">
-      <div style="font-size:12px;color:#888;margin-bottom:10px">Fuente: master DOMMA Performance Metrics (Woo + Shopify). B2C cuadra al céntimo con Shopify · AOV = total ÷ pedidos.</div>
+      <!-- 16/09/2026 · este texto afirmaba que los datos venían del master y NO
+           era cierto en ningún mes de 2026: la vista los reconstruía desde el
+           almacén y el D2C se desviaba entre −540 € y +5.260 €. Ahora sí los lee
+           (`excel_maestro_mensual`) y el pie lo dice con el recuento real de
+           filas, no de memoria. -->
+      <div style="font-size:12px;color:#888;margin-bottom:10px" id="hFuente">
+        Fuente: Excel maestro «DOMMA Performance Metrics» · AOV = total ÷ pedidos.</div>
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="text-align:right;color:#888;border-bottom:2px solid #ddd">
           <th style="text-align:left;padding:6px 8px">Mes</th>
           <th style="padding:6px 8px">Total</th><th style="padding:6px 8px">B2C</th><th style="padding:6px 8px">B2B</th>
+          <th style="padding:6px 8px" title="Sin integración: se teclea del Seller Central en el inputs_manual del deck y se publica desde ahí, así que es la misma cifra que sale en la slide.">Amazon</th>
           <th style="padding:6px 8px">Pedidos</th><th style="padding:6px 8px">AOV</th>
-          <th style="padding:6px 8px">% Sub</th><th style="padding:6px 8px" title="Suscripciones sin fecha de baja al cierre del mes. INCLUYE las pausadas: el estado 'paused' no guarda histórico, así que hacia atrás no se pueden separar. Hoy hay 300 pausadas (13.493 € de MRR), el 95% desde hace más de 3 meses.">Subs vivas <span style="opacity:.55;font-weight:400">ⓘ</span></th></tr></thead>
-        <tbody id="histBody"><tr><td colspan="8" style="padding:10px;color:#888">Cargando histórico…</td></tr></tbody>
+          <th style="padding:6px 8px" title="Pedidos con selling plan de Shopify sobre el total del mes. Los meses en los que el recuento de Shopify no se parece al del maestro salen en blanco: en enero-2026 el volcado de Woo metió 4.265 pedidos de más y la tasa caía al 14,3%.">% Sub</th>
+          <th style="padding:6px 8px" title="Activas a CIERRE de mes, columna AK del maestro (panel de Appstle). No es el recuento de hoy que enseña la pestaña de Suscripciones.">Subs activas <span style="opacity:.55;font-weight:400">ⓘ</span></th></tr></thead>
+        <tbody id="histBody"><tr><td colspan="9" style="padding:10px;color:#888">Cargando histórico…</td></tr></tbody>
       </table>
       <div id="histNotaPausas" style="margin-top:10px;font-size:12px;color:var(--text-light);line-height:1.5"></div>
     </div>
@@ -405,6 +413,20 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
 
   <!-- ═════════════════════════ VIEW: SUSCRIPCIONES ═════════════════════════ -->
   <div id="viewSubs" style="display:none">
+
+  <!-- Esta pestaña NO sigue el rango del panel y hay que decirlo, porque sus
+       cifras se parecen a las del resto y no son comparables: Appstle no guarda
+       histórico de pausas, así que activas, MRR y churn sólo pueden ser un
+       retrato de HOY. Al cotejar agosto contra el Advisory salían 2.469 activas
+       y 100.448 € de MRR contra los 2.386 y 106.658 € del cierre de mes, y
+       parecía un descuadre cuando eran dos preguntas distintas. -->
+  <div style="background:#FFF6E5;border:1px solid #F0D9A8;border-radius:8px;
+              padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:#7A5B12">
+    <strong>Foto de hoy, no del rango seleccionado.</strong>
+    Activas, MRR, churn y vida media son el estado actual de la cartera —
+    Appstle no guarda histórico de pausas, así que no se pueden cerrar a fin de
+    mes. Para el mes cerrado, la pestaña <strong>Histórico</strong>.
+  </div>
 
   <!-- STATUS BAR -->
   <div class="status-bar" id="statusBar">
@@ -1217,6 +1239,88 @@ function fmtEUR2(n){return n!=null?'€'+n.toLocaleString('es-ES',{minimumFracti
 // ═══════════════════════════════════════════════════════════════
 let pedidosLoaded=false, clientesLoaded=false, overviewLoaded=false, b2bLoaded=false, planLoaded=false, historicoLoaded=false;
 
+// ═══════════════════════════════════════════════════════════════
+// RANGO ÚNICO · 16/09/2026
+//
+// Antes cada pestaña llevaba SU propio rango y ninguna se enteraba de las
+// otras: Overview el mes en curso, Pedidos y Clientes 365 días, B2B 30 días
+// móviles. Al cotejar agosto contra el Advisory salían cuatro fotos distintas
+// del mismo negocio, y no había forma de sacar el mes cerrado de un vistazo.
+//
+// Ahora hay UN rango. Se guarda en localStorage para que siga puesto al volver,
+// y al cambiar de pestaña la que se abre se recarga si venía con otro.
+//
+// ⚠️ «Suscripciones B2C» NO entra aquí, y es a propósito: sus cifras son un
+//    SNAPSHOT de hoy (Appstle no guarda histórico de pausas), así que no puede
+//    responder por un mes cerrado. Lleva su propio aviso en pantalla para que
+//    nadie la compare con el resto.
+const RANGO_KEY='domma.metrics.rango';
+let RANGO=(()=>{ try{ const v=JSON.parse(localStorage.getItem(RANGO_KEY)||'null');
+  if(v&&v.from&&v.to) return v; }catch(e){} return null; })();
+
+// Los pares de inputs de cada pestaña, para poder empujarles el rango.
+const RANGO_INPUTS={overview:['ovFrom','ovTo'], pedidos:['pFrom','pTo'],
+                    clientes:['cFrom','cTo'],   b2b:['bFrom','bTo']};
+const RANGO_RECARGA={overview:()=>loadOverview(), pedidos:()=>loadPedidosView(),
+                     clientes:()=>loadClientesView(), b2b:()=>loadB2BView()};
+
+function rangoPorDefecto(){
+  // El mes ANTERIOR completo: es el que se reporta y el que hay que poder
+  // comparar contra el deck. El mes en curso siempre está a medias.
+  const d=new Date();
+  const fin=new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 0));
+  const ini=new Date(Date.UTC(fin.getUTCFullYear(), fin.getUTCMonth(), 1));
+  return {from:ini.toISOString().slice(0,10), to:fin.toISOString().slice(0,10)};
+}
+
+function rangoActual(){ return RANGO || (RANGO=rangoPorDefecto()); }
+
+function fijarRango(from, to, salvo){
+  if(!from||!to||from>to) return;
+  RANGO={from,to};
+  try{ localStorage.setItem(RANGO_KEY, JSON.stringify(RANGO)); }catch(e){}
+  for(const [vista,[a,b]] of Object.entries(RANGO_INPUTS)){
+    const ia=document.getElementById(a), ib=document.getElementById(b);
+    if(!ia||!ib) continue;
+    ia.value=from; ib.value=to;
+    // La pestaña que originó el cambio ya se recarga sola; las demás se marcan
+    // para que se recarguen cuando se abran, en vez de pedir datos que nadie
+    // está mirando.
+    if(vista!==salvo) marcarParaRecargar(vista);
+  }
+  pintarRango();
+}
+
+function marcarParaRecargar(v){
+  if(v==='overview') overviewLoaded=false;
+  if(v==='pedidos')  pedidosLoaded=false;
+  if(v==='clientes') clientesLoaded=false;
+  if(v==='b2b')      b2bLoaded=false;
+}
+
+function pintarRango(){
+  const r=rangoActual();
+  document.querySelectorAll('.rango-eco').forEach(el=>{
+    el.textContent=r.from+' → '+r.to;
+  });
+}
+
+// Engancha los dos inputs de una pestaña al rango compartido.
+function engancharRango(vista){
+  const [a,b]=RANGO_INPUTS[vista]||[];
+  if(!a) return;
+  const r=rangoActual();
+  const ia=document.getElementById(a), ib=document.getElementById(b);
+  if(!ia||!ib) return;
+  ia.value=r.from; ib.value=r.to;
+  if(vista==='overview' || ia.dataset.enganchado) return;
+  ia.dataset.enganchado=ib.dataset.enganchado='1';
+  [ia,ib].forEach(el=>el.addEventListener('change',()=>{
+    fijarRango(ia.value, ib.value, vista);
+    (RANGO_RECARGA[vista]||(()=>{}))();
+  }));
+}
+
 function switchView(v, btn){
   document.querySelectorAll('.top-tab').forEach(t=>t.classList.remove('active'));
   if(btn) btn.classList.add('active');
@@ -1227,6 +1331,7 @@ function switchView(v, btn){
   document.getElementById('viewB2B').style.display      = v==='b2b'?'block':'none';
   document.getElementById('viewPlan').style.display     = v==='plan'?'block':'none';
   document.getElementById('viewHistorico').style.display= v==='historico'?'block':'none';
+  if(v in RANGO_INPUTS) engancharRango(v);
   if(v==='overview' && !overviewLoaded){ overviewLoaded=true; loadOverview(); }
   if(v==='historico'&& !historicoLoaded){ historicoLoaded=true; loadHistorico(); }
   if(v==='pedidos'  && !pedidosLoaded){  pedidosLoaded=true;  initPedidosFilters();  loadPedidosView();  }
@@ -1329,10 +1434,7 @@ async function loadPlanView(){
 }
 
 // ───── B2B ─────
-function initB2BFilters(){
-  document.getElementById('bFrom').value=isoNDaysAgo(29);
-  document.getElementById('bTo').value=todayISO();
-}
+function initB2BFilters(){ engancharRango('b2b'); }
 function setB2BPreset(p){ applyPreset(p,'bFrom','bTo',null); loadB2BView(); }
 
 async function loadB2BView(){
@@ -1403,11 +1505,7 @@ async function loadB2BView(){
 
 // ───── OVERVIEW ─────
 function firstOfMonthISO(){ const d=new Date(); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString().slice(0,10); }
-function initOverviewFilters(){
-  // Default: MES EN CURSO (1 del mes → hoy)
-  document.getElementById('ovFrom').value=firstOfMonthISO();
-  document.getElementById('ovTo').value=todayISO();
-}
+function initOverviewFilters(){ engancharRango('overview'); }
 
 
 function fmtDelta(pct){
@@ -1748,8 +1846,9 @@ document.addEventListener('DOMContentLoaded',()=>{
     else if(p==='mesant'){const d=o2D(hoy);
       const fin=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),0));
       F=o2iso(fin).slice(0,8)+'01'; T=o2iso(fin)}
-    document.getElementById('ovFrom').value=F;
-    document.getElementById('ovTo').value=T;
+    // Los presets del Overview mueven el rango de TODO el panel: si alguien
+    // pide «mes pasado» lo quiere en las seis pestañas, no sólo aquí.
+    fijarRango(F, T, 'overview');
     loadOverview();
   });
   ['ovFrom','ovTo'].forEach(id=>{
@@ -1758,6 +1857,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       const a=document.getElementById('ovFrom').value, b=document.getElementById('ovTo').value;
       if(a&&b&&a<=b){
         document.querySelectorAll('#o2preset button').forEach(x=>x.setAttribute('aria-pressed',false));
+        fijarRango(a, b, 'overview');
         loadOverview();
       }
     });
@@ -1816,24 +1916,38 @@ async function loadHistorico(){
     const subtotal=(y,a)=>`<tr style="font-weight:700;background:#f6f6f8;border-top:1px solid #ddd;border-bottom:1px solid #ddd;text-align:right">
       <td style="text-align:left;padding:6px 8px">TOTAL ${y}</td>
       <td style="padding:6px 8px">${fmtEUR(a.total)}</td><td style="padding:6px 8px">${fmtEUR(a.b2c)}</td>
-      <td style="padding:6px 8px">${fmtEUR(a.b2b)}</td><td style="padding:6px 8px">${fmt(a.orders)}</td>
+      <td style="padding:6px 8px">${fmtEUR(a.b2b)}</td><td style="padding:6px 8px">${a.amazon?fmtEUR(a.amazon):'—'}</td>
+      <td style="padding:6px 8px">${fmt(a.orders)}</td>
       <td colspan="3"></td></tr>`;
     for(const m of months){
       if(curYear!==null && m.year!==curYear){ html+=subtotal(curYear,acc); acc=null; }
-      if(acc===null||m.year!==curYear){ curYear=m.year; acc={total:0,b2c:0,b2b:0,orders:0}; }
-      acc.total+=m.total||0; acc.b2c+=m.b2c||0; acc.b2b+=m.b2b||0; acc.orders+=m.orders||0;
-      const aov=(m.orders? (m.b2c!=null?m.b2c:m.total)/m.orders : null);
+      if(acc===null||m.year!==curYear){ curYear=m.year; acc={total:0,b2c:0,b2b:0,amazon:0,orders:0}; }
+      acc.total+=m.total||0; acc.b2c+=m.b2c||0; acc.b2b+=m.b2b||0;
+      acc.amazon+=m.amazon||0; acc.orders+=m.orders||0;
+      // El AOV lo calcula la vista (B2C ÷ pedidos, los dos del maestro). Antes
+      // se recalculaba aquí y podía discrepar del que publica el deck.
+      const aov=(m.aov!=null?m.aov:(m.orders?(m.b2c!=null?m.b2c:m.total)/m.orders:null));
       html+=`<tr style="text-align:right;border-bottom:1px solid #f3f3f5">
         <td style="text-align:left;padding:6px 8px">${MESES_ES[m.month]} ${m.year}</td>
         <td style="padding:6px 8px">${fmtEUR(m.total)}</td><td style="padding:6px 8px">${m.b2c!=null?fmtEUR(m.b2c):'—'}</td>
-        <td style="padding:6px 8px">${m.b2b!=null?fmtEUR(m.b2b):'—'}</td><td style="padding:6px 8px">${m.orders!=null?fmt(m.orders):'—'}</td>
+        <td style="padding:6px 8px">${m.b2b!=null?fmtEUR(m.b2b):'—'}</td>
+        <td style="padding:6px 8px">${m.amazon!=null?fmtEUR(m.amazon):'—'}</td>
+        <td style="padding:6px 8px">${m.orders!=null?fmt(m.orders):'—'}</td>
         <td style="padding:6px 8px">${aov!=null?fmtEUR2(aov):'—'}</td>
         <td style="padding:6px 8px">${m.pct_subs!=null?m.pct_subs+'%':'—'}</td>
         <td style="padding:6px 8px">${m.active_subs!=null?fmt(m.active_subs):'—'}</td></tr>`;
     }
     if(acc!==null) html+=subtotal(curYear,acc);
-    body.innerHTML=html||'<tr><td colspan="8" style="padding:10px;color:#888">Sin datos</td></tr>';
-  }catch(e){ body.innerHTML='<tr><td colspan="8" style="padding:10px;color:#c33">Error cargando histórico: '+e.message+'</td></tr>'; }
+    body.innerHTML=html||'<tr><td colspan="9" style="padding:10px;color:#888">Sin datos</td></tr>';
+    // El pie dice cuántas filas salen del maestro de verdad, en vez de afirmarlo.
+    const pie=document.getElementById('hFuente');
+    if(pie){
+      const n=months.filter(m=>m.fuente==='maestro').length;
+      pie.textContent='Fuente: Excel maestro «DOMMA Performance Metrics» en '+n+
+        ' de '+months.length+' meses'+(n<months.length?' (el resto, reconstruido del almacén)':'')+
+        ' · AOV = B2C ÷ pedidos · Amazon se teclea del Seller Central.';
+    }
+  }catch(e){ body.innerHTML='<tr><td colspan="9" style="padding:10px;color:#c33">Error cargando histórico: '+e.message+'</td></tr>'; }
 }
 
 function todayISO(){ return new Date().toISOString().slice(0,10); }
@@ -1851,13 +1965,16 @@ function buildRangeQS(fromId, toId){
 
 // Aplica un preset a un par from/to + opcionalmente granularidad
 function applyPreset(preset, fromId, toId, granId){
-  const to=todayISO();
-  let from;
+  let to=todayISO(), from;
   if(preset==='ytd') from=new Date().getUTCFullYear()+'-01-01';
   else if(preset==='all') from='2022-01-01';
+  else if(preset==='mespasado'){ const r=rangoPorDefecto(); from=r.from; to=r.to; }
+  else if(preset==='mesactual') from=firstOfMonthISO();
   else from=isoNDaysAgo(preset);
-  document.getElementById(fromId).value=from;
-  document.getElementById(toId).value=to;
+  // Un preset cambia el rango de TODAS las pestañas: si alguien pide «mes
+  // pasado» quiere el mes pasado en todo el panel, no sólo donde hizo clic.
+  const vista=Object.entries(RANGO_INPUTS).find(([,ids])=>ids[0]===fromId);
+  fijarRango(from, to, vista?vista[0]:null);
   if(granId){
     const days=preset==='all'?2000:preset==='ytd'?300:preset;
     document.getElementById(granId).value =
@@ -1867,8 +1984,11 @@ function applyPreset(preset, fromId, toId, granId){
 
 // ───── PEDIDOS ─────
 function initPedidosFilters(){
-  document.getElementById('pFrom').value=isoNDaysAgo(365);
-  document.getElementById('pTo').value=todayISO();
+  engancharRango('pedidos');
+  // La granularidad sí es de esta pestaña: se ajusta al tamaño del rango.
+  const r=rangoActual(), dias=(new Date(r.to)-new Date(r.from))/864e5;
+  const g=document.getElementById('pGranularity');
+  if(g) g.value = dias<=31?'day' : dias<=120?'week' : dias<=730?'month' : 'quarter';
 }
 function setPedidosPreset(p){ applyPreset(p,'pFrom','pTo','pGranularity'); loadPedidosView(); }
 
@@ -1930,10 +2050,7 @@ async function loadPedidosLive(){
 }
 
 // ───── CLIENTES ─────
-function initClientesFilters(){
-  document.getElementById('cFrom').value=isoNDaysAgo(365);
-  document.getElementById('cTo').value=todayISO();
-}
+function initClientesFilters(){ engancharRango('clientes'); }
 function setClientesPreset(p){ applyPreset(p,'cFrom','cTo',null); loadClientesView(); }
 
 async function loadClientesView(){
