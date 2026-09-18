@@ -429,15 +429,24 @@ document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='
     </div>
 
     <div class="grid" style="grid-template-columns: repeat(4, 1fr); margin-top:20px;">
-        <div class="card big-number"><div class="number" id="comprasN">—</div><div class="label">Compras vinculadas</div></div>
+        <div class="card big-number"><div class="number" id="comprasN">—</div><div class="label">Compras reales del quiz</div></div>
+        <div class="card big-number"><div class="number" id="comprasCupon">—</div><div class="label">Con cupón PLANDOMMA10</div></div>
+        <div class="card big-number"><div class="number" id="comprasCR">—</div><div class="label">CR · acaban el test → compran</div></div>
         <div class="card big-number"><div class="number" id="comprasRev">—</div><div class="label">Ingresos quiz (€)</div></div>
-        <div class="card big-number"><div class="number" id="comprasCR">—</div><div class="label">CR · ven plan → compran</div></div>
-        <div class="card big-number"><div class="number" id="comprasAOV">—</div><div class="label">Ticket medio (€)</div></div>
+    </div>
+    <div id="comprasNota" style="color:#666;font-size:12px;margin:10px 2px 0 2px;line-height:1.5"></div>
+
+    <div class="grid">
+        <div class="card"><h3>Compras por cupón</h3><p class="subtitle">Qué código acabó aplicando la clienta</p><div id="comprasCupones" style="margin-top:10px"></div></div>
+        <div class="card"><h3>Compras por pricing</h3><p class="subtitle">Suscripción vs compra única</p><div id="comprasPricing" style="margin-top:10px"></div></div>
     </div>
 
     <div class="grid">
-        <div class="card"><h3>Compras por pricing</h3><p class="subtitle">Suscripción vs compra única</p><div id="comprasPricing" style="margin-top:10px"></div></div>
         <div class="card"><h3>Compras por arquetipo</h3><p class="subtitle">Conversión por perfil clínico</p><div id="comprasArch" style="margin-top:10px"></div></div>
+        <div class="card insight-card"><h3>Qué cuenta como compra real</h3>
+          <p style="font-size:13px;line-height:1.6;margin:6px 0 0 0">Solo pedidos <strong>nuevos</strong> con <code>quiz_session_id</code>: el carrito que crea el CTA del plan (canal <em>Quizz LUNA</em>) más quien hizo el test y remató desde la tienda.</p>
+          <p style="font-size:13px;line-height:1.6;margin:8px 0 0 0"><strong>Las renovaciones de suscripción NO cuentan.</strong> Appstle hereda los atributos del pedido original, así que cada suscritas del quiz volvía a aparecer cada mes. Hasta el 18/09/2026 el panel las sumaba y el CR salía al doble.</p>
+        </div>
     </div>
 
     <div class="grid">
@@ -608,16 +617,62 @@ async function loadLuna(){
   }
 }
 
+// Compras REALES del quiz (sin renovaciones) + uso de cupón + CR sobre tests acabados.
+// El endpoint ya excluye las renovaciones de Appstle; aquí solo se pinta.
 function renderLunaCompras(data){
   const n = data.n_compras || 0;
   const rev = data.revenue_eur || 0;
   const aov = data.aov_eur || 0;
-  const planViews = data.plan_views || 0;
-  const cr = planViews>0 ? Math.round(100*n/planViews) : 0;
+  const tests = data.tests_completados || 0;
+  const cr = data.cr_test_compra || 0;
+  const nPlan = data.n_plandomma10 || 0;
+  const nCup = data.n_con_cupon || 0;
+  const nSin = data.n_sin_cupon || 0;
+  const renov = data.renovaciones || {n:0, revenue_eur:0};
+
   document.getElementById('comprasN').textContent = n.toLocaleString('es-ES');
+  document.getElementById('comprasCupon').textContent = n>0 ? nPlan.toLocaleString('es-ES') : '—';
+  document.getElementById('comprasCR').textContent = tests>0 ? cr.toLocaleString('es-ES',{minimumFractionDigits:1, maximumFractionDigits:1}) + '%' : '—';
   document.getElementById('comprasRev').textContent = rev.toLocaleString('es-ES', {maximumFractionDigits:0});
-  document.getElementById('comprasCR').textContent = planViews>0 ? cr + '%' : '—';
-  document.getElementById('comprasAOV').textContent = n>0 ? aov.toLocaleString('es-ES', {maximumFractionDigits:0}) : '—';
+
+  const pctPlan = n>0 ? Math.round(100*nPlan/n) : 0;
+  const nota = document.getElementById('comprasNota');
+  if(nota){
+    const partes = [];
+    partes.push(`<strong>${nPlan}</strong> de ${n} compras llevaban PLANDOMMA10 (${pctPlan}%) · <strong>${nCup}</strong> llevaban algún cupón · <strong>${nSin}</strong> sin ninguno.`);
+    partes.push(`CR = ${n} compras ÷ ${tests.toLocaleString('es-ES')} tests acabados en el periodo. Ticket medio ${aov.toLocaleString('es-ES',{maximumFractionDigits:0})}€.`);
+    if(renov.n>0){
+      partes.push(`Aparte: <strong>${renov.n} renovaciones</strong> (${renov.revenue_eur.toLocaleString('es-ES',{maximumFractionDigits:0})}€) de clientas que entraron por el quiz. Es recurrente de la cohorte, <em>no</em> captación — por eso no suma arriba.`);
+    }
+    if(data.n_cupon_desconocido){
+      partes.push(`⚠️ ${data.n_cupon_desconocido} compras sin dato de cupón (anteriores al registro).`);
+    }
+    nota.innerHTML = partes.join('<br>');
+  }
+
+  // Cupones
+  const cupSlot = document.getElementById('comprasCupones');
+  if(cupSlot){
+    const rows = (data.by_cupon || []).slice();
+    if(nSin>0) rows.push({codigo:'(sin cupón)', n:nSin, revenue:0});
+    if(rows.length===0){
+      cupSlot.innerHTML = `<p style="color:#666;font-size:13px;margin:8px 0">Sin compras todavía.</p>`;
+    } else {
+      cupSlot.innerHTML = rows.map(r=>{
+        const pct = n>0 ? Math.round(100*r.n/n) : 0;
+        const propio = r.codigo.split('+').includes('PLANDOMMA10');
+        return `<div style="margin-bottom:8px;font-size:13px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+            <span>${propio ? '<strong>'+r.codigo+'</strong> <span style="color:#888">· del quiz</span>' : r.codigo}</span>
+            <span><strong>${r.n}</strong>${r.revenue ? ' · '+r.revenue.toLocaleString('es-ES',{maximumFractionDigits:0})+'€' : ''} · ${pct}%</span>
+          </div>
+          <div style="background:#f0ece4;height:6px;border-radius:3px;overflow:hidden">
+            <div style="background:${propio ? '#101637' : '#C4977F'};height:100%;width:${pct}%"></div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
 
   // Pricing breakdown
   const pricingSlot = document.getElementById('comprasPricing');
