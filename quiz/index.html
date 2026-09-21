@@ -460,10 +460,9 @@ document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='
 
     <div class="grid">
         <div class="card"><h3>Compras por arquetipo</h3><p class="subtitle">Conversión por perfil clínico</p><div id="comprasArch" style="margin-top:10px"></div></div>
-        <div class="card insight-card"><h3>Qué cuenta y qué no</h3>
-          <p style="font-size:13px;line-height:1.6;margin:6px 0 0 0"><strong>Compra real</strong> = pedido <strong>nuevo</strong> con <code>quiz_session_id</code>: el carrito del CTA del plan (canal <em>Quizz LUNA</em>) más quien hizo el test y remató desde la tienda.</p>
-          <p style="font-size:13px;line-height:1.6;margin:8px 0 0 0"><strong>Las renovaciones NO cuentan.</strong> Appstle hereda los atributos del pedido original, así que cada suscriptora del quiz volvía a aparecer cada mes. Hasta el 18/09/2026 el panel las sumaba y el CR salía al doble.</p>
-          <p style="font-size:13px;line-height:1.6;margin:8px 0 0 0"><strong>MIPLAN10 solo cuenta desde el 29/06/2026.</strong> Antes lo mandaba el flow viejo <code>X48tmi</code>, que dispara con el quiz de RevenueHunt, no con plan.wearedomma.com. Ese día se cambió el cupón del E3 y pasó a ser del quiz.</p>
+        <div class="card insight-card"><h3>Qué cuenta como compra real</h3>
+          <p style="font-size:13px;line-height:1.6;margin:6px 0 0 0">Solo pedidos <strong>nuevos</strong> con <code>quiz_session_id</code>: el carrito que crea el CTA del plan (canal <em>Quizz LUNA</em>) más quien hizo el test y remató desde la tienda.</p>
+          <p style="font-size:13px;line-height:1.6;margin:8px 0 0 0"><strong>Las renovaciones de suscripción NO cuentan.</strong> Appstle hereda los atributos del pedido original, así que cada suscritas del quiz volvía a aparecer cada mes. Hasta el 18/09/2026 el panel las sumaba y el CR salía al doble.</p>
         </div>
     </div>
 
@@ -682,9 +681,9 @@ function renderLunaCompras(data){
     } else if(ec.usos>0){
       p.push(`Todos los usos de cupón casan con una sesión: en este periodo el cupón no aporta nada que el eje 1 no vea ya.`);
     }
-    (ec.excluidos_no_quiz||[]).forEach(x=>{
-      p.push(`↪️ Fuera de la cuenta: <strong>${x.n} usos de ${x.codigo}</strong> (${x.revenue.toLocaleString('es-ES',{maximumFractionDigits:0})}€) — ${x.motivo}.`);
-    });
+    if((ec.cupones||[]).some(c=>c.codigo==='MIPLAN10' && c.usos>0)){
+      p.push(`⚠️ <strong>MIPLAN10 no es exclusivo del quiz</strong>: lo manda el email del flow del quiz pero existe desde nov-2024 y lo usó también el welcome antiguo. Antes de junio-2026 sus usos casi seguro NO son del quiz.`);
+    }
     cn.innerHTML = p.join('<br>');
   }
 
