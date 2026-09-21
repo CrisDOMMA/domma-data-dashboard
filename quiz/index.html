@@ -428,16 +428,33 @@ document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='
         <div id="lunaFunnel" style="margin-top:14px"></div>
     </div>
 
-    <div class="grid" style="grid-template-columns: repeat(4, 1fr); margin-top:20px;">
+    <h3 style="margin:28px 0 2px 2px;font-size:16px;color:#101637;">Eje 1 · Por sesión <span style="font-weight:400;color:#888;font-size:13px">— el pedido lleva <code>quiz_session_id</code></span></h3>
+    <p class="subtitle" style="margin:0 0 10px 2px">Determinista: el carrito dice de dónde viene. Se pierde si vuelve desde el email o rehace el carrito.</p>
+    <div class="grid" style="grid-template-columns: repeat(4, 1fr);">
         <div class="card big-number"><div class="number" id="comprasN">—</div><div class="label">Compras reales del quiz</div></div>
-        <div class="card big-number"><div class="number" id="comprasCupon">—</div><div class="label">Con cupón PLANDOMMA10</div></div>
         <div class="card big-number"><div class="number" id="comprasCR">—</div><div class="label">CR · acaban el test → compran</div></div>
         <div class="card big-number"><div class="number" id="comprasRev">—</div><div class="label">Ingresos quiz (€)</div></div>
+        <div class="card big-number"><div class="number" id="comprasAOV">—</div><div class="label">Ticket medio (€)</div></div>
     </div>
     <div id="comprasNota" style="color:#666;font-size:12px;margin:10px 2px 0 2px;line-height:1.5"></div>
 
+    <h3 style="margin:28px 0 2px 2px;font-size:16px;color:#101637;">Eje 2 · Por cupón <span style="font-weight:400;color:#888;font-size:13px">— usos de los cupones del quiz, lleven sesión o no</span></h3>
+    <p class="subtitle" style="margin:0 0 10px 2px">Ve lo que la sesión no ve, pero se pierde en cuanto la clienta aplica otro código.</p>
+    <div class="grid" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="card big-number"><div class="number" id="cuponUsos">—</div><div class="label">Usos de cupón del quiz</div></div>
+        <div class="card big-number"><div class="number" id="cuponRev">—</div><div class="label">Ingresos por cupón (€)</div></div>
+        <div class="card big-number"><div class="number" id="cuponConSesion">—</div><div class="label">Casan con una sesión</div></div>
+        <div class="card big-number"><div class="number" id="cuponHuerfanos">—</div><div class="label">Huérfanos · sin sesión</div></div>
+    </div>
+    <div id="cuponNota" style="color:#666;font-size:12px;margin:10px 2px 0 2px;line-height:1.5"></div>
+
     <div class="grid">
-        <div class="card"><h3>Compras por cupón</h3><p class="subtitle">Qué código acabó aplicando la clienta</p><div id="comprasCupones" style="margin-top:10px"></div></div>
+        <div class="card"><h3>Los dos ejes juntos</h3><p class="subtitle">Qué ve cada medida y qué se escapa a las dos</p><div id="comprasMatriz" style="margin-top:12px"></div></div>
+        <div class="card"><h3>Uso de cupón por código</h3><p class="subtitle">Usos y cuántos casan con sesión</p><div id="cuponDesglose" style="margin-top:10px"></div></div>
+    </div>
+
+    <div class="grid">
+        <div class="card"><h3>Qué código acaba aplicando</h3><p class="subtitle">Sobre las compras del eje sesión</p><div id="comprasCupones" style="margin-top:10px"></div></div>
         <div class="card"><h3>Compras por pricing</h3><p class="subtitle">Suscripción vs compra única</p><div id="comprasPricing" style="margin-top:10px"></div></div>
     </div>
 
@@ -631,16 +648,15 @@ function renderLunaCompras(data){
   const renov = data.renovaciones || {n:0, revenue_eur:0};
 
   document.getElementById('comprasN').textContent = n.toLocaleString('es-ES');
-  document.getElementById('comprasCupon').textContent = n>0 ? nPlan.toLocaleString('es-ES') : '—';
   document.getElementById('comprasCR').textContent = tests>0 ? cr.toLocaleString('es-ES',{minimumFractionDigits:1, maximumFractionDigits:1}) + '%' : '—';
   document.getElementById('comprasRev').textContent = rev.toLocaleString('es-ES', {maximumFractionDigits:0});
+  document.getElementById('comprasAOV').textContent = n>0 ? aov.toLocaleString('es-ES', {maximumFractionDigits:0}) : '—';
 
   const pctPlan = n>0 ? Math.round(100*nPlan/n) : 0;
   const nota = document.getElementById('comprasNota');
   if(nota){
     const partes = [];
-    partes.push(`<strong>${nPlan}</strong> de ${n} compras llevaban PLANDOMMA10 (${pctPlan}%) · <strong>${nCup}</strong> llevaban algún cupón · <strong>${nSin}</strong> sin ninguno.`);
-    partes.push(`CR = ${n} compras ÷ ${tests.toLocaleString('es-ES')} tests acabados en el periodo. Ticket medio ${aov.toLocaleString('es-ES',{maximumFractionDigits:0})}€.`);
+    partes.push(`CR = <strong>${n}</strong> compras ÷ <strong>${tests.toLocaleString('es-ES')}</strong> tests acabados en el periodo. De esas ${n}, ${nPlan} llevaban PLANDOMMA10 (${pctPlan}%), ${nCup} algún cupón y ${nSin} ninguno.`);
     if(renov.n>0){
       partes.push(`Aparte: <strong>${renov.n} renovaciones</strong> (${renov.revenue_eur.toLocaleString('es-ES',{maximumFractionDigits:0})}€) de clientas que entraron por el quiz. Es recurrente de la cohorte, <em>no</em> captación — por eso no suma arriba.`);
     }
@@ -648,6 +664,77 @@ function renderLunaCompras(data){
       partes.push(`⚠️ ${data.n_cupon_desconocido} compras sin dato de cupón (anteriores al registro).`);
     }
     nota.innerHTML = partes.join('<br>');
+  }
+
+  // ===== EJE 2 · cupón (independiente del eje sesión) =====
+  const ec = data.eje_cupon || {cupones:[], usos:0, revenue_eur:0, con_sesion:0, sin_sesion:0, revenue_sin_sesion:0};
+  document.getElementById('cuponUsos').textContent = ec.usos.toLocaleString('es-ES');
+  document.getElementById('cuponRev').textContent = ec.revenue_eur.toLocaleString('es-ES',{maximumFractionDigits:0});
+  document.getElementById('cuponConSesion').textContent = ec.usos>0 ? ec.con_sesion.toLocaleString('es-ES') : '—';
+  document.getElementById('cuponHuerfanos').textContent = ec.usos>0 ? ec.sin_sesion.toLocaleString('es-ES') : '—';
+
+  const cn = document.getElementById('cuponNota');
+  if(cn){
+    const p = [];
+    if(ec.sin_sesion>0){
+      p.push(`<strong>${ec.sin_sesion} compras (${ec.revenue_sin_sesion.toLocaleString('es-ES',{maximumFractionDigits:0})}€)</strong> usaron un cupón del quiz sin llevar sesión: el eje 1 no las ve.`);
+    } else if(ec.usos>0){
+      p.push(`Todos los usos de cupón casan con una sesión: en este periodo el cupón no aporta nada que el eje 1 no vea ya.`);
+    }
+    if((ec.cupones||[]).some(c=>c.codigo==='MIPLAN10' && c.usos>0)){
+      p.push(`⚠️ <strong>MIPLAN10 no es exclusivo del quiz</strong>: lo manda el email del flow del quiz pero existe desde nov-2024 y lo usó también el welcome antiguo. Antes de junio-2026 sus usos casi seguro NO son del quiz.`);
+    }
+    cn.innerHTML = p.join('<br>');
+  }
+
+  // Desglose por código del eje cupón
+  const cd = document.getElementById('cuponDesglose');
+  if(cd){
+    const rows = ec.cupones || [];
+    if(rows.length===0){
+      cd.innerHTML = `<p style="color:#666;font-size:13px;margin:8px 0">Ningún cupón del quiz usado en el periodo.</p>`;
+    } else {
+      cd.innerHTML = rows.map(r=>{
+        const pctSes = r.usos>0 ? Math.round(100*r.con_sesion/r.usos) : 0;
+        return `<div style="margin-bottom:10px;font-size:13px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+            <span><strong>${r.codigo}</strong></span>
+            <span>${r.usos} usos · ${r.revenue.toLocaleString('es-ES',{maximumFractionDigits:0})}€</span>
+          </div>
+          <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;background:#f0ece4">
+            <div style="background:#101637;width:${pctSes}%" title="con sesión"></div>
+            <div style="background:#ea504e;width:${100-pctSes}%" title="huérfanos"></div>
+          </div>
+          <div style="color:#888;font-size:11px;margin-top:3px">${r.con_sesion} con sesión · ${r.sin_sesion} huérfanos${r.sin_sesion?' ('+r.revenue_sin_sesion.toLocaleString('es-ES',{maximumFractionDigits:0})+'€)':''}</div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Matriz de los dos ejes
+  const mz = data.matriz;
+  const mSlot = document.getElementById('comprasMatriz');
+  if(mSlot && mz){
+    const filas = [
+      ['Los dos ejes la ven', mz.ambos, '#101637', 'lleva sesión Y cupón del quiz'],
+      ['Solo el eje sesión', mz.solo_sesion, '#C4977F', 'compró desde el quiz pero aplicó otro código'],
+      ['Solo el eje cupón', mz.solo_cupon, '#ea504e', 'usó el cupón sin sesión (vuelve del email, rehace carrito)']
+    ];
+    const tot = mz.alcance_total || 1;
+    mSlot.innerHTML = filas.map(([lab,v,col,exp])=>`
+      <div style="margin-bottom:10px;font-size:13px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span>${lab}</span><span><strong>${v}</strong> · ${Math.round(100*v/tot)}%</span>
+        </div>
+        <div style="background:#f0ece4;height:6px;border-radius:3px;overflow:hidden">
+          <div style="background:${col};height:100%;width:${Math.round(100*v/tot)}%"></div>
+        </div>
+        <div style="color:#888;font-size:11px;margin-top:3px">${exp}</div>
+      </div>`).join('') +
+      `<div style="border-top:1px solid #e8e2d6;margin-top:12px;padding-top:10px;font-size:13px">
+         <strong>Alcance total del quiz: ${mz.alcance_total} compras · ${mz.revenue_alcance.toLocaleString('es-ES',{maximumFractionDigits:0})}€</strong>
+         <div style="color:#888;font-size:11px;margin-top:3px">Unión de los dos ejes, sin contar dos veces las que caen en ambos.</div>
+       </div>`;
   }
 
   // Cupones
