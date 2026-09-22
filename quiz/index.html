@@ -428,6 +428,14 @@ document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='
         <div id="lunaFunnel" style="margin-top:14px"></div>
     </div>
 
+    <div class="card" style="margin-top:20px;">
+        <h3>Funnel por fuente de tráfico</h3>
+        <p class="subtitle">El agregado miente: cada canal se comporta de forma distinta en el último paso</p>
+        <div id="funnelFuentesAviso" style="display:none;background:#fff8e6;border:1px solid #f3d97a;color:#7a5a16;padding:10px 14px;border-radius:8px;margin:12px 0 0 0;font-size:12px;line-height:1.5"></div>
+        <div id="funnelFuentes" style="margin-top:14px;overflow-x:auto"></div>
+        <div id="funnelFuentesNota" style="color:#666;font-size:12px;margin-top:12px;line-height:1.5"></div>
+    </div>
+
     <h3 style="margin:28px 0 2px 2px;font-size:16px;color:#101637;">Eje 1 · Por sesión <span style="font-weight:400;color:#888;font-size:13px">— el pedido lleva <code>quiz_session_id</code></span></h3>
     <p class="subtitle" style="margin:0 0 10px 2px">Determinista: el carrito dice de dónde viene. Se pierde si vuelve desde el email o rehace el carrito.</p>
     <div class="grid" style="grid-template-columns: repeat(4, 1fr);">
@@ -489,6 +497,7 @@ document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='
 const LUNA_ENDPOINT = 'https://luna-web.pages.dev/api/export';
 const LUNA_FUNNEL_ENDPOINT = 'https://luna-web.pages.dev/api/funnel';
 const LUNA_COMPRAS_ENDPOINT = 'https://luna-web.pages.dev/api/compras';
+const LUNA_FUENTES_ENDPOINT = 'https://luna-web.pages.dev/api/funnel-fuentes';
 const LUNA_TOKEN = 'd50e010fb5ec391bd590d860cca3dbeee31deec88c3e462b';
 // Pasos clave del funnel en orden (key, label, tipo)
 // tipo: 'screen' (mira eventos screen_view) o 'event' (mira event=key)
@@ -609,10 +618,11 @@ async function loadLuna(){
     const desde = document.getElementById('lunaDesde')?.value || '2026-01-01';
     const hasta = document.getElementById('lunaHasta')?.value || '';
     const dateParams = `desde=${desde}${hasta ? '&hasta='+hasta : ''}`;
-    const [rExp, rFun, rCom] = await Promise.all([
+    const [rExp, rFun, rCom, rFue] = await Promise.all([
       fetch(`${LUNA_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}`),
       fetch(`${LUNA_FUNNEL_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}`),
-      fetch(`${LUNA_COMPRAS_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}`)
+      fetch(`${LUNA_COMPRAS_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}`),
+      fetch(`${LUNA_FUENTES_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}`)
     ]);
     if(!rExp.ok) throw new Error('http '+rExp.status);
     const data = await rExp.json();
@@ -626,6 +636,10 @@ async function loadLuna(){
     if(rCom.ok){
       const comData = await rCom.json();
       if(comData.ok) renderLunaCompras(comData);
+    }
+    if(rFue.ok){
+      const fueData = await rFue.json();
+      if(fueData.ok) renderFunnelFuentes(fueData);
     }
   }catch(e){
     console.error('LUNA load failed', e);
@@ -802,6 +816,105 @@ function renderLunaCompras(data){
       </div>`;
     }).join('');
   }
+}
+
+// Funnel partido por fuente. El paso que discrimina es "ven plan → pulsan CTA":
+// ahí es donde el tráfico de Meta se desploma mientras el resto va bien.
+function renderFunnelFuentes(data){
+  const slot = document.getElementById('funnelFuentes');
+  const aviso = document.getElementById('funnelFuentesAviso');
+  const nota = document.getElementById('funnelFuentesNota');
+  if(!slot) return;
+
+  const fuentes = (data.fuentes || []).filter(f => f.completan >= 10);
+  const descartadas = (data.fuentes || []).filter(f => f.completan < 10);
+  const t = data.totales || {};
+  if(fuentes.length === 0){
+    slot.innerHTML = `<p style="color:#666;font-size:13px;margin:8px 0">Sin datos suficientes en el periodo.</p>`;
+    aviso.style.display = 'none'; nota.innerHTML = ''; return;
+  }
+
+  // Arriba del funnel sólo es fiable si la utm viajaba ya en los eventos
+  const fiable = (data.utm_en_eventos_pct || 0) >= 50;
+  if(!fiable){
+    aviso.style.display = 'block';
+    aviso.innerHTML = `⚠️ <strong>El desglose arranca en "completan el test".</strong> Hasta el 22/09/2026 la fuente sólo se guardaba al acabar el test, así que de quien abandonó antes no sabemos de dónde venía — repartir "visitan" o "inician" por canal daría un número inventado. Desde esa fecha la fuente viaja en cada evento y el funnel se podrá partir entero.`;
+  } else {
+    aviso.style.display = 'none';
+  }
+
+  const mejor = Math.max(...fuentes.map(f => f.pct_plan_cta));
+  const color = (f) => {
+    if(mejor <= 0) return '#C4977F';
+    const ratio = f.pct_plan_cta / mejor;
+    if(ratio < 0.25) return '#ea504e';      // desplomado
+    if(ratio < 0.60) return '#e0a458';      // flojo
+    return '#101637';                        // sano
+  };
+  const eur = v => (v||0).toLocaleString('es-ES',{maximumFractionDigits:0}) + '€';
+
+  const filas = fuentes.map(f => `
+    <tr style="border-bottom:1px solid #f0ece4">
+      <td style="padding:9px 10px 9px 0;font-size:13px;white-space:nowrap"><strong>${f.fuente}</strong></td>
+      <td style="padding:9px 10px;font-size:13px;text-align:right">${f.completan.toLocaleString('es-ES')}</td>
+      <td style="padding:9px 10px;font-size:13px;text-align:right">${f.ven_plan.toLocaleString('es-ES')}</td>
+      <td style="padding:9px 10px;font-size:13px;text-align:right">${f.pulsan_cta.toLocaleString('es-ES')}</td>
+      <td style="padding:9px 10px;min-width:150px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;background:#f0ece4;height:8px;border-radius:4px;overflow:hidden">
+            <div style="background:${color(f)};height:100%;width:${mejor>0?Math.round(100*f.pct_plan_cta/mejor):0}%"></div>
+          </div>
+          <span style="font-size:13px;font-weight:600;color:${color(f)};min-width:44px;text-align:right">${f.pct_plan_cta}%</span>
+        </div>
+      </td>
+      <td style="padding:9px 10px;font-size:13px;text-align:right">${f.compran.toLocaleString('es-ES')}</td>
+      <td style="padding:9px 10px;font-size:13px;text-align:right">${f.pct_completa_compra}%</td>
+      <td style="padding:9px 0 9px 10px;font-size:13px;text-align:right;white-space:nowrap">${eur(f.revenue_eur)}</td>
+    </tr>`).join('');
+
+  const pctTotal = t.ven_plan > 0 ? (100*t.pulsan_cta/t.ven_plan).toFixed(1) : '0';
+  const crTotal = t.completan > 0 ? (100*t.compran/t.completan).toFixed(1) : '0';
+
+  slot.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;min-width:620px">
+      <thead><tr style="border-bottom:2px solid #e8e2d6;color:#666;font-size:11px;text-transform:uppercase;letter-spacing:.03em">
+        <th style="text-align:left;padding:0 10px 8px 0">Fuente</th>
+        <th style="text-align:right;padding:0 10px 8px">Completan</th>
+        <th style="text-align:right;padding:0 10px 8px">Ven plan</th>
+        <th style="text-align:right;padding:0 10px 8px">CTA</th>
+        <th style="text-align:left;padding:0 10px 8px">Plan → CTA</th>
+        <th style="text-align:right;padding:0 10px 8px">Compran</th>
+        <th style="text-align:right;padding:0 10px 8px">CR</th>
+        <th style="text-align:right;padding:0 0 8px 10px">Revenue</th>
+      </tr></thead>
+      <tbody>${filas}
+        <tr style="border-top:2px solid #e8e2d6;background:#faf8f4">
+          <td style="padding:10px 10px 10px 0;font-size:13px"><strong>TOTAL</strong></td>
+          <td style="padding:10px;font-size:13px;text-align:right"><strong>${(t.completan||0).toLocaleString('es-ES')}</strong></td>
+          <td style="padding:10px;font-size:13px;text-align:right"><strong>${(t.ven_plan||0).toLocaleString('es-ES')}</strong></td>
+          <td style="padding:10px;font-size:13px;text-align:right"><strong>${(t.pulsan_cta||0).toLocaleString('es-ES')}</strong></td>
+          <td style="padding:10px;font-size:13px"><strong>${pctTotal}%</strong> <span style="color:#888;font-size:11px">← media engañosa</span></td>
+          <td style="padding:10px;font-size:13px;text-align:right"><strong>${(t.compran||0).toLocaleString('es-ES')}</strong></td>
+          <td style="padding:10px;font-size:13px;text-align:right"><strong>${crTotal}%</strong></td>
+          <td style="padding:10px 0 10px 10px;font-size:13px;text-align:right"><strong>${eur(t.revenue_eur)}</strong></td>
+        </tr>
+      </tbody>
+    </table>`;
+
+  // Lectura automática: ¿hay algún canal desplomado respecto al mejor?
+  const partes = [];
+  partes.push(`Antes de este desglose: <strong>${(t.visitan||0).toLocaleString('es-ES')}</strong> visitan la landing y <strong>${(t.inician||0).toLocaleString('es-ES')}</strong> empiezan el test (${t.visitan>0?Math.round(100*t.inician/t.visitan):0}%).`);
+  const rotas = fuentes.filter(f => mejor > 0 && f.pct_plan_cta / mejor < 0.25 && f.ven_plan >= 100);
+  if(rotas.length){
+    rotas.forEach(f => {
+      const c = f.compran === 1 ? '1 compra' : `${f.compran.toLocaleString('es-ES')} compras`;
+      partes.push(`🔴 <strong>${f.fuente}</strong>: ${f.ven_plan.toLocaleString('es-ES')} mujeres ven su plan y solo ${f.pulsan_cta} pulsan comprar (<strong>${f.pct_plan_cta}%</strong> frente al ${mejor}% del mejor canal). ${c}, ${eur(f.revenue_eur)}. Cuando una fuente se desploma solo en el último paso y el resto del funnel va normal, es un fallo técnico del canal, no la audiencia.`);
+    });
+  }
+  if(descartadas.length){
+    partes.push(`<span style="color:#888">${descartadas.length} fuente(s) con menos de 10 tests completados fuera de la tabla.</span>`);
+  }
+  nota.innerHTML = partes.join('<br>');
 }
 
 function renderLunaFunnel(data){
