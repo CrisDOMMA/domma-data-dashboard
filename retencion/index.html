@@ -778,7 +778,7 @@ function renderConversion(){
   const aviso = `<div class="avisos"><b>Cómo leer esto</b><ul>
       <li>«Pagaron» es un <b>suelo</b>: cuenta las secuencias que Monday canceló por pago resuelto; alguna paga sin que se cancele, así que la conversión real es algo mayor.</li>
       <li>Fuente: D1 de LUNA (<code>follow_ups</code> + <code>conversaciones</code>), la misma que envía los WhatsApp. Ventana: ${esc((CONV.ventana&&CONV.ventana.desde)||'')} → ${esc((CONV.ventana&&CONV.ventana.hasta)||'')}.</li>
-      <li>Referencia: una <b>persona llamando</b> convierte 33-61% (análisis ROI). El WhatsApp es el primer toque barato; las que no pagan van a la llamada de Carme (listado).</li>
+      <li>Referencia: una <b>persona llamando</b> convierte 33-61% (análisis ROI). El WhatsApp es el primer toque barato; las que no pagan van a la llamada de Ana (listado).</li>
     </ul></div>`;
 
   return sect + kpis + tabla + aviso;
@@ -870,7 +870,7 @@ function renderListado(){
 
   return `<div class="sect">Listado de fallos · a quién llamar</div>${bar}
     <div class="card" style="margin-top:8px">
-      <p class="hint"><b>Cobro</b> = si ha pagado (Appstle en vivo): «Abierta» sigue sin cobrar. <b>Gestión</b> = lo que hicimos en la llamada. «Días» ≥7 en ámbar, ≥14 en rojo. La lista de llamadas de Carme son las de cobro «Abierta».</p>
+      <p class="hint"><b>Cobro</b> = si ha pagado (Appstle en vivo): «Abierta» sigue sin cobrar. <b>Gestión</b> = lo que hicimos en la llamada. «Días» ≥7 en ámbar, ≥14 en rojo. La lista de llamadas de Ana son las de cobro «Abierta».</p>
       <div style="overflow-x:auto"><table>
         <thead><tr><th>Clienta</th><th>Cobro</th><th>Gestión</th><th class="num">Importe</th><th class="num">Días</th><th>1er fallo</th><th>Teléfono</th><th>Contactar</th></tr></thead>
         <tbody>${rows || `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">Sin fallos con este filtro</td></tr>`}</tbody>
@@ -890,22 +890,22 @@ function render(fsA, fsP, cmp){
 
 // Hero del resumen de fallos, simétrico al de bajas:
 //   IZQUIERDA = «Rescate de Carme · fallos de pago» (lo que recupera ELLA en su llamada, desde gestiones)
-//   DERECHA   = «El embudo del periodo» (lo que recupera la secuencia de WhatsApp, y cuántas pasan a Carme)
+//   DERECHA   = «El embudo del periodo» (lo que recupera la secuencia de WhatsApp, y cuántas pasan a Ana)
 // Ambas mitades son asíncronas (RESC_FALLOS de gestiones, CONV de LUNA) → se rellenan al llegar.
 function colRescateCarme(){
   const rc = RESC_FALLOS, total = rc ? rc.total : 0;
   if(total===0){
     return `<div class="fp-risk">
-      <div class="fp-lab">Rescate de Carme · fallos de pago</div>
+      <div class="fp-lab">Rescate de Ana · fallos de pago</div>
       <div><span class="fp-win-n" style="color:var(--muted)">0</span><span class="fp-win-u">aún sin rescates registrados</span></div>
-      <div class="fp-win-sub" style="margin-top:auto;padding-top:16px">En cuanto Carme registre sus llamadas en «A quién llamo», verás aquí <b>cuánto recupera</b>: cobro manual, actualizó el pago…</div>
+      <div class="fp-win-sub" style="margin-top:auto;padding-top:16px">En cuanto Ana registre sus llamadas en «A quién llamo», verás aquí <b>cuánto recupera</b>: cobro manual, actualizó el pago…</div>
     </div>`;
   }
   const tipos=[['cobro_manual','💳 Cobro manual','#1F9D6B'],['actualizar_pago','🔄 Actualizó el pago','#2C9A78']];
   const rows=tipos.filter(([k])=>rc[k]>0).map(([k,label,color])=>`<div class="fp-trow"><span class="fp-tdot" style="background:${color}"></span><span class="fp-tname">${label}</span><span class="fp-tn">${rc[k]}</span></div>`).join('');
   return `<div class="fp-risk">
-      <div class="fp-lab">Rescate de Carme · fallos de pago</div>
-      <div><span class="fp-win-n">${total}</span><span class="fp-win-u">recuperadas por Carme</span></div>
+      <div class="fp-lab">Rescate de Ana · fallos de pago</div>
+      <div><span class="fp-win-n">${total}</span><span class="fp-win-u">recuperadas por Ana</span></div>
       <div class="fp-win-sub">cobros que recupera en su llamada, tras fallar el pago.</div>
       <div class="fp-types"><div class="fp-types-h">Cómo lo recupera</div>${rows}</div>
     </div>`;
@@ -930,7 +930,7 @@ function colEmbudoWhatsApp(){
           <div class="fp-fbar rec"><i style="width:${Math.max(7,Math.round(ent?100*pag.n/ent:0))}%">${pag.n}</i></div></div>
         <div class="fp-pills">
           <span class="fp-pill ok">✅ <b>${pag.n}</b> pagaron por WhatsApp</span>
-          <span class="fp-pill call">📞 <b>${aCarme}</b> sin recuperar → a Carme</span>
+          <span class="fp-pill call">📞 <b>${aCarme}</b> sin recuperar → a Ana</span>
         </div>${cap}
       </div>`;
 }
@@ -957,7 +957,7 @@ function construirResumen(){
   det.filter(x=>(x.tipo||'fallo_pago')!=='dunning_skipped').forEach(f=>{ const dd=diasDe(f); if(dd!=null && dd>14) ageV++; else if(dd!=null && dd>=7) ageM++; else ageR++; });
 
   PANES.resumen = heroRecuperacion() + `
-    <div class="fp-warn">⚠️<span><b>«Pagaron» es un suelo</b> (cuenta las secuencias que se cancelan por pago; alguna paga sin cancelarse). Una <b>persona llamando convierte 33–61%</b> — por eso las que el WhatsApp no recupera pasan a la llamada de Carme.</span></div>
+    <div class="fp-warn">⚠️<span><b>«Pagaron» es un suelo</b> (cuenta las secuencias que se cancelan por pago; alguna paga sin cancelarse). Una <b>persona llamando convierte 33–61%</b> — por eso las que el WhatsApp no recupera pasan a la llamada de Ana.</span></div>
 
     <div class="fp-cols">
       <div class="fp-card">
@@ -968,7 +968,7 @@ function construirResumen(){
           <div class="fp-srow">
             <div class="fp-shead"><span class="nm">🔴 Activos · a llamar</span><span class="n">${activos}</span><span class="e">${eur(Math.round(riesgoAct))}</span></div>
             <div class="fp-sbar a"><i style="width:${Math.round(100*activos/maxN)}%"></i></div>
-            <div class="fp-scap">Appstle sigue reintentando → recuperables, la lista de Carme.</div>
+            <div class="fp-scap">Appstle sigue reintentando → recuperables, la lista de Ana.</div>
           </div>
           <div class="fp-srow">
             <div class="fp-shead"><span class="nm">⚪ Backlog · dunning agotado</span><span class="n">${backlog}</span><span class="e">${eur(riesgoBk)}</span></div>
@@ -990,7 +990,7 @@ function construirResumen(){
 
     <a class="fp-ract ${activos?'alert':''}" href="https://data.wearedomma.com/llamadas" target="_blank" rel="noopener">
       <div class="fp-rabig">${activos}</div>
-      <div class="fp-rasub">activos <b>esperando la llamada de Carme</b><br>${activos?`${ageV?`<b style="color:var(--red)">${ageV} pasan de 14 días</b> · `:''}se añaden a su lista tras 2 toques de WhatsApp + 48 h`:'ningún fallo activo ahora mismo 👌'}</div>
+      <div class="fp-rasub">activos <b>esperando la llamada de Ana</b><br>${activos?`${ageV?`<b style="color:var(--red)">${ageV} pasan de 14 días</b> · `:''}se añaden a su lista tras 2 toques de WhatsApp + 48 h`:'ningún fallo activo ahora mismo 👌'}</div>
       <span class="fp-rcta">📞 Ir a «A quién llamo» →</span></a>`;
 
   if(TAB==='resumen'){ const c=document.getElementById('cuerpo'); if(c){ c.style.display='block'; c.innerHTML=PANES.resumen; } }

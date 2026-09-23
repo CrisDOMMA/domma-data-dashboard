@@ -405,11 +405,17 @@ async function cargar(){
   const mkFalloResuelto=row=>{ const tel=String(row.phone||'').replace(/\D/g,'');
     const est=String(row.estado_contrato||'').toLowerCase();
     const imp=row.importe?' · '+Number(row.importe).toFixed(2).replace('.',',')+' €':'';
+    // «Ha pagado» SÓLO con un cobro con éxito verificado en Appstle (decisión Cristina 23/09).
+    // Que el contrato siga activo lo hace probable, no cierto: sin la prueba se dice que salió
+    // de la cola, no que pagó. `pago_verificado` lo calcula el worker y lo guarda; mientras no
+    // le haya tocado turno llega null → tampoco se afirma nada.
+    const pagoOk=row.pago_verificado===1, pagoNo=row.pago_verificado===0;
     const salida = est==='cancelled' ? {salida:'cancelada', why:'Canceló su suscripción — registra cómo acabó'+imp}
                  : est==='paused'    ? {salida:'pausada',   why:'Contrato pausado — registra cómo acabó'+imp}
-                 : est==='active'    ? {salida:'pagada',    why:'Ha pagado — registra cómo lo gestionaste'+imp}
-                 // Sin dato del contrato no afirmamos nada: ni «pagó» ni «canceló».
-                 :                     {salida:'desconocida', why:'Ya no está en la cola de fallos — comprueba y registra'+imp};
+                 : pagoOk            ? {salida:'pagada',    why:'Ha pagado — registra cómo lo gestionaste'+imp}
+                 : pagoNo            ? {salida:'sin_pago',  why:'Salió de la cola SIN cobro confirmado — comprueba y registra'+imp}
+                 // Aún sin comprobar (o sin poder comprobarlo): no afirmamos nada.
+                 :                     {salida:'desconocida', why:'Ya no está en la cola de fallos — comprobando…'+imp};
     return {tipo:'fallo', backlog:!!row.backlog, resuelto:true, ...salida,
       nombre:(row.nombre||'').trim(), email:(row.email||'').trim(),
       phone:(row.phone||'').trim(), customer_id:String(row.customer_id||''), contract_id:row.contract_id,
@@ -617,8 +623,9 @@ function render(){
     : filtro==='nolocal' ? `${VIS.length} sin contactar`
     : filtro==='cancelada' ? `${VIS.length} baja${VIS.length===1?'':'s'} registrada${VIS.length===1?'':'s'}`
     : filtro==='wacurso' ? `${VIS.length} con el WhatsApp trabajando — aún no llamar`
-    : filtro==='porregistrar' ? (()=>{ const p=VIS.filter(c=>c.salida==='pagada').length, x=VIS.filter(c=>c.salida==='cancelada').length;
-        const det=[p?`${p} pagaron`:'', x?`${x} cancelaron`:''].filter(Boolean).join(' · ');
+    : filtro==='porregistrar' ? (()=>{ const n=s=>VIS.filter(c=>c.salida===s).length;
+        const det=[n('pagada')?`${n('pagada')} pagaron`:'', n('cancelada')?`${n('cancelada')} cancelaron`:'',
+                   n('sin_pago')?`${n('sin_pago')} sin cobro`:''].filter(Boolean).join(' · ');
         return `${VIS.length} fuera de la cola${det?' — '+det:''}`; })()
     : filtro==='mios' ? (VIS.length? `${VIS.length} ${VIS.length===1?'caso tuyo':'casos tuyos'}` : 'no tienes casos asignados')
     : filtro==='sindueno' ? (VIS.length? `${VIS.length} sin dueño — cógelos` : 'ninguno sin dueño 👌')
@@ -641,7 +648,8 @@ function tarjeta(c,i){
     : c.resuelto?(c.salida==='cancelada'?'<span class="chip red">Canceló</span>'
                  :c.salida==='pausada'?'<span class="chip amber">Pausada</span>'
                  :c.salida==='pagada'?'<span class="chip green">Ha pagado</span>'
-                 :'<span class="chip amber">Fuera de la cola</span>')
+                 :c.salida==='sin_pago'?'<span class="chip amber">Sin cobro confirmado</span>'
+                 :'<span class="chip amber">Comprobando…</span>')
     : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.esPausa?'<span class="chip green">Retenida · pausa</span>':c.esSegunda?'<span class="chip amber">2ª llamada</span>':c.esCancelada?'<span class="chip red">Cancelada</span>':c.noLoc?'<span class="chip amber">No contactada</span>':'<span class="chip green">Contactada</span>')
     : c.waCurso?'<span class="chip amber">⏳ WhatsApp en curso</span>'
     : c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
