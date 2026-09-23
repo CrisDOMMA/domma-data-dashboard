@@ -267,6 +267,9 @@ const CATALOGO={
   // `pagado` es la validación de Cristina = cobro confirmado → cierra el caso. `cobro_manual`
   // NO cierra a propósito: está pendiente de esa validación y debe seguir en «Pagos por validar».
   pagado:                 {l:'Pagado',                      b:'💰 Pagado',                      tone:'green', term:1, win:'💰 Pagado', cierra:1},  // validación de Cristina, sin botón
+  // Lo pone el CRON a los 5 días: comprobó en Appstle y NO hay cobro. Sin botón (nadie lo
+  // marca a mano) y sin `espera`, así la clienta vuelve a la lista de llamadas.
+  cobro_no_confirmado:    {l:'Cobro no confirmado',         b:'⚠️ Cobro no confirmado',         tone:'red',   term:1},
   // legacy (historial de antes del catálogo único — sin botón):
   cancelar:               {l:'Cancelar',                    tone:'red',   term:1, legacy:1},
   cancelado:              {l:'Cancelado',                   tone:'red',   term:1, legacy:1},
