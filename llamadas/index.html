@@ -248,7 +248,11 @@ const CATALOGO={
   cobro_manual:           {l:'Cobro hecho',                 b:'💳 Cobro hecho',                 tone:'green', term:1, win:'💳 Cobro hecho'},
   actualizar_pago:        {l:'Actualizar el pago',          b:'🔄 Actualizar pago',             tone:'green', term:1},
   pendiente_cobro:        {l:'Pendiente de cobro',          b:'📅 Pendiente cobro',             tone:'amber', term:1},
-  ajuste_duplicada:       {l:'Ajuste cuenta duplicada',     b:'👥 Ajuste duplicada',            tone:'green', term:1},
+  // `cierra:1` = el caso queda CERRADO, no reaparece al día siguiente. Distinto de `term`,
+  // que sólo lo quita del día (intento_1/2 deben volver mañana para insistir). Un ajuste de
+  // duplicada no tiene nada que cobrar: lo que falló era un cargo repetido (caso Elisa
+  // Madrid, 16/09: Ana lo resolvió y Martina volvió a llamarla dos días después).
+  ajuste_duplicada:       {l:'Ajuste cuenta duplicada',     b:'👥 Ajuste duplicada',            tone:'green', term:1, cierra:1},
   segunda_llamada:        {l:'2ª llamada agendada',         b:'📞 Agendar 2ª llamada',          tone:'amber', term:1},
   compra_unica_cancelacion:{l:'Compra única + cancelación', b:'🛍 Compra única + cancelación',  tone:'red',   term:1, cancela:1},
   cancelacion:            {l:'Cancelación',                 b:'❌ Cancelación',                 tone:'red',   term:1, cancela:1},
@@ -268,6 +272,7 @@ const WINS=Object.fromEntries(Object.entries(CATALOGO).filter(([,v])=>v.win).map
 const RES_LABEL=Object.fromEntries(Object.entries(CATALOGO).map(([k,v])=>[k,v.l]));
 const RES_TONE=Object.fromEntries(Object.entries(CATALOGO).map(([k,v])=>[k,v.tone]));
 const CANCELA_APPSTLE=new Set(Object.keys(CATALOGO).filter(k=>CATALOGO[k].cancela));   // ejecutan cancelación real
+const CIERRA=new Set(Object.keys(CATALOGO).filter(k=>CATALOGO[k].cierra));             // cierran el caso para siempre
 const COBROS=new Set(['pagado','cobro_manual','actualizar_pago']);   // recuperaciones (para el motivador)
 const COBRO_HECHO=new Set(['cobro_manual','actualizar_pago']);       // Carme hizo el cobro → PENDIENTE de validar
 
@@ -421,6 +426,7 @@ async function cargar(){
       phone:(row.phone||'').trim(), customer_id:String(row.customer_id||''), contract_id:row.contract_id,
       dias:diasDe(row.fail_date), fecha:(row.fail_date||'').slice(0,10), wa:null, hasTel:!!tel,
       last_seen:(row.last_seen||''),   // último día que el fallo seguía VIVO → corte para saber si ya está registrada
+      first_seen:(row.first_seen||''), // inicio del episodio → ancla de casoCerrado()
       estado_visto:(row.estado_visto||'')};
   };
   let resueltas=[];
@@ -434,7 +440,8 @@ async function cargar(){
     // de Appstle → el criterio «≥5 días» casi nunca disparaba). La worklist guarda first_seen:
     // usamos el más antiguo de los dos (bug mcjcsocu, reporte Cristina 08/09).
     const fsMap={}; (wr.worklist||[]).forEach(row=>{ const k=nid(row.contract_id); if(k&&row.first_seen) fsMap[k]=row.first_seen; });
-    fa.forEach(f=>{ const fs=fsMap[nid(f.contract_id)]; if(fs){ const dFs=diasDe(fs); if(dFs!=null&&(f.dias==null||dFs>f.dias)) f.dias=dFs; } });
+    fa.forEach(f=>{ const fs=fsMap[nid(f.contract_id)]; if(fs){ f.first_seen=fs;   // inicio REAL del episodio: ancla de casoCerrado()
+      const dFs=diasDe(fs); if(dFs!=null&&(f.dias==null||dFs>f.dias)) f.dias=dFs; } });
   }catch(e){}
 
   // GATE por toques reales de WhatsApp: Carme llama cuando la secuencia ya hizo su trabajo →
@@ -525,6 +532,14 @@ function gestionadaHoy(caso){ return histDe(caso).some(g=>String(g.created_at||'
 // registrado DESPUÉS de eso, para que una gestión de un episodio de fallo anterior no tape
 // el registro de este. Sólo aplica a `resuelto`: en un fallo VIVO, intento_1/intento_2 son
 // terminales-del-día y DEBEN reaparecer mañana para volver a llamar (eso es el diseño).
+// Resultados que CIERRAN el caso: no vuelve mañana. Sólo cuenta lo registrado desde que
+// empezó ESTE episodio de fallo (`first_seen` de la worklist, o la fecha del caso), para que
+// un ajuste de hace meses no tape un impago nuevo de la misma clienta.
+function casoCerrado(caso){
+  if(!CIERRA.size) return false;
+  const desde=String(caso.first_seen||caso.fecha||'').slice(0,10);
+  return histDe(caso).some(g=>CIERRA.has(g.resultado) && (!desde || String(g.created_at||'').slice(0,10)>=desde));
+}
 function yaRegistrada(caso){
   if(!caso.resuelto) return false;
   const corte=String(caso.last_seen||caso.fecha||'').slice(0,10);
@@ -547,10 +562,20 @@ function histInner(caso, i){
 // más reciente determina el estado). GALL viene ORDER BY created_at DESC → la 1ª por clienta = la última.
 function gestionadasCards(soloContacto){
   const seen=new Set(), out=[];
+  // Una gestión que CIERRA el caso manda sobre las posteriores. Elisa Madrid: Ana lo resolvió
+  // como duplicada el 16 y Martina registró otro intento el 18 (el caso volvía cada día, ya
+  // arreglado) — sin esto saldría en «No contactadas» como si siguiera pendiente.
+  const cierres={};
   for(const g of GALL){
-    if(g.es_test) continue;
-    const key=nid(g.contract_id)||String(g.customer_id||'')||(g.email||'').toLowerCase();
+    if(g.es_test || !CIERRA.has(g.resultado)) continue;
+    const k=nid(g.contract_id)||String(g.customer_id||'')||(g.email||'').toLowerCase();
+    if(k && !cierres[k]) cierres[k]=g;   // GALL viene DESC → el cierre más reciente
+  }
+  for(const g0 of GALL){
+    if(g0.es_test) continue;
+    const key=nid(g0.contract_id)||String(g0.customer_id||'')||(g0.email||'').toLowerCase();
     if(!key||seen.has(key)) continue; seen.add(key);
+    const g=cierres[key]||g0;
     const noLoc=g.contacto==='no_localizada';
     if(soloContacto==='no_localizada' && !noLoc) continue;
     if(soloContacto==='localizada' && noLoc) continue;
@@ -568,7 +593,7 @@ let VIS=[];   // lista exacta que se está pintando (índice de las tarjetas →
 function render(){
   RENDER_DIFERIDO=false;   // cualquier render real satisface el aplazado pendiente
   const gestHoy=LISTA.filter(gestionadaHoy).length;                 // ya gestionadas hoy (terminal)
-  let vivas=LISTA.filter(c=>!gestionadaHoy(c) && !yaRegistrada(c)); // desaparecen del día
+  let vivas=LISTA.filter(c=>!gestionadaHoy(c) && !yaRegistrada(c) && !casoCerrado(c)); // desaparecen del día
   if(fechaFil) vivas=vivas.filter(c=>c.fecha===fechaFil);          // filtro por día (calendario)
   const waCurso=vivas.filter(x=>x.waCurso);                        // WhatsApp trabajando: fuera de «por llamar», pero visibles y buscables
   vivas=vivas.filter(x=>!x.waCurso);
