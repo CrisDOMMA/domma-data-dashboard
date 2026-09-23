@@ -398,12 +398,24 @@ async function cargar(){
   // Worklist persistente: guardamos los fallos que se muestran para que NO desaparezcan al
   // pagar la clienta (sale de /today) antes de que Carma registre la gestión. La worklist
   // devuelve también los que ya pagaron y faltan por registrar → se muestran «✅ ya pagó».
+  // Un fallo sale de /today por DOS motivos opuestos: la clienta ha pagado, o ha cancelado.
+  // Antes se daba por hecho lo primero y se pintaba «Ha pagado» en verde a todas — el 23/09
+  // eran 24 de 55 canceladas (caso Jessica: cancelada el 22/09, anunciada como pagada).
+  // Ahora manda el estado real del contrato (`contratos_estado`, refrescado por el cron).
   const mkFalloResuelto=row=>{ const tel=String(row.phone||'').replace(/\D/g,'');
-    return {tipo:'fallo', backlog:!!row.backlog, resuelto:true, nombre:(row.nombre||'').trim(), email:(row.email||'').trim(),
+    const est=String(row.estado_contrato||'').toLowerCase();
+    const imp=row.importe?' · '+Number(row.importe).toFixed(2).replace('.',',')+' €':'';
+    const salida = est==='cancelled' ? {salida:'cancelada', why:'Canceló su suscripción — registra cómo acabó'+imp}
+                 : est==='paused'    ? {salida:'pausada',   why:'Contrato pausado — registra cómo acabó'+imp}
+                 : est==='active'    ? {salida:'pagada',    why:'Ha pagado — registra cómo lo gestionaste'+imp}
+                 // Sin dato del contrato no afirmamos nada: ni «pagó» ni «canceló».
+                 :                     {salida:'desconocida', why:'Ya no está en la cola de fallos — comprueba y registra'+imp};
+    return {tipo:'fallo', backlog:!!row.backlog, resuelto:true, ...salida,
+      nombre:(row.nombre||'').trim(), email:(row.email||'').trim(),
       phone:(row.phone||'').trim(), customer_id:String(row.customer_id||''), contract_id:row.contract_id,
       dias:diasDe(row.fail_date), fecha:(row.fail_date||'').slice(0,10), wa:null, hasTel:!!tel,
       last_seen:(row.last_seen||''),   // último día que el fallo seguía VIVO → corte para saber si ya está registrada
-      why:'Ha pagado — registra cómo lo gestionaste'+(row.importe?' · '+Number(row.importe).toFixed(2).replace('.',',')+' €':'')};
+      estado_visto:(row.estado_visto||'')};
   };
   let resueltas=[];
   try{
@@ -605,7 +617,9 @@ function render(){
     : filtro==='nolocal' ? `${VIS.length} sin contactar`
     : filtro==='cancelada' ? `${VIS.length} baja${VIS.length===1?'':'s'} registrada${VIS.length===1?'':'s'}`
     : filtro==='wacurso' ? `${VIS.length} con el WhatsApp trabajando — aún no llamar`
-    : filtro==='porregistrar' ? `${VIS.length} ya ${VIS.length===1?'ha pagado':'han pagado'} — solo falta registrar`
+    : filtro==='porregistrar' ? (()=>{ const p=VIS.filter(c=>c.salida==='pagada').length, x=VIS.filter(c=>c.salida==='cancelada').length;
+        const det=[p?`${p} pagaron`:'', x?`${x} cancelaron`:''].filter(Boolean).join(' · ');
+        return `${VIS.length} fuera de la cola${det?' — '+det:''}`; })()
     : filtro==='mios' ? (VIS.length? `${VIS.length} ${VIS.length===1?'caso tuyo':'casos tuyos'}` : 'no tienes casos asignados')
     : filtro==='sindueno' ? (VIS.length? `${VIS.length} sin dueño — cógelos` : 'ninguno sin dueño 👌')
     : filtro==='porvalidar' ? `${VIS.length} por validar` : (VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉'));
@@ -624,14 +638,17 @@ function tarjeta(c,i){
   // Última gestión de esta clienta (para el botón fijo «Deshacer»). No aplica a las de solo consulta (registro).
   const ultGestId = !c.registro ? (c.gestId || ((histDe(c)[0]||{}).id)) : null;
   const chip = c.registro?`<span class="chip ${(c.directa||c.estado==='pausa')?'green':'amber'}">${c.directa?'Baja ✓':c.estado==='solicitud_baja'?'Baja solicitada':c.estado==='pausa'?'Pausada':'Derivada'}</span>`
-    : c.resuelto?'<span class="chip green">Ha pagado</span>'
+    : c.resuelto?(c.salida==='cancelada'?'<span class="chip red">Canceló</span>'
+                 :c.salida==='pausada'?'<span class="chip amber">Pausada</span>'
+                 :c.salida==='pagada'?'<span class="chip green">Ha pagado</span>'
+                 :'<span class="chip amber">Fuera de la cola</span>')
     : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.esPausa?'<span class="chip green">Retenida · pausa</span>':c.esSegunda?'<span class="chip amber">2ª llamada</span>':c.esCancelada?'<span class="chip red">Cancelada</span>':c.noLoc?'<span class="chip amber">No contactada</span>':'<span class="chip green">Contactada</span>')
     : c.waCurso?'<span class="chip amber">⏳ WhatsApp en curso</span>'
     : c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
   const nHist=histDe(c).length;
   const meta=(c.email?`✉️ <b>${esc(c.email)}</b>`:'')+(c.email&&c.phone?' · ':'')+(c.phone?`📱 <b>${esc(c.phone)}</b>`:'')+((!c.email&&!c.phone)?'<span style="color:var(--amber)">sin contacto — abre su ficha</span>':'');
-  return `<div class="card" data-state="${c.esCancelada?'red':((c.registro&&(c.directa||c.estado==='pausa'))||c.resuelto||c.esPagado||(c.gestionada&&!c.noLoc&&!c.esCobroHecho))?'green':'amber'}" id="c${i}">
+  return `<div class="card" data-state="${(c.esCancelada||c.salida==='cancelada')?'red':(c.resuelto&&c.salida!=='pagada')?'amber':((c.registro&&(c.directa||c.estado==='pausa'))||c.resuelto||c.esPagado||(c.gestionada&&!c.noLoc&&!c.esCobroHecho))?'green':'amber'}" id="c${i}">
     <div class="stripe"></div>
     <div class="body">
       <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div>${chip}</div>
