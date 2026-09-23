@@ -231,6 +231,8 @@ const EQUIPO=[
   {nombre:'Ana',       email:'ayuda@wearedomma.com'},   // escalado: lo que no consiguen retener
 ];
 let ASIG={};   // contract_id → {agente, agente_email, asignado_por, asignado_at}
+let FSEEN={};  // contract_id → first_seen: inicio del episodio de fallo EN CURSO. Es el ancla
+               // que impide que un cierre viejo (pagó en septiembre) tape un impago nuevo.
 // ── CATÁLOGO ÚNICO de resultados (spec Cristina 06/08) ─────────────────────────────────
 // UNA sola fuente de verdad para los 3 flujos (Bajas / Fallos / recontactos de seguimiento):
 // cada módulo pinta un SUBCONJUNTO de estos códigos, nadie inventa códigos fuera de aquí.
@@ -258,7 +260,9 @@ const CATALOGO={
   cancelacion:            {l:'Cancelación',                 b:'❌ Cancelación',                 tone:'red',   term:1, cancela:1},
   intento_1:              {l:'Intento 1 (negativo)',        b:'1️⃣ Intento 1 (negativo)',       tone:'amber', term:1},
   intento_2:              {l:'Intento 2 (negativo)',        b:'2️⃣ Intento 2 (negativo)',       tone:'amber', term:1},
-  pagado:                 {l:'Pagado',                      b:'💰 Pagado',                      tone:'green', term:1, win:'💰 Pagado'},  // validación de Cristina, sin botón
+  // `pagado` es la validación de Cristina = cobro confirmado → cierra el caso. `cobro_manual`
+  // NO cierra a propósito: está pendiente de esa validación y debe seguir en «Pagos por validar».
+  pagado:                 {l:'Pagado',                      b:'💰 Pagado',                      tone:'green', term:1, win:'💰 Pagado', cierra:1},  // validación de Cristina, sin botón
   // legacy (historial de antes del catálogo único — sin botón):
   cancelar:               {l:'Cancelar',                    tone:'red',   term:1, legacy:1},
   cancelado:              {l:'Cancelado',                   tone:'red',   term:1, legacy:1},
@@ -440,6 +444,7 @@ async function cargar(){
     // de Appstle → el criterio «≥5 días» casi nunca disparaba). La worklist guarda first_seen:
     // usamos el más antiguo de los dos (bug mcjcsocu, reporte Cristina 08/09).
     const fsMap={}; (wr.worklist||[]).forEach(row=>{ const k=nid(row.contract_id); if(k&&row.first_seen) fsMap[k]=row.first_seen; });
+    FSEEN=fsMap;   // se guarda global: lo usan casoCerrado() y gestionadasCards()
     fa.forEach(f=>{ const fs=fsMap[nid(f.contract_id)]; if(fs){ f.first_seen=fs;   // inicio REAL del episodio: ancla de casoCerrado()
       const dFs=diasDe(fs); if(dFs!=null&&(f.dias==null||dFs>f.dias)) f.dias=dFs; } });
   }catch(e){}
@@ -569,7 +574,13 @@ function gestionadasCards(soloContacto){
   for(const g of GALL){
     if(g.es_test || !CIERRA.has(g.resultado)) continue;
     const k=nid(g.contract_id)||String(g.customer_id||'')||(g.email||'').toLowerCase();
-    if(k && !cierres[k]) cierres[k]=g;   // GALL viene DESC → el cierre más reciente
+    if(!k || cierres[k]) continue;   // GALL viene DESC → nos quedamos con el cierre más reciente
+    // Si la clienta tiene un episodio de fallo ABIERTO, sólo manda el cierre que pertenece a
+    // ese episodio: pagó en septiembre y volvió a fallar en noviembre → la tarjeta no puede
+    // seguir diciendo «Pagado ✓».
+    const ancla=FSEEN[nid(g.contract_id)];
+    if(ancla && String(g.created_at||'').slice(0,10) < String(ancla).slice(0,10)) continue;
+    cierres[k]=g;
   }
   for(const g0 of GALL){
     if(g0.es_test) continue;
