@@ -180,6 +180,9 @@
     <div class="grid">
       <div class="card"><h3>Por ámbito y tipo</h3><p class="hint">Dónde se rompe el pedido: transporte vs almacén</p><div id="chTipo"></div></div>
       <div class="card"><h3>Por transportista</h3><p class="hint">Solo incidencias de transporte · base para GLS vs CEX</p><div id="chTrans"></div>
+        <div class="sect">Tasa por transportista</div>
+        <p class="hint">Incidencias ÷ envíos reales de cada transportista (envíos: Amphora)</p>
+        <div id="chTasa"><div class="vacio">Cargando envíos de Amphora…</div></div>
         <div class="sect">Por causa / responsable</div><div id="chCausa"></div></div>
       <div class="card"><h3>Evolución mensual</h3><p class="hint">Incidencias por mes de ocurrencia</p><div id="chMes"></div></div>
       <div class="card"><h3>Tiempos de resolución</h3><p class="hint">Solo resueltas/cerradas con fechas · abiertas no cuentan aquí</p><div id="chTiempos"></div>
@@ -278,7 +281,7 @@
 <script>
 const API = 'https://domma-incidencias.cristina-ed1.workers.dev';
 const AUTH_API = 'https://domma-pro-api.cristina-ed1.workers.dev';
-let ROWS = [], PEDIDOS = null, TAB = 'resumen', EDIT_ID = null;
+let ROWS = [], PEDIDOS = null, ENVIOS = null, TAB = 'resumen', EDIT_ID = null;
 
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
 (function(){ const m = location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token', decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
@@ -345,11 +348,16 @@ function load(){
   api('/api/incidencias/list',{desde,hasta,ambito}).then(d=>{
     ROWS=d.incidencias||[]; pintar(); pintaFrescura('frescura', d._frescura);
   });
-  // denominador: si el rango está abierto, desde la primera incidencia de 2026
-  PEDIDOS=null;
-  api('/api/incidencias/pedidos',{desde: desde||'2026-01-01', hasta: hasta||hoy()}).then(d=>{
+  // denominadores: si el rango está abierto, desde la primera incidencia de 2026
+  PEDIDOS=null; ENVIOS=null;
+  const rango={desde: desde||'2026-01-01', hasta: hasta||hoy()};
+  api('/api/incidencias/pedidos',rango).then(d=>{
     if(d.ok){ PEDIDOS=d.n; pintarKpis(); }
   }).catch(()=>{});
+  api('/api/incidencias/envios',rango).then(d=>{
+    if(d.ok){ ENVIOS=d.envios; pintarTasa(); }
+    else document.getElementById('chTasa').innerHTML='<div class="vacio">Amphora no responde ahora mismo</div>';
+  }).catch(()=>{ document.getElementById('chTasa').innerHTML='<div class="vacio">Amphora no responde ahora mismo</div>'; });
 }
 
 function verTab(t){
@@ -360,7 +368,29 @@ function verTab(t){
   document.getElementById('vListado').style.display=t==='listado'?'':'none';
 }
 
-function pintar(){ pintarKpis(); pintarCharts(); pintarLista(); }
+function pintar(){ pintarKpis(); pintarCharts(); pintarTasa(); pintarLista(); }
+
+// ── Tasa por transportista: incidencias de transporte ÷ envíos Amphora del carrier ──
+function pintarTasa(){
+  const cont=document.getElementById('chTasa');
+  if(!ENVIOS){ return; }  // aún cargando (el placeholder sigue) o error ya pintado
+  const inc={};
+  ROWS.filter(r=>r.ambito==='transporte').forEach(r=>{
+    const c=r.transportista||'desconocido';
+    if(c!=='desconocido') inc[c]=(inc[c]||0)+1;
+  });
+  const carriers=[...new Set([...Object.keys(inc),...Object.keys(ENVIOS)])]
+    .map(c=>({c, inc:inc[c]||0, env:ENVIOS[c]||0, tasa:(ENVIOS[c]?(inc[c]||0)/ENVIOS[c]*100:null)}))
+    .filter(x=>x.env>=20||x.inc>0)         // fuera carriers residuales sin volumen ni incidencias
+    .sort((a,b)=>(b.tasa??-1)-(a.tasa??-1));
+  if(!carriers.length){ cont.innerHTML='<div class="vacio">Sin datos en el periodo</div>'; return; }
+  const max=Math.max(...carriers.map(x=>x.tasa||0), 0.01);
+  cont.innerHTML=carriers.map(x=>`
+    <div class="row"><div class="top"><span class="lbl">${esc(x.c.toUpperCase())}</span>
+      <span class="val"><em>${x.tasa!=null?x.tasa.toFixed(2)+'%':'—'}</em> · ${x.inc} inc ÷ ${x.env.toLocaleString('es-ES')} envíos</span></div>
+      <div class="bar"><div class="seg ${x.tasa!=null&&x.tasa>=1?'d':(x.tasa!=null&&x.tasa>=0.5?'b':'c')}" style="width:${x.tasa!=null?(x.tasa/max*100):0}%"></div></div></div>`).join('')
+    +'<div class="legend"><span><i class="i-c"></i>&lt;0,5%</span><span><i class="i-b"></i>0,5–1%</span><span><i class="i-d"></i>≥1%</span></div>';
+}
 
 // ── KPIs ──
 function pintarKpis(){
