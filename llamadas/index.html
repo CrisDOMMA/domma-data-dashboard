@@ -247,8 +247,12 @@ const CATALOGO={
   cambio_fecha:           {l:'Cambio de fecha',             b:'📅 Cambio fecha',                tone:'green', term:1},
   venta_cruzada:          {l:'Venta cruzada',               b:'🚀 Venta cruzada',               tone:'green', term:1, win:'🚀 Venta cruzada'},
   upsell:                 {l:'Upsell',                      b:'⬆️ Upsell',                      tone:'green', term:1, win:'⬆️ Upsell'},
-  cobro_manual:           {l:'Cobro hecho',                 b:'💳 Cobro hecho',                 tone:'green', term:1, win:'💳 Cobro hecho'},
-  actualizar_pago:        {l:'Actualizar el pago',          b:'🔄 Actualizar pago',             tone:'green', term:1},
+  // `espera:1` = sale de «por llamar» pero NO se cierra: está esperando la validación de
+  // Cristina y sigue contando en «Pagos por validar» hasta que ella lo confirme (→ `pagado`,
+  // que sí cierra) o lo deshaga. Antes volvía a la lista al día siguiente y Ana podía llamar
+  // a una clienta a la que ya le había cobrado.
+  cobro_manual:           {l:'Cobro hecho',                 b:'💳 Cobro hecho',                 tone:'green', term:1, win:'💳 Cobro hecho', espera:1},
+  actualizar_pago:        {l:'Actualizar el pago',          b:'🔄 Actualizar pago',             tone:'green', term:1, espera:1},
   pendiente_cobro:        {l:'Pendiente de cobro',          b:'📅 Pendiente cobro',             tone:'amber', term:1},
   // `cierra:1` = el caso queda CERRADO, no reaparece al día siguiente. Distinto de `term`,
   // que sólo lo quita del día (intento_1/2 deben volver mañana para insistir). Un ajuste de
@@ -277,6 +281,7 @@ const RES_LABEL=Object.fromEntries(Object.entries(CATALOGO).map(([k,v])=>[k,v.l]
 const RES_TONE=Object.fromEntries(Object.entries(CATALOGO).map(([k,v])=>[k,v.tone]));
 const CANCELA_APPSTLE=new Set(Object.keys(CATALOGO).filter(k=>CATALOGO[k].cancela));   // ejecutan cancelación real
 const CIERRA=new Set(Object.keys(CATALOGO).filter(k=>CATALOGO[k].cierra));             // cierran el caso para siempre
+const ESPERA=new Set(Object.keys(CATALOGO).filter(k=>CATALOGO[k].espera));             // esperan la validación de Cristina
 const COBROS=new Set(['pagado','cobro_manual','actualizar_pago']);   // recuperaciones (para el motivador)
 const COBRO_HECHO=new Set(['cobro_manual','actualizar_pago']);       // Carme hizo el cobro → PENDIENTE de validar
 
@@ -545,6 +550,16 @@ function casoCerrado(caso){
   const desde=String(caso.first_seen||caso.fecha||'').slice(0,10);
   return histDe(caso).some(g=>CIERRA.has(g.resultado) && (!desde || String(g.created_at||'').slice(0,10)>=desde));
 }
+// En espera de la validación de Cristina: fuera de «por llamar», pero el caso sigue ABIERTO
+// (cuenta en «Pagos por validar» hasta que ella confirme → `pagado`, o lo deshaga).
+// Manda la gestión MÁS RECIENTE del episodio: si después del cobro alguien registra otra cosa
+// (un intento, una cancelación), la clienta vuelve a estar en juego.
+function enEspera(caso){
+  if(!ESPERA.size) return false;
+  const desde=String(caso.first_seen||caso.fecha||'').slice(0,10);
+  const h=histDe(caso).filter(g=>!desde || String(g.created_at||'').slice(0,10)>=desde);
+  return !!h.length && ESPERA.has(h[0].resultado);   // GALL viene DESC → h[0] es la última
+}
 function yaRegistrada(caso){
   if(!caso.resuelto) return false;
   const corte=String(caso.last_seen||caso.fecha||'').slice(0,10);
@@ -604,7 +619,7 @@ let VIS=[];   // lista exacta que se está pintando (índice de las tarjetas →
 function render(){
   RENDER_DIFERIDO=false;   // cualquier render real satisface el aplazado pendiente
   const gestHoy=LISTA.filter(gestionadaHoy).length;                 // ya gestionadas hoy (terminal)
-  let vivas=LISTA.filter(c=>!gestionadaHoy(c) && !yaRegistrada(c) && !casoCerrado(c)); // desaparecen del día
+  let vivas=LISTA.filter(c=>!gestionadaHoy(c) && !yaRegistrada(c) && !casoCerrado(c) && !enEspera(c)); // desaparecen del día
   if(fechaFil) vivas=vivas.filter(c=>c.fecha===fechaFil);          // filtro por día (calendario)
   const waCurso=vivas.filter(x=>x.waCurso);                        // WhatsApp trabajando: fuera de «por llamar», pero visibles y buscables
   vivas=vivas.filter(x=>!x.waCurso);
@@ -665,7 +680,13 @@ function render(){
         return `${VIS.length} fuera de la cola${det?' — '+det:''}`; })()
     : filtro==='mios' ? (VIS.length? `${VIS.length} ${VIS.length===1?'caso tuyo':'casos tuyos'}` : 'no tienes casos asignados')
     : filtro==='sindueno' ? (VIS.length? `${VIS.length} sin dueño — cógelos` : 'ninguno sin dueño 👌')
-    : filtro==='porvalidar' ? `${VIS.length} por validar` : (VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉'));
+    // Los cobros en espera SALEN de «por llamar»: si una validación se queda olvidada, nadie
+    // la llama y nadie la valida. Por eso el titular canta la más antigua.
+    : filtro==='porvalidar' ? (()=>{ const dd=VIS.map(c=>{ const f=(c.fecha||'').slice(0,10);
+          return f?Math.floor((Date.now()-Date.parse(f))/864e5):null; }).filter(n=>n!=null);
+        const max=dd.length?Math.max(...dd):0;
+        return `${VIS.length} por validar${max>=3?` — la más antigua lleva ${max} días`:''}`; })()
+    : (VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉'));
   const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin contactar 👌':filtro==='cancelada'?'Ninguna baja registrada por el formulario todavía.':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':filtro==='wacurso'?'Ninguna con la secuencia de WhatsApp en curso.':'Nada por llamar aquí. 👌';
   document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${vacio}</div>`;
 }
