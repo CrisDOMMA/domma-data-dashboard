@@ -203,6 +203,8 @@
     <input type="search" id="buscador" class="buscador" placeholder="🔍 Buscar clienta por nombre, email o teléfono…" oninput="setBusca(this.value)" autocomplete="off">
     <div class="fil" id="filtros"></div>
     <div class="filrow">
+      <label class="datelbl">👤 La lista de:</label>
+      <select class="chipf" id="verDeSel" onchange="setVerDe(this.value)" title="Ver el trabajo de una persona concreta"></select>
       <button class="chipf" id="ordenBtn" onclick="toggleOrden()" title="Prioriza a las clientas que llevan más tiempo esperando">↑ Más antiguas primero</button>
       <label class="datelbl">📅 Ver un día:</label>
       <input type="date" id="dateFil" onchange="setFecha(this.value)">
@@ -292,6 +294,10 @@ if(new URLSearchParams(location.search).has('embed')) document.documentElement.c
 (function(){ const m=location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token',decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
 let token=localStorage.getItem('domma_analytics_token')||'';
 let LISTA=[], REGISTRO=[], GEST={byC:{},byCust:{}}, GALL=[], filtro='todas', fechaFil='', busca='', orden='antiguas';
+// De quién es la lista que se está viendo: '__mias__' | '' (todas) | nombre | '__libre__'.
+// Arranca en «Mías» para que cada una entre directa a lo suyo (petición Cristina 24/09);
+// a partir de ahí se recuerda lo que elija.
+let verDe = localStorage.getItem('domma_verde') ?? '__mias__';
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hoyISO=()=>new Date().toISOString().slice(0,10);
 const nid=v=>String(v==null?'':v).split('.')[0].trim();
@@ -577,7 +583,11 @@ const fechaCorta=s=>{ if(!s)return''; const d=new Date(String(s).replace(' ','T'
 function histInner(caso, i){
   const h=histDe(caso); if(!h.length) return '';
   return h.slice(0,6).map((g,j)=>{
-    const prox=g.proxima_llamada?` · 📅 próx. ${fechaCorta(g.proxima_llamada)}`:'';
+    // Si la fecha ya pasó no se dice «próx.»: se dice que venció. El texto de la tarjeta va
+    // escapado (no admite HTML), así que el aviso tiene que estar en la palabra.
+    const prox=g.proxima_llamada?(String(g.proxima_llamada).slice(0,10)<hoyISO()
+      ? ` · ⚠️ venció el ${fechaCorta(g.proxima_llamada)}`
+      : ` · 📅 próx. ${fechaCorta(g.proxima_llamada)}`):'';
     const edit=(j===0 && g.id!=null)?` <a href="#" class="hedit" onclick="abrirEdit(${i},'${esc(String(g.id))}');return false">✏️ editar</a>`:'';
     return `<div class="hline"><span class="hpill ${RES_TONE[g.resultado]||''}">${esc(RES_LABEL[g.resultado]||g.resultado)}</span> <span class="hmeta">${g.contacto==='no_localizada'?'no localizada':'localizada'}${g.agente?' · '+esc(g.agente):''} · ${fechaCorta(g.created_at)}${prox}</span>${edit}${g.nota?`<div class="hnota">${esc(g.nota)}</div>`:''}</div>`;
   }).join('');
@@ -615,7 +625,11 @@ function gestionadasCards(soloContacto){
     if(soloContacto==='localizada' && noLoc) continue;
     const t=g.tipo_caso==='fallo_pago'?'fallo':(g.tipo_caso==='baja'?'baja':'derivada');
     const res=RES_LABEL[g.resultado]||g.resultado||'';
-    const prox=g.proxima_llamada?` · 📅 próx. ${fechaCorta(g.proxima_llamada)}`:'';
+    // Si la fecha ya pasó no se dice «próx.»: se dice que venció. El texto de la tarjeta va
+    // escapado (no admite HTML), así que el aviso tiene que estar en la palabra.
+    const prox=g.proxima_llamada?(String(g.proxima_llamada).slice(0,10)<hoyISO()
+      ? ` · ⚠️ venció el ${fechaCorta(g.proxima_llamada)}`
+      : ` · 📅 próx. ${fechaCorta(g.proxima_llamada)}`):'';
     out.push({tipo:t, gestionada:true, noLoc, esPagado:g.resultado==='pagado', esCobroHecho:COBRO_HECHO.has(g.resultado), esPausa:g.resultado==='pausa', esSegunda:g.resultado==='segunda_llamada', esCancelada:CANCELAR.has(g.resultado), prox:g.proxima_llamada||'', gestId:g.id, nombre:g.nombre, email:g.email, phone:g.phone,
       customer_id:g.customer_id, contract_id:g.contract_id, fecha:(g.created_at||'').slice(0,10),
       why:`${noLoc?'No localizada':'Localizada'}${res?' · '+res:''}${g.agente?' · '+g.agente:''} · ${fechaCorta(g.created_at)}${prox}`});
@@ -629,56 +643,73 @@ function render(){
   const gestHoy=LISTA.filter(gestionadaHoy).length;                 // ya gestionadas hoy (terminal)
   let vivas=LISTA.filter(c=>!gestionadaHoy(c) && !yaRegistrada(c) && !casoCerrado(c) && !enEspera(c)); // desaparecen del día
   if(fechaFil) vivas=vivas.filter(c=>c.fecha===fechaFil);          // filtro por día (calendario)
-  const waCurso=vivas.filter(x=>x.waCurso);                        // WhatsApp trabajando: fuera de «por llamar», pero visibles y buscables
+  let waCurso=vivas.filter(x=>x.waCurso);                          // WhatsApp trabajando: fuera de «por llamar», pero visibles y buscables
   vivas=vivas.filter(x=>!x.waCurso);
-  const porRegistrar=vivas.filter(x=>x.resuelto);                  // ya pagaron: no son una llamada, son un registro → fuera de «por llamar»
+  let porRegistrar=vivas.filter(x=>x.resuelto);                    // ya pagaron: no son una llamada, son un registro → fuera de «por llamar»
   vivas=vivas.filter(x=>!x.resuelto);
-  // Barra de progreso del día → da sensación de "hay un final".
-  // «Quedan» = trabajo pendiente REAL: llamadas + las que ya pagaron y solo falta registrar
-  // (decisión Cristina 15/09). Como el titular solo cuenta llamadas, cuando hay registros
-  // pendientes se desglosa: si no, «3 por llamar» y «quedan 4» parecen contradecirse.
-  const pendientes=vivas.length+porRegistrar.length;
-  const desglose=porRegistrar.length?` <span class="prog-det">(${vivas.length} por llamar · ${porRegistrar.length} por registrar)</span>`:'';
-  const totalDia=gestHoy+pendientes, pct=totalDia?Math.round(gestHoy/totalDia*100):0;
-  document.getElementById('progreso').innerHTML = totalDia
-    ? `<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt"><b>${gestHoy}</b> gestionada${gestHoy===1?'':'s'} hoy · quedan <b>${pendientes}</b>${desglose}</div></div>` : '';
   const dfil=l=>fechaFil?l.filter(c=>c.fecha===fechaFil):l;
+  // «La lista de: …» se aplica a TODOS los cubos, no sólo a las tarjetas: así los números de
+  // los chips son los de esa persona y no los del equipo entero.
+  const vd=l=>filtrarPorDueno(l);
   const esSeguim    = c=>c.esPausa||c.esSegunda;                            // seguimiento = pausas + 2ªs llamadas agendadas
-  const contactadas = dfil(gestionadasCards('localizada')).filter(c=>!esSeguim(c));   // las de seguimiento van a Derivadas
-  const nolocal     = dfil(gestionadasCards('no_localizada')).filter(c=>!esSeguim(c));
-  const porValidar  = dfil(gestionadasCards()).filter(c=>c.esCobroHecho);   // cobros hechos pendientes de validar
-  const pausas      = dfil(gestionadasCards()).filter(esSeguim);            // recontactos (fin de pausa / 2ª llamada) → Derivadas
+  const contactadas = vd(dfil(gestionadasCards('localizada')).filter(c=>!esSeguim(c)));   // las de seguimiento van a Derivadas
+  const nolocal     = vd(dfil(gestionadasCards('no_localizada')).filter(c=>!esSeguim(c)));
+  const porValidar  = vd(dfil(gestionadasCards()).filter(c=>c.esCobroHecho));   // cobros hechos pendientes de validar
+  const pausas      = vd(dfil(gestionadasCards()).filter(esSeguim));            // recontactos (fin de pausa / 2ª llamada) → Derivadas
+  vivas = vd(vivas); waCurso = vd(waCurso); porRegistrar = vd(porRegistrar);
+  // ── AGENDADAS: alguien dejó fecha de próxima llamada y ya toca ──────────────────────
+  // Antes sólo asomaban dentro de «Derivadas», mezcladas con ~94 casos: una llamada que te
+  // comprometes a hacer el martes se perdía. Ahora son su propio cubo y entran en el día.
+  // `vencidas` = la fecha ya pasó. Se excluye a quien siga en la lista viva (no duplicar).
+  const claveDe = c=>nid(c.contract_id)||String(c.customer_id||'')||(c.email||'').toLowerCase();
+  const yaEnVivas = new Set(vivas.map(claveDe));
+  const agendadas = vd(dfil(gestionadasCards()))
+      .filter(c=>c.prox && String(c.prox).slice(0,10)<=hoyISO() && !yaEnVivas.has(claveDe(c)) && !gestionadaHoy(c));
+  const vencidas  = agendadas.filter(c=>String(c.prox).slice(0,10)<hoyISO()).length;
+  // Un seguimiento está en «Agendadas» (ya toca) O en «Derivadas» (toca más adelante), nunca
+  // en los dos: si no, el mismo caso se cuenta dos veces y no sabes cuál es tu trabajo de hoy.
+  const yaAgendadas = new Set(agendadas.map(claveDe));
+  const pausasFuturas = pausas.filter(c=>!yaAgendadas.has(claveDe(c)));
   const derivPend   = vivas.filter(x=>x.tipo==='derivada');
   const reg         = dfil(REGISTRO);                       // registro completo del formulario (búsqueda)
   const cancel      = reg.filter(c=>c.cancelacion);         // subconjunto "cancelaciones" para el chip
-  // Asignación: «Míos» es TODO el trabajo propio — llamadas (fallos, bajas y derivadas),
-  // registros pendientes y seguimientos. «Sin dueño» es el pozo del que cada una coge.
-  const mios      = [...vivas, ...porRegistrar, ...pausas].filter(esMio);
-  // El pozo del que cada una coge: TODO lo trabajable sin dueño (fallos, bajas y derivadas),
-  // no sólo los fallos. Fuera lo que no se puede asignar por no tener contrato.
-  const sinDuenoL = vivas.filter(x=>sinDueno(x) && nid(x.contract_id));
-  const counts={todas:vivas.length, mios:mios.length, sindueno:sinDuenoL.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausas.length, fallo:vivas.filter(x=>x.tipo==='fallo').length, wacurso:waCurso.length, porregistrar:porRegistrar.length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length, cancelada:cancel.length};
-  const defs=[['todas','Todas'],['mios','👤 Míos'],['sindueno','Sin dueño'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['wacurso','⏳ WhatsApp en curso'],['porregistrar','✅ Por registrar'],['cancelada','Canceladas'],['gestionadas','Contactadas'],['nolocal','No contactadas'],['porvalidar','Pagos por validar']];
+  const counts={todas:vivas.length+agendadas.length, agendadas:agendadas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausasFuturas.length, fallo:vivas.filter(x=>x.tipo==='fallo').length, wacurso:waCurso.length, porregistrar:porRegistrar.length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length, cancelada:cancel.length};
+  const defs=[['todas','Todas'],['agendadas','📅 Agendadas para hoy'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['wacurso','⏳ WhatsApp en curso'],['porregistrar','✅ Por registrar'],['cancelada','Canceladas'],['gestionadas','Contactadas'],['nolocal','No contactadas'],['porvalidar','Pagos por validar']];
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
+  pintarVerDe();
+  // Barra de progreso del día → da sensación de "hay un final".
+  // «Quedan» = trabajo pendiente REAL de quien mira: llamadas nuevas + agendadas que ya tocan
+  // + las que ya pagaron y sólo falta registrar. Se desglosa cuando hay de varios tipos, si no
+  // «3 por llamar» y «quedan 5» parecerían contradecirse.
+  const pendientes=vivas.length+agendadas.length+porRegistrar.length;
+  const partes=[`${vivas.length} nuevas`, agendadas.length?`${agendadas.length} agendadas`:'',
+                porRegistrar.length?`${porRegistrar.length} por registrar`:''].filter(Boolean);
+  const desglose=partes.length>1?` <span class="prog-det">(${partes.join(' · ')})</span>`:'';
+  const totalDia=gestHoy+pendientes, pct=totalDia?Math.round(gestHoy/totalDia*100):0;
+  document.getElementById('progreso').innerHTML = totalDia
+    ? `<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt"><b>${gestHoy}</b> gestionada${gestHoy===1?'':'s'} hoy · quedan <b>${pendientes}</b>${desglose}</div></div>` : '';
   document.getElementById('dateClear').style.display=fechaFil?'inline-block':'none';
   // Búsqueda: encuentra a CUALQUIERA — pendientes de llamar + contactadas + no contactadas
   // (aunque su caso ya no esté en la lista). Sin búsqueda: respeta el chip.
   const matchB=c=>((c.nombre||'')+' '+(c.email||'')+' '+(c.phone||'')).toLowerCase().includes(busca);
   if(busca){
     const seen=new Set(); VIS=[];
-    for(const c of [...vivas, ...waCurso, ...porRegistrar, ...contactadas, ...nolocal, ...pausas, ...reg]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||''); if(seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
+    for(const c of [...vivas, ...agendadas, ...waCurso, ...porRegistrar, ...contactadas, ...nolocal, ...pausas, ...reg]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||''); if(seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
   } else if(filtro==='wacurso'){ VIS=waCurso; }
   else if(filtro==='porregistrar'){ VIS=porRegistrar; }
-  else if(filtro==='mios'){ VIS=mios; }
-  else if(filtro==='sindueno'){ VIS=sinDuenoL; }
+  else if(filtro==='agendadas'){ VIS=agendadas; }
   else if(filtro==='gestionadas'){ VIS=contactadas; }
   else if(filtro==='nolocal'){ VIS=nolocal; }
   else if(filtro==='porvalidar'){ VIS=porValidar; }
   else if(filtro==='cancelada'){ VIS=cancel; }   // bajas médicas ya ejecutadas (solo consulta)
-  else if(filtro==='derivada'){ VIS=[...derivPend, ...pausas]; }   // derivadas a Ana + retenidas por pausa (seguimiento)
-  else { VIS = filtro==='todas' ? vivas : vivas.filter(x=>x.tipo===filtro); }
+  else if(filtro==='derivada'){ VIS=[...derivPend, ...pausasFuturas]; }   // derivadas + seguimientos que aún no tocan
+  // «Todas» junta lo nuevo con lo que quedó agendado para hoy: es la lista del día.
+  else { VIS = filtro==='todas' ? [...agendadas, ...vivas] : vivas.filter(x=>x.tipo===filtro); }
   // Ordenar por antigüedad (por defecto, las que llevan más tiempo esperando primero).
   VIS = VIS.slice().sort((a,b)=> orden==='antiguas' ? diasEspera(b)-diasEspera(a) : diasEspera(a)-diasEspera(b));
+  // …pero un compromiso con fecha va SIEMPRE delante: te comprometiste a llamarla hoy.
+  if(!busca && (filtro==='todas'||filtro==='agendadas'))
+    VIS = [...VIS.filter(c=>c.prox), ...VIS.filter(c=>!c.prox)];
   document.getElementById('left').textContent = busca ? `${VIS.length} resultado${VIS.length===1?'':'s'}`
     : filtro==='gestionadas' ? `${VIS.length} contactada${VIS.length===1?'':'s'}`
     : filtro==='nolocal' ? `${VIS.length} sin contactar`
@@ -688,16 +719,23 @@ function render(){
         const det=[n('pagada')?`${n('pagada')} pagaron`:'', n('cancelada')?`${n('cancelada')} cancelaron`:'',
                    n('sin_pago')?`${n('sin_pago')} sin cobro`:''].filter(Boolean).join(' · ');
         return `${VIS.length} fuera de la cola${det?' — '+det:''}`; })()
-    : filtro==='mios' ? (VIS.length? `${VIS.length} ${VIS.length===1?'caso tuyo':'casos tuyos'}` : 'no tienes casos asignados')
-    : filtro==='sindueno' ? (VIS.length? `${VIS.length} sin dueño — cógelos` : 'ninguno sin dueño 👌')
+    : filtro==='agendadas' ? (VIS.length
+        ? `${VIS.length} agendada${VIS.length===1?'':'s'} para hoy${vencidas?` — ${vencidas} ya ${vencidas===1?'vencida':'vencidas'}`:''}`
+        : 'nada agendado para hoy 👌')
     // Los cobros en espera SALEN de «por llamar»: si una validación se queda olvidada, nadie
     // la llama y nadie la valida. Por eso el titular canta la más antigua.
     : filtro==='porvalidar' ? (()=>{ const dd=VIS.map(c=>{ const f=(c.fecha||'').slice(0,10);
           return f?Math.floor((Date.now()-Date.parse(f))/864e5):null; }).filter(n=>n!=null);
         const max=dd.length?Math.max(...dd):0;
         return `${VIS.length} por validar${max>=3?` — la más antigua lleva ${max} días`:''}`; })()
-    : (VIS.length? `${VIS.length} por llamar` : (fechaFil?'nada ese día 👌':'¡todo llamado! 🎉'));
-  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin contactar 👌':filtro==='cancelada'?'Ninguna baja registrada por el formulario todavía.':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':filtro==='wacurso'?'Ninguna con la secuencia de WhatsApp en curso.':'Nada por llamar aquí. 👌';
+    : (VIS.length
+        ? `${VIS.length} por llamar${(filtro==='todas'&&agendadas.length)?` · ${agendadas.length} agendada${agendadas.length===1?'':'s'}`:''}`
+        : (fechaFil?'nada ese día 👌':(verDe==='__mias__'?'no tienes nada pendiente 🎉':'¡todo llamado! 🎉')));
+  // El rótulo dice de quién es la lista: entrar y ver «lo mío» sin pensarlo.
+  const rotulo=document.querySelector('.hero-lbl');
+  if(rotulo) rotulo.textContent = verDe==='__mias__' ? `Tu lista — ${agActual()}`
+    : verDe==='__libre__' ? 'Casos sin dueño' : verDe ? `La lista de ${verDe}` : 'A quién llamar hoy (todo el equipo)';
+  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin contactar 👌':filtro==='cancelada'?'Ninguna baja registrada por el formulario todavía.':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':filtro==='wacurso'?'Ninguna con la secuencia de WhatsApp en curso.':filtro==='agendadas'?'Ninguna llamada agendada para hoy 👌':verDe==='__mias__'?'No tienes casos asignados. Mira «Sin dueño» en el desplegable de arriba y coge los que vayas a trabajar.':'Nada por llamar aquí. 👌';
   document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${vacio}</div>`;
 }
 function setBusca(v){ busca=(v||'').toLowerCase().trim(); render(); }
@@ -705,6 +743,22 @@ function toggleOrden(){ orden = orden==='antiguas'?'recientes':'antiguas'; const
 // Días de espera de un caso: usa `dias` (pendientes) o los días desde la fecha (gestionadas).
 function diasEspera(c){ if(c.dias!=null) return c.dias; const f=(c.fecha||'').slice(0,10); if(!f) return -1; const ms=Date.parse(f+'T00:00:00Z'); return isFinite(ms)?Math.floor((Date.now()-ms)/864e5):-1; }
 function setFiltro(k){ filtro=k; render(); }
+function setVerDe(v){ verDe=v||''; localStorage.setItem('domma_verde', verDe); render(); }
+// Aplica «la lista de: …» sobre lo que sea que se esté mirando.
+function filtrarPorDueno(lista){
+  if(verDe==='__mias__')  return lista.filter(esMio);
+  if(verDe==='__libre__') return lista.filter(sinDueno);
+  if(verDe)               return lista.filter(c=>duenoDe(c)===verDe);
+  return lista;
+}
+function pintarVerDe(){
+  const sel=document.getElementById('verDeSel'); if(!sel) return;
+  const yo=agActual();
+  const opts=[['__mias__',`Mías (${yo})`],['','Todas'],
+              ...EQUIPO.filter(p=>p.nombre!==yo).map(p=>[p.nombre,p.nombre]),
+              ['__libre__','Sin dueño']];
+  sel.innerHTML=opts.map(([v,l])=>`<option value="${esc(v)}"${v===verDe?' selected':''}>${esc(l)}</option>`).join('');
+}
 function setFecha(v){ fechaFil=v||''; const el=document.getElementById('dateFil'); if(el) el.value=fechaFil; render(); }
 
 function tarjeta(c,i){

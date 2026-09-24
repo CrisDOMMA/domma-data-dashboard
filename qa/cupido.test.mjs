@@ -60,7 +60,8 @@ const PIEZAS = [
   extraer('const EQUIPO='),
   linea('const asigDe'), linea('const duenoDe'), linea('const esMio'), linea('const sinDueno'),
   extraer('function yo'), linea('function agActual'),
-  extraer('function botonesAsignacion'),
+  extraer('function botonesAsignacion'), extraer('function filtrarPorDueno'),
+  linea('let verDe ='),
   extraer('function histDe'), extraer('function gestionadaHoy'),
   extraer('function casoCerrado'), extraer('function enEspera'),
   extraer('function yaRegistrada'), extraer('function gestionadasCards'),
@@ -72,10 +73,13 @@ const sandbox = { GEST: { byC: {}, byCust: {} }, GALL: [], FSEEN: {}, ASIG: {},
 const cargar = new Function('estado', `
   let { GEST, GALL, FSEEN, ASIG, token } = estado;
   const atob = b => Buffer.from(b, 'base64').toString('utf8');
+  const localStorage = { getItem: () => null, setItem() {} };   // arranque limpio
   ${PIEZAS.join('\n')}
   return { CATALOGO, TERMINAL, CIERRA, ESPERA, COBRO_HECHO, EQUIPO,
            gestionadaHoy, casoCerrado, enEspera, yaRegistrada, gestionadasCards,
-           botonesAsignacion, duenoDe, sinDueno, esMio, agActual,
+           botonesAsignacion, duenoDe, sinDueno, esMio, agActual, filtrarPorDueno,
+           verDePorDefecto: () => verDe,
+           conVerDe(v){ verDe = v; },
            set(e){ GEST = e.GEST || {byC:{},byCust:{}}; GALL = e.GALL || []; FSEEN = e.FSEEN || {}; ASIG = e.ASIG || {}; } };
 `);
 const API = cargar(sandbox);
@@ -178,7 +182,39 @@ t('«míos» reconoce la derivada de Valentina', API.esMio({ contract_id: '503' 
 t('…y no la de Martina', !API.esMio({ contract_id: '502' }));
 API.set({});
 
-// ── 7. Humo contra producción (opcional) ──────────────────────────────
+// ── 7. La lista de cada una, y lo agendado que ya toca ───────────────
+bloque('LA LISTA DE CADA UNA — cada persona entra a lo suyo');
+t('al entrar, la lista arranca en «Mías»', API.verDePorDefecto() === '__mias__');
+API.set({ ASIG: { a: { agente: 'Ana' }, m: { agente: 'Martina' } } });
+const casos = [{ contract_id: 'a' }, { contract_id: 'm' }, { contract_id: 'x' }];
+API.conVerDe('__mias__');
+t('«Mías» (sesión de Valentina) no trae nada ajeno', API.filtrarPorDueno(casos).length === 0);
+API.conVerDe('Ana');
+t('se puede ver la lista de Ana', API.filtrarPorDueno(casos).map(c => c.contract_id).join() === 'a');
+API.conVerDe('Martina');
+t('…y la de Martina', API.filtrarPorDueno(casos).map(c => c.contract_id).join() === 'm');
+API.conVerDe('__libre__');
+t('…y el pozo sin dueño', API.filtrarPorDueno(casos).map(c => c.contract_id).join() === 'x');
+API.conVerDe('');
+t('«Todas» no filtra nada', API.filtrarPorDueno(casos).length === 3);
+API.conVerDe('__mias__'); API.set({});
+
+bloque('AGENDADAS — una llamada con fecha no se pierde');
+const hoy = new Date().toISOString().slice(0, 10);
+const manana = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+const agendable = (prox, res = 'pausa') => { conGestiones([{ resultado: res, created_at: d(20) + ' 10:00', proxima_llamada: prox, email: 'a@t.com' }]); return API.gestionadasCards()[0]; };
+t('una agendada para hoy es trabajo de hoy', agendable(hoy).prox.slice(0, 10) === hoy);
+t('una vencida avisa de que venció, no dice «próx.»', agendable(d(2)).why.includes('venció'));
+t('una futura sí dice «próx.»', agendable(manana).why.includes('próx.'));
+t('el catálogo mantiene los seguimientos que generan fecha',
+  !!API.CATALOGO.pausa && !!API.CATALOGO.segunda_llamada);
+// La fuente de la verdad del cubo: sale de la gestión, no de la tarjeta viva
+t('el cubo de agendadas se construye con `prox` <= hoy y sin duplicar lo vivo',
+  /agendadas\s*=[\s\S]{0,400}?prox[\s\S]{0,200}?hoyISO\(\)[\s\S]{0,200}?yaEnVivas/.test(SRC));
+t('«Derivadas» ya no cuenta las que están en «Agendadas»',
+  /pausasFuturas\s*=\s*pausas\.filter\(c=>!yaAgendadas/.test(SRC));
+
+// ── 8. Humo contra producción (opcional) ──────────────────────────────
 if (PROD) {
   bloque('PRODUCCIÓN — endpoints y páginas vivas');
   const API_BAJAS = 'https://manage.wearedomma.com';
