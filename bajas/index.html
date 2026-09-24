@@ -1224,6 +1224,7 @@ async function buscarClienta(){
           ${pausas.map(x=>`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px">
             <b>${esc(x.titulo||'Producto')}</b>
             <span class="muted" style="font-size:12px">vuelve el ${esc(x.reanudar_el||'—')}${x.precio!=null?' · '+esc(String(x.precio))+' €':''} · contrato ${esc(x.contractId||'')}</span>
+            <button class="btn" style="padding:4px 10px;font-size:12px" onclick="reponerPausaProducto(${Number(x.id)},'${esc(x.titulo||'').replace(/'/g,'')}',this)">Traerlo ya</button>
             <button class="btn" style="padding:4px 10px;font-size:12px" onclick="cancelarPausaProducto(${Number(x.id)},'${esc(x.titulo||'').replace(/'/g,'')}',this)">Cancelar su vuelta</button>
           </div>`).join('')}
         </div>` : '';
@@ -1249,6 +1250,22 @@ async function cancelarPausaProducto(pausaId, titulo, btn){
     else { btn.disabled = false; btn.textContent = 'Cancelar su vuelta';
            alert(d.error==='pausa_no_valida' ? 'Esa pausa ya no estaba activa (el producto ya volvió o ya se canceló).' : 'No se pudo cancelar.'); }
   }catch(e){ btn.disabled = false; btn.textContent = 'Cancelar su vuelta'; alert('Error de conexión.'); }
+}
+
+// Traer ya un producto pausado (la clienta lo pide antes de su fecha). Es lo mismo que
+// hará el cron ese día: entra en la próxima entrega y se le cobra — por eso se avisa.
+async function reponerPausaProducto(pausaId, titulo, btn){
+  if(!confirm('¿Traer ya "'+titulo+'" a su plan?\n\nEntrará en su PRÓXIMA entrega y se le cobrará en ella, sin esperar a la fecha que eligió. Se le envía un email avisando.')) return;
+  btn.disabled = true; btn.textContent = 'Reponiendo…';
+  try{
+    const r = await api('/api/dashboard/pausa-reponer', {pausaId});
+    const d = await r.json().catch(()=>({}));
+    if(r.ok && d.ok){ btn.textContent = 'Repuesto ✓'; setTimeout(buscarClienta, 800); }
+    else { btn.disabled = false; btn.textContent = 'Traerlo ya';
+           alert(d.error==='sin_contrato_activo' ? 'Esa clienta ya no tiene ese plan activo: no hay dónde reponerlo (la pausa queda cerrada).'
+               : d.error==='pausa_no_valida' ? 'Esa pausa ya no estaba activa.'
+               : 'No se pudo reponer'+(d.detalle?': '+d.detalle:'.')); }
+  }catch(e){ btn.disabled = false; btn.textContent = 'Traerlo ya'; alert('Error de conexión.'); }
 }
 
 document.getElementById('cliEmail').addEventListener('keydown',e=>{ if(e.key==='Enter') buscarClienta(); });
