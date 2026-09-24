@@ -1214,15 +1214,43 @@ async function buscarClienta(){
           <td class="muted" style="white-space:nowrap">${esc(c.proxima||'—')}</td>
           <td class="muted" style="font-size:11px">${esc(c.contractId||'')}</td>
         </tr>`).join('');
+      // Productos PAUSADOS: no están en Appstle ni en Shopify (les quitamos la línea),
+      // solo en nuestra base con una fecha de vuelta. Si no se pintan aquí, el equipo no
+      // puede ni verlos ni parar la reposición cuando la clienta cambia de idea.
+      const pausas = (p.planes||[]).flatMap(pl => (pl.pausas||[]).map(x => ({...x, contractId: pl.contractId})));
+      const bloquePausas = pausas.length ? `
+        <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+          <div class="muted" style="font-size:12px;font-weight:700;letter-spacing:.04em">PRODUCTOS EN PAUSA</div>
+          ${pausas.map(x=>`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px">
+            <b>${esc(x.titulo||'Producto')}</b>
+            <span class="muted" style="font-size:12px">vuelve el ${esc(x.reanudar_el||'—')}${x.precio!=null?' · '+esc(String(x.precio))+' €':''} · contrato ${esc(x.contractId||'')}</span>
+            <button class="btn" style="padding:4px 10px;font-size:12px" onclick="cancelarPausaProducto(${Number(x.id)},'${esc(x.titulo||'').replace(/'/g,'')}',this)">Cancelar su vuelta</button>
+          </div>`).join('')}
+        </div>` : '';
       return `<div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:12px">
         ${cabecera}
         <div style="overflow-x:auto;margin-top:10px"><table>
           <thead><tr><th>Estado</th><th>Productos</th><th>Frecuencia</th><th>Próxima</th><th>Contrato</th></tr></thead>
           <tbody>${filas||'<tr><td colspan="5" class="muted">Sin contratos</td></tr>'}</tbody>
-        </table></div></div>`;
+        </table></div>
+        ${bloquePausas}</div>`;
     }).join('');
   }catch(e){ box.innerHTML='<div class="empty">Error al consultar.</div>'; }
 }
+// Cancelar la vuelta de un producto pausado. Avisa a la clienta por email (el worker) y
+// queda registrado en el repositorio con quién lo hizo.
+async function cancelarPausaProducto(pausaId, titulo, btn){
+  if(!confirm('¿Cancelar la vuelta de "'+titulo+'"?\n\nNo volverá a su plan y no se le cobrará. Se le envía un email confirmándolo.')) return;
+  btn.disabled = true; btn.textContent = 'Cancelando…';
+  try{
+    const r = await api('/api/dashboard/pausa-cancelar', {pausaId});
+    const d = await r.json().catch(()=>({}));
+    if(r.ok && d.ok){ btn.textContent = 'Cancelada ✓'; setTimeout(buscarClienta, 600); }
+    else { btn.disabled = false; btn.textContent = 'Cancelar su vuelta';
+           alert(d.error==='pausa_no_valida' ? 'Esa pausa ya no estaba activa (el producto ya volvió o ya se canceló).' : 'No se pudo cancelar.'); }
+  }catch(e){ btn.disabled = false; btn.textContent = 'Cancelar su vuelta'; alert('Error de conexión.'); }
+}
+
 document.getElementById('cliEmail').addEventListener('keydown',e=>{ if(e.key==='Enter') buscarClienta(); });
 
 // ── Repositorio de acciones (buscable) ──
