@@ -27,17 +27,20 @@ const PROD = process.argv.includes('--prod');
 const HTML = fs.readFileSync(FICHERO, 'utf8');
 const SRC = [...HTML.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]).join('\n');
 
-/** Saca una declaración completa equilibrando llaves desde su inicio. */
+/** Saca una declaración completa equilibrando su primer bloque, sea {…} o […]. */
 function extraer(decl) {
   const i = SRC.indexOf(decl);
   if (i < 0) throw new Error(`No encuentro «${decl}» en llamadas/index.html — ¿lo han renombrado?`);
-  let j = SRC.indexOf('{', i), prof = 0;
+  const llave = SRC.indexOf('{', i), cor = SRC.indexOf('[', i);
+  const abre = (cor >= 0 && (llave < 0 || cor < llave)) ? '[' : '{';
+  const cierra = abre === '[' ? ']' : '}';
+  let j = SRC.indexOf(abre, i), prof = 0;
   if (j < 0) throw new Error(`«${decl}» sin cuerpo`);
   for (; j < SRC.length; j++) {
-    if (SRC[j] === '{') prof++;
-    else if (SRC[j] === '}' && --prof === 0) return SRC.slice(i, j + 1);
+    if (SRC[j] === abre) prof++;
+    else if (SRC[j] === cierra && --prof === 0) return SRC.slice(i, j + 1);
   }
-  throw new Error(`«${decl}» con llaves sin cerrar`);
+  throw new Error(`«${decl}» sin cerrar`);
 }
 /** Saca una línea suelta (arrow de una línea, Set, etc.). */
 function linea(prefijo) {
@@ -54,19 +57,26 @@ const PIEZAS = [
   linea('const COBRO_HECHO='), linea('const CANCELAR='),
   linea('const TERMINAL='), linea('const nid='), linea('const hoyISO='), linea('const esc='),
   linea('const fechaCorta='),
+  extraer('const EQUIPO='),
+  linea('const asigDe'), linea('const duenoDe'), linea('const esMio'), linea('const sinDueno'),
+  extraer('function yo'), linea('function agActual'),
+  extraer('function botonesAsignacion'),
   extraer('function histDe'), extraer('function gestionadaHoy'),
   extraer('function casoCerrado'), extraer('function enEspera'),
   extraer('function yaRegistrada'), extraer('function gestionadasCards'),
-];
+].filter(Boolean);
 
 // Sandbox: sólo el estado que necesitan las funciones extraídas.
-const sandbox = { GEST: { byC: {}, byCust: {} }, GALL: [], FSEEN: {} };
+const sandbox = { GEST: { byC: {}, byCust: {} }, GALL: [], FSEEN: {}, ASIG: {},
+  token: 'x.' + Buffer.from(JSON.stringify({ nombre: 'Valentina', email: 'compras@wearedomma.com', role: 'retencion' })).toString('base64') + '.y' };
 const cargar = new Function('estado', `
-  let { GEST, GALL, FSEEN } = estado;
+  let { GEST, GALL, FSEEN, ASIG, token } = estado;
+  const atob = b => Buffer.from(b, 'base64').toString('utf8');
   ${PIEZAS.join('\n')}
-  return { CATALOGO, TERMINAL, CIERRA, ESPERA, COBRO_HECHO,
+  return { CATALOGO, TERMINAL, CIERRA, ESPERA, COBRO_HECHO, EQUIPO,
            gestionadaHoy, casoCerrado, enEspera, yaRegistrada, gestionadasCards,
-           set(e){ GEST = e.GEST || {byC:{},byCust:{}}; GALL = e.GALL || []; FSEEN = e.FSEEN || {}; } };
+           botonesAsignacion, duenoDe, sinDueno, esMio, agActual,
+           set(e){ GEST = e.GEST || {byC:{},byCust:{}}; GALL = e.GALL || []; FSEEN = e.FSEEN || {}; ASIG = e.ASIG || {}; } };
 `);
 const API = cargar(sandbox);
 
@@ -149,7 +159,26 @@ conGestiones([{ resultado: 'cobro_manual', created_at: d(2) + ' 10:00', email: '
 t('un cobro sin validar sigue contando en «Pagos por validar»',
   API.gestionadasCards()[0].esCobroHecho);
 
-// ── 6. Humo contra producción (opcional) ──────────────────────────────
+// ── 6. Reparto de casos entre el equipo ──────────────────────────────
+bloque('ASIGNACIÓN — se reparten fallos, bajas Y derivadas');
+API.set({ ASIG: { '502': { agente: 'Martina' }, '503': { agente: 'Valentina' } } });
+const conBotones = c => API.botonesAsignacion(c, 0);
+t('el equipo son las tres', API.EQUIPO.map(p => p.nombre).sort().join() === 'Ana,Martina,Valentina');
+for (const tipo of ['fallo', 'baja', 'derivada'])
+  t(`un caso de tipo «${tipo}» se puede repartir`, conBotones({ tipo, contract_id: '999' }).includes('Coger'));
+t('una derivada de otra se puede pasar, no coger',
+  !conBotones({ tipo: 'derivada', contract_id: '502' }).includes('Coger') &&
+   conBotones({ tipo: 'derivada', contract_id: '502' }).includes('Pasar a'));
+t('las tarjetas de sólo consulta del registro no se reparten',
+  conBotones({ tipo: 'baja', contract_id: '999', registro: true }) === '');
+t('sin contrato no hay con qué identificar el caso → sin botones',
+  conBotones({ tipo: 'derivada', contract_id: '' }) === '');
+t('«sin dueño» reconoce una derivada libre', API.sinDueno({ contract_id: '999' }));
+t('«míos» reconoce la derivada de Valentina', API.esMio({ contract_id: '503' }));
+t('…y no la de Martina', !API.esMio({ contract_id: '502' }));
+API.set({});
+
+// ── 7. Humo contra producción (opcional) ──────────────────────────────
 if (PROD) {
   bloque('PRODUCCIÓN — endpoints y páginas vivas');
   const API_BAJAS = 'https://manage.wearedomma.com';

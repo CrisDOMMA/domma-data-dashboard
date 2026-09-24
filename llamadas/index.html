@@ -337,7 +337,11 @@ function insigniaDueno(c){
 // Botones de asignación. Sólo en fallos de pago (es lo que reparte el equipo) y nunca en las
 // tarjetas de sólo consulta del registro del formulario.
 function botonesAsignacion(c,i){
-  if(c.tipo!=='fallo'||c.registro) return '';
+  // Vale para TODO lo que se trabaja: fallos, solicitudes de baja y derivadas a Ana
+  // (petición Cristina 23/09 — las derivadas también se las reparten entre ellas).
+  // Sólo se excluyen las tarjetas de sólo consulta del registro del formulario y las
+  // que no tienen contrato con el que identificar el caso.
+  if(c.registro || !nid(c.contract_id)) return '';
   const dueno=duenoDe(c);
   const opts=EQUIPO.filter(p=>p.nombre!==dueno).map(p=>`<option value="${esc(p.nombre)}">↪ Pasar a ${esc(p.nombre)}</option>`).join('');
   const coger=dueno?'':`<button class="b b-coger" onclick="asignar(${i},'${esc(agActual())}')" title="Este caso pasa a ser tuyo">🙋 Coger</button>`;
@@ -350,7 +354,8 @@ async function asignar(i, agente){
   const p=EQUIPO.find(p=>p.nombre===agente);
   try{
     const r=await fetch(API_BAJAS+'/api/dashboard/asignar',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify({contract_id:c.contract_id, agente:agente||'', agente_email:p?p.email:'', tipo_caso:c.tipo==='fallo'?'fallo_pago':'baja'})});
+      body:JSON.stringify({contract_id:c.contract_id, agente:agente||'', agente_email:p?p.email:'',
+        tipo_caso:c.tipo==='fallo'?'fallo_pago':(c.tipo||'baja')})});   // fallo_pago | baja | derivada
     if(r.status===401){ avisarSesionCaducada(); return; }
     const d=await r.json().catch(()=>({}));
     if(!d.ok){ alert('No se pudo asignar. Inténtalo otra vez.'); return; }
@@ -646,10 +651,12 @@ function render(){
   const derivPend   = vivas.filter(x=>x.tipo==='derivada');
   const reg         = dfil(REGISTRO);                       // registro completo del formulario (búsqueda)
   const cancel      = reg.filter(c=>c.cancelacion);         // subconjunto "cancelaciones" para el chip
-  // Asignación: «Míos» es el trabajo propio (llamadas + registros pendientes que son de una);
-  // «Sin dueño» es el pozo del que cada una coge. Sólo aplica a fallos de pago.
-  const mios      = [...vivas, ...porRegistrar].filter(esMio);
-  const sinDuenoL = vivas.filter(x=>x.tipo==='fallo' && sinDueno(x));
+  // Asignación: «Míos» es TODO el trabajo propio — llamadas (fallos, bajas y derivadas),
+  // registros pendientes y seguimientos. «Sin dueño» es el pozo del que cada una coge.
+  const mios      = [...vivas, ...porRegistrar, ...pausas].filter(esMio);
+  // El pozo del que cada una coge: TODO lo trabajable sin dueño (fallos, bajas y derivadas),
+  // no sólo los fallos. Fuera lo que no se puede asignar por no tener contrato.
+  const sinDuenoL = vivas.filter(x=>sinDueno(x) && nid(x.contract_id));
   const counts={todas:vivas.length, mios:mios.length, sindueno:sinDuenoL.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausas.length, fallo:vivas.filter(x=>x.tipo==='fallo').length, wacurso:waCurso.length, porregistrar:porRegistrar.length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length, cancelada:cancel.length};
   const defs=[['todas','Todas'],['mios','👤 Míos'],['sindueno','Sin dueño'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['wacurso','⏳ WhatsApp en curso'],['porregistrar','✅ Por registrar'],['cancelada','Canceladas'],['gestionadas','Contactadas'],['nolocal','No contactadas'],['porvalidar','Pagos por validar']];
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
