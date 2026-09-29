@@ -65,6 +65,7 @@ const PIEZAS = [
   extraer('function histDe'), extraer('function gestionadaHoy'),
   extraer('function casoCerrado'), extraer('function enEspera'),
   extraer('function yaRegistrada'), extraer('function gestionadasCards'),
+  linea('const soloDig='), linea('const sinPre ='), extraer('const matchB='),
 ].filter(Boolean);
 
 // Sandbox: sólo el estado que necesitan las funciones extraídas.
@@ -74,12 +75,14 @@ const cargar = new Function('estado', `
   let { GEST, GALL, FSEEN, ASIG, token } = estado;
   const atob = b => Buffer.from(b, 'base64').toString('utf8');
   const localStorage = { getItem: () => null, setItem() {} };   // arranque limpio
+  let busca = '';
   ${PIEZAS.join('\n')}
   return { CATALOGO, TERMINAL, CIERRA, ESPERA, COBRO_HECHO, EQUIPO,
            gestionadaHoy, casoCerrado, enEspera, yaRegistrada, gestionadasCards,
            botonesAsignacion, duenoDe, sinDueno, esMio, agActual, filtrarPorDueno,
            verDePorDefecto: () => verDe,
            conVerDe(v){ verDe = v; },
+           busca(q, caso){ busca = String(q||'').toLowerCase().trim(); return matchB(caso); },
            set(e){ GEST = e.GEST || {byC:{},byCust:{}}; GALL = e.GALL || []; FSEEN = e.FSEEN || {}; ASIG = e.ASIG || {}; } };
 `);
 const API = cargar(sandbox);
@@ -214,11 +217,48 @@ t('el cubo de agendadas se construye con `prox` <= hoy y sin duplicar lo vivo',
 t('«Derivadas» ya no cuenta las que están en «Agendadas»',
   /pausasFuturas\s*=\s*pausas\.filter\(c=>!yaAgendadas/.test(SRC));
 
+// ── 7b. BUSCADOR — «no encuentra a la clienta» (reportado 29/09) ──────
+// Dos fallos distintos, los dos reales:
+//   1) el corpus se construía desde los cubos YA filtrados por dueña, así que desde que la
+//      estación abre en «Mías» buscar a una clienta de otra compañera devolvía vacío;
+//   2) el móvil se comparaba como texto crudo, y llega en formatos distintos según la fuente.
+bloque('BUSCADOR — encontrar a la clienta, sea de quien sea');
+
+const CLI = { nombre: 'Teresa Agulló Gil', email: 'tagullo@gmail.com', phone: '+34687233734' };
+const SHOP = { nombre: 'Eva', email: 'eva@gmail.com', phone: '+34 655 67 29 08' };  // así lo da Shopify
+const PELA = { nombre: 'Sandra', email: 's@gmail.com', phone: '667156008' };        // así lo da el formulario
+
+t('encuentra por email', API.busca('tagullo@gmail.com', CLI));
+t('encuentra por nombre, sin importar mayúsculas', API.busca('TERESA AGULLÓ', CLI));
+t('encuentra el móvil tecleado sin prefijo aunque esté guardado con +34',
+  API.busca('687233734', CLI));
+t('encuentra el móvil de Shopify (con espacios) tecleando sólo los dígitos',
+  API.busca('655672908', SHOP));
+t('encuentra tecleando con +34 aunque esté guardado a pelo',
+  API.busca('+34667156008', PELA));
+t('encuentra tecleando el móvil con espacios, como lo dicta la clienta',
+  API.busca('687 23 37 34', CLI));
+t('no inventa coincidencias con un número corto (2 dígitos no son un teléfono)',
+  !API.busca('67', { nombre: 'Otra', email: 'o@x.com', phone: '+34911223344' }));
+t('sigue sin encontrar a quien no es', !API.busca('mercedes', CLI));
+
+// La regresión de fondo: el corpus NO puede salir de los cubos filtrados por dueña/fecha.
+const bloqueBusca = (SRC.match(/if\(busca\)\{[\s\S]{0,600}?\n\s*\}\s*else if/) || [''])[0];
+t('el corpus de búsqueda sale de LISTA + gestionadasCards() + REGISTRO, sin filtrar',
+  /\.\.\.LISTA/.test(bloqueBusca) && /gestionadasCards\(\)/.test(bloqueBusca) && /\.\.\.REGISTRO/.test(bloqueBusca));
+t('la búsqueda NO hereda «La lista de: …» ni el filtro de fecha',
+  !/\bvivas\b|\bcontactadas\b|\bnolocal\b|\bporRegistrar\b|\bagendadas\b|\breg\b/.test(bloqueBusca));
+t('filtrarPorDueno sigue gobernando la lista del día (no se ha desactivado)',
+  /vivas\s*=\s*vd\(vivas\)/.test(SRC) && /const vd\s*=\s*l=>filtrarPorDueno/.test(SRC));
+
 // ── 8. Humo contra producción (opcional) ──────────────────────────────
 if (PROD) {
   bloque('PRODUCCIÓN — endpoints y páginas vivas');
   const API_BAJAS = 'https://manage.wearedomma.com';
-  const pedir = async (u, o) => { try { return await fetch(u, { signal: AbortSignal.timeout(30000), ...o }); }
+  // 90s, no 30: /today recorre los ~650 intentos de cobro de Appstle y tarda entre 14s y 47s
+  // medidos el 29/09. Con 30s el humo cantaba «/today no responde» estando perfectamente vivo,
+  // y un test que da falsas alarmas acaba ignorándose entero.
+  const pedir = async (u, o) => { try { return await fetch(u, { signal: AbortSignal.timeout(90000), ...o }); }
                                   catch { return { ok: false, status: 0 }; } };
   for (const [nombre, ruta] of [['asignar', '/api/dashboard/asignar'], ['fallos-sync', '/api/dashboard/fallos-sync'],
                                 ['gestion', '/api/dashboard/gestion']]) {

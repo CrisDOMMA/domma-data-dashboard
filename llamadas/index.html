@@ -691,10 +691,28 @@ function render(){
   document.getElementById('dateClear').style.display=fechaFil?'inline-block':'none';
   // Búsqueda: encuentra a CUALQUIERA — pendientes de llamar + contactadas + no contactadas
   // (aunque su caso ya no esté en la lista). Sin búsqueda: respeta el chip.
-  const matchB=c=>((c.nombre||'')+' '+(c.email||'')+' '+(c.phone||'')).toLowerCase().includes(busca);
+  //
+  // ⚠️ El corpus va SIN `vd()` y SIN `dfil()` a propósito. Antes se construía a partir de los
+  // cubos ya filtrados, así que la búsqueda heredaba «La lista de: …» y el filtro de fecha:
+  // desde que la estación abre en «Mías» (24/09), buscar el email de una clienta que es de otra
+  // compañera —o que no tiene dueña— no devolvía NADA, y las activas ni siquiera caen en
+  // REGISTRO (se excluyen en `pend`). El equipo lo reportó como «no encuentra a la clienta».
+  // Buscar es preguntar «¿quién es esta mujer?», no «¿es mía?»: el filtro de dueña gobierna la
+  // lista del día, nunca la búsqueda.
+  const soloDig=s=>String(s==null?'':s).replace(/\D/g,'');
+  const sinPre =t=>t.replace(/^(0034|34)/,'');
+  const matchB=c=>{
+    if(((c.nombre||'')+' '+(c.email||'')+' '+(c.phone||'')).toLowerCase().includes(busca)) return true;
+    // Teléfonos: llegan en formatos distintos según la fuente («+34 655 67 29 08» de Shopify,
+    // «+34655672908» del formulario, «655672908» a pelo). Comparar sólo dígitos y sin prefijo,
+    // o teclear el móvil tal y como te lo dice la clienta no encuentra nada.
+    const q=soloDig(busca); if(q.length<6) return false;
+    const tel=soloDig(c.phone); if(!tel) return false;
+    return sinPre(tel).includes(sinPre(q));
+  };
   if(busca){
     const seen=new Set(); VIS=[];
-    for(const c of [...vivas, ...agendadas, ...waCurso, ...porRegistrar, ...contactadas, ...nolocal, ...pausas, ...reg]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||''); if(seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
+    for(const c of [...LISTA, ...gestionadasCards(), ...REGISTRO]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||'').toLowerCase(); if(!k||seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
   } else if(filtro==='wacurso'){ VIS=waCurso; }
   else if(filtro==='porregistrar'){ VIS=porRegistrar; }
   else if(filtro==='agendadas'){ VIS=agendadas; }
