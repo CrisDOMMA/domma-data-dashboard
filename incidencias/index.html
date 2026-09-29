@@ -105,6 +105,11 @@
   .pill.transporte{background:#EDEEF4;color:var(--navy)} .pill.almacen{background:#FCF3E0;color:var(--amber)}
   .dias{font-weight:650;font-variant-numeric:tabular-nums}
   .dias.amber{color:var(--amber)} .dias.red{color:var(--red)}
+  /* pedido + clienta en primer plano */
+  td.ped{font-weight:700;font-variant-numeric:tabular-nums;color:var(--navy);white-space:nowrap}
+  td.cli{font-weight:650;font-size:13.5px}
+  .quien{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:#EDEEF4;color:var(--navy);white-space:nowrap}
+  .quien.vacia{background:var(--track);color:var(--muted);font-weight:500}
 
   /* Modal alta/editar */
   .modal-bg{position:fixed;inset:0;background:rgba(16,22,55,.45);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:30px 16px;overflow-y:auto}
@@ -207,7 +212,7 @@
     </div>
     <div class="tablewrap">
       <table>
-        <thead><tr><th>Fecha</th><th>Clienta</th><th>Pedido</th><th>Ámbito</th><th>Tipo</th><th>Transportista</th><th>Estado</th><th>Días</th><th>Acción</th><th>Coste</th></tr></thead>
+        <thead><tr><th>Fecha</th><th>Pedido</th><th>Clienta</th><th>Ámbito</th><th>Tipo</th><th>Transportista</th><th>Estado</th><th>Días</th><th>Gestiona</th><th>Acción</th><th>Coste</th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
     </div>
@@ -248,6 +253,7 @@
       </div>
       <div class="field wide"><label>Razón / descripción *</label><textarea id="m_razon" placeholder="Qué ha pasado"></textarea></div>
       <div class="field"><label>Medio de información</label><input id="m_medio_informacion" placeholder="WhatsApp, email, ticket…"></div>
+      <div class="field"><label>Gestionada por</label><input id="m_gestionado_por" placeholder="Valentina, Ana…"></div>
       <div class="field"><label>Estado</label>
         <select id="m_estado"><option value="abierta">Abierta</option><option value="en_gestion">En gestión</option>
           <option value="a_la_espera">A la espera</option><option value="resuelta">Resuelta</option>
@@ -481,13 +487,14 @@ function pintarLista(){
     const dcls=viva?(r.dias>=7?'red':(r.dias>=3?'amber':'')):'';
     return `<tr class="click" onclick="abrirModal(${r.id})">
       <td>${esc(r.fecha_incidencia||r.fecha_registro||'')}</td>
-      <td>${esc(r.cliente_nombre||'—')}</td>
-      <td>${r.pedido_id?'#'+esc(r.pedido_id):'—'}</td>
+      <td class="ped">${r.pedido_id?'#'+esc(r.pedido_id):'—'}</td>
+      <td class="cli">${esc(r.cliente_nombre||'—')}</td>
       <td><span class="pill ${r.ambito}">${r.ambito==='transporte'?'Transporte':'Almacén'}</span></td>
       <td>${esc(L_TIPO[r.tipo]||r.tipo||'—')}</td>
       <td>${r.ambito==='transporte'?esc((r.transportista||'desconocido').toUpperCase()):'—'}</td>
       <td><span class="pill ${r.estado}">${L_ESTADO[r.estado]||r.estado}</span></td>
       <td class="dias ${dcls}">${r.dias!=null?r.dias+' d':'—'}${viva&&r.dias>=3?' ⚠️':''}</td>
+      <td>${r.gestionado_por?`<span class="quien">${esc(r.gestionado_por)}</span>`:'<span class="quien vacia">sin asignar</span>'}</td>
       <td>${esc(L_ACCION[r.accion_resolucion]||'—')}</td>
       <td>${r.coste_eur?eur(r.coste_eur):'—'}</td></tr>`;
   }).join('');
@@ -503,7 +510,7 @@ function tiposDelAmbito(sel){
   if(sel) s.value=sel;
 }
 const M_CAMPOS=['cliente_nombre','cliente_email','pedido_id','fecha_incidencia','fecha_pedido','cp',
-  'causa_responsable','razon','medio_informacion','estado','accion_resolucion','fecha_resolucion',
+  'causa_responsable','razon','medio_informacion','gestionado_por','estado','accion_resolucion','fecha_resolucion',
   'coste_eur','pedido_duplicado_id','baja_asociada','registro_fotografico','observaciones'];
 function abrirModal(id){
   EDIT_ID=id||null;
@@ -514,6 +521,9 @@ function abrirModal(id){
   tiposDelAmbito(r?r.tipo:null);
   M_CAMPOS.forEach(c=>{ const el=document.getElementById('m_'+c); el.value=r&&r[c]!=null?r[c]:(c==='estado'?'abierta':(c==='baja_asociada'||c==='registro_fotografico'?'0':'')); });
   if(!r) document.getElementById('m_fecha_incidencia').value=hoy();
+  // cuentas compartidas (ayuda@/compras@): recordar quién gestiona en este navegador
+  if(!r&&!document.getElementById('m_gestionado_por').value)
+    document.getElementById('m_gestionado_por').value=localStorage.getItem('domma_inc_gestora')||'';
   const t=r?(r.transportista||'desconocido'):'desconocido';
   const std=['gls','cex','desconocido'];
   document.getElementById('m_transportista').value=std.includes(t)?t:'otro';
@@ -540,6 +550,7 @@ function guardar(){
   p.then(d=>{
     btn.disabled=false;
     if(d.error){ err.textContent=d.error; return; }
+    if(b.gestionado_por) localStorage.setItem('domma_inc_gestora', b.gestionado_por);
     cerrarModal(); load();
   }).catch(e=>{ btn.disabled=false; err.textContent='Error: '+e.message; });
 }
