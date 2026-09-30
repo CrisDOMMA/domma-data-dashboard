@@ -251,6 +251,63 @@ t('la búsqueda NO hereda «La lista de: …» ni el filtro de fecha',
 t('filtrarPorDueno sigue gobernando la lista del día (no se ha desactivado)',
   /vivas\s*=\s*vd\(vivas\)/.test(SRC) && /const vd\s*=\s*l=>filtrarPorDueno/.test(SRC));
 
+// ── 7c. CASOS CERRADOS — registrar la llamada sin ejecutar nada (29/09) ──
+// Carme: «no em deixa CUPIDO seleccionar l'opció de tancament. Si he localizat o no, si he fet
+// una trucada o dos». La tarjeta de sólo consulta no tenía botón «Registrar», así que 176
+// mujeres que pidieron la baja y acabaron canceladas eran irregistrables: si alguien las
+// llamaba, el trabajo existía y el dato no.
+bloque('CASOS CERRADOS — que se pueda registrar la llamada');
+
+const WORKER = fs.readFileSync(
+  path.join(RAIZ, '..', 'flujo-bajas', 'worker', 'src', 'index.js'), 'utf8');
+
+t('la tarjeta de consulta CON contrato ya ofrece «Registrar»',
+  /\$\{\(c\.registro && !nid\(c\.contract_id\)\)\?''/.test(SRC));
+t('…y sin contrato sigue sin ofrecerlo (no hay dónde colgar la gestión)',
+  /!nid\(c\.contract_id\)/.test(SRC));
+t('un registro en un caso cerrado se puede deshacer',
+  /const ultGestId = c\.gestId/.test(SRC) && !/const ultGestId = !c\.registro/.test(SRC));
+t('el front avisa de que en un caso cerrado no se toca Appstle',
+  /No cambia nada en Appstle/.test(SRC));
+t('el front manda `solo_registro` al guardar',
+  /solo_registro:soloRegistro/.test(SRC));
+t('no se enseña el aviso de cancelación real cuando sólo se registra',
+  /CANCELA_APPSTLE\.has\(resultado\) && !soloRegistro/.test(SRC));
+t('ni el de pausa real', /resultado==='pausa' && !editId && !soloRegistro/.test(SRC));
+
+t('el worker NO cancela en Appstle si viene `solo_registro`',
+  /RESULTADOS_CANCELAN\.has\(resultado\) && !b\.es_test && !soloRegistro/.test(WORKER));
+t('el worker NO mueve el cobro si viene `solo_registro`',
+  /resultado === "pausa" && !b\.es_test && contractId && prox && !soloRegistro/.test(WORKER));
+t('…pero la gestión se guarda igual (el INSERT no depende del flag)',
+  /const soloRegistro = !!b\.solo_registro/.test(WORKER)
+  && WORKER.indexOf('const soloRegistro') < WORKER.indexOf('INSERT INTO gestiones'));
+t('el email de 72h sigue atado SÓLO a fallo_pago + intento_2',
+  /tipo === "fallo_pago" && resultado === "intento_2"/.test(WORKER));
+
+// ── 7d. SOLICITUDES — dedupear antes de cortar, y no callar el tope ───
+bloque('SOLICITUDES — el tope cuenta mujeres, no pulsaciones');
+t('ya no se corta a 60 filas antes de dedupear',
+  !/accion_final === "solicitud_baja"\)[\s\S]{0,200}?\.slice\(0, 60\)/.test(WORKER));
+t('se agrupa por clienta ANTES de aplicar el tope',
+  WORKER.indexOf('porClienta.set') < WORKER.indexOf('todas.slice(0, MAX_SOLICITUDES)'));
+t('el tope es de clientas y sube a 200', /MAX_SOLICITUDES = 200/.test(WORKER));
+t('se queda con la solicitud MÁS RECIENTE de cada clienta',
+  /String\(x\.created_at \|\| ""\) > String\(prev\.created_at \|\| ""\)/.test(WORKER));
+t('lo que el tope descarta se publica, no se calla',
+  /solicitudes\.descartadas = solicitudes_descartadas/.test(WORKER)
+  && /solicitudes\.total_clientas = todas\.length/.test(WORKER));
+
+// ── 7e. «reactivada después» tiene que significar después ─────────────
+bloque('REACTIVADA — «después» significa después');
+t('se guarda la FECHA de la reactivación, no sólo que exista',
+  /MAX\(COALESCE\(occurred_at, received_at\)\)/.test(WORKER) && /reactivadosMap/.test(WORKER));
+t('el flag compara con la fecha de la solicitud',
+  /reactivada: reactivadaDespues\(r\.customer_id, r\.created_at\)/.test(WORKER));
+t('sin fecha de reactivación, no se marca',
+  /if \(!ult\) return false/.test(WORKER));
+t('ya no queda el Set antiguo sin fechas', !/reactivadosSet/.test(WORKER));
+
 // ── 8. Humo contra producción (opcional) ──────────────────────────────
 if (PROD) {
   bloque('PRODUCCIÓN — endpoints y páginas vivas');

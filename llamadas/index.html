@@ -782,7 +782,9 @@ function setFecha(v){ fechaFil=v||''; const el=document.getElementById('dateFil'
 function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
   // Última gestión de esta clienta (para el botón fijo «Deshacer»). No aplica a las de solo consulta (registro).
-  const ultGestId = !c.registro ? (c.gestId || ((histDe(c)[0]||{}).id)) : null;
+  // También en las tarjetas de consulta: si ahora se puede registrar una llamada ahí, tiene
+  // que poder deshacerse. Un registro que no se puede corregir se convierte en dato malo.
+  const ultGestId = c.gestId || ((histDe(c)[0]||{}).id) || null;
   const chip = c.registro?`<span class="chip ${(c.directa||c.estado==='pausa')?'green':'amber'}">${c.directa?'Baja ✓':c.estado==='solicitud_baja'?'Baja solicitada':c.estado==='pausa'?'Pausada':'Derivada'}</span>`
     : c.resuelto?(c.salida==='cancelada'?'<span class="chip red">Canceló</span>'
                  :c.salida==='pausada'?'<span class="chip amber">Pausada</span>'
@@ -808,7 +810,7 @@ function tarjeta(c,i){
         ${(c.esCobroHecho&&c.gestId)?`<button class="b b-validar" onclick="marcarPagado(${i},'${esc(String(c.gestId))}',this)" title="Validar que el cobro se ha realizado">✓ Marcar pagado</button>`:''}
         ${botonesAsignacion(c,i)}
         ${ultGestId?`<button class="b b-undo" onclick="borrarGestion('${esc(String(ultGestId))}',this)" title="Deshacer la última gestión de esta clienta: vuelve a quedar como antes. No afecta a su suscripción.">🗑 Deshacer</button>`:''}
-        ${c.registro?'':`<button class="b b-manage" onclick="reveal(${i})">Registrar</button>`}
+        ${(c.registro && !nid(c.contract_id))?'':`<button class="b b-manage" onclick="reveal(${i})">Registrar</button>`}
       </div>
       <div class="dispo" id="d${i}" hidden></div>
       <div class="done" id="done${i}" hidden></div>
@@ -818,7 +820,12 @@ function toggleHist(i,el){ const d=document.getElementById('hist'+i); if(!d)retu
 function reveal(i){
   const d=document.getElementById('d'+i);
   d.hidden=false; d.dataset.c=''; d.dataset.edit=''; d.dataset.sel=''; d.dataset.contacto='';
+  // En un caso ya cerrado se registra la llamada pero NO se vuelve a ejecutar nada en Appstle
+  // (ver `solo_registro` en el worker). Decirlo aquí evita la duda de «¿esto la cancela otra vez?».
+  const avisoCerrado = VIS[i] && VIS[i].registro
+    ? `<div class="dispo-q" style="font-weight:400;opacity:.75;font-size:13px">Caso ya cerrado: esto deja constancia de tu llamada. No cambia nada en Appstle.</div>` : '';
   d.innerHTML=`<div class="dispo-head"><span class="dispo-title">Registrar la llamada</span><button class="dispo-close" onclick="cerrar(${i})" title="Cerrar">✕</button></div>
+    ${avisoCerrado}
     <div class="dispo-q">¿Has podido hablar con ella?</div>
     <div class="seg"><button class="segb" onclick="paso2(${i},'localizada',this)">Sí, localizada</button><button class="segb" onclick="paso2(${i},'no_localizada',this)">No localizada</button></div>
     <div id="res${i}"></div>`;
@@ -930,13 +937,16 @@ async function guardar(i){
   // fecha (fin de pausa, recomendado 4-6 semanas) para que salga en Derivadas y se resuelva.
   if(resultado==='pausa' && !prox){ if(msg){ msg.textContent='Pon la fecha de recontacto (fin de pausa, recomendado 4-6 semanas).'; msg.style.color='var(--red)'; } return; }
   if(resultado==='pausa' && prox<=hoyISO()){ if(msg){ msg.textContent='La fecha de fin de pausa debe ser futura.'; msg.style.color='var(--red)'; } return; }
+  // Caso ya cerrado (tarjeta de consulta): se registra, no se ejecuta. Los avisos de abajo
+  // hablan de acciones reales en Appstle, así que aquí serían mentira y darían miedo de balde.
+  const soloRegistro = !!(caso && caso.registro);
   // La pausa EJECUTA en Appstle (mueve el próximo cobro a la fecha) → confirmación explícita.
-  if(resultado==='pausa' && !editId){
+  if(resultado==='pausa' && !editId && !soloRegistro){
     const quienP=(caso&&caso.nombre)?caso.nombre:'esta clienta';
     if(!confirm(`⏸️ Esto APLAZA el próximo cobro de ${quienP} en Appstle al ${fechaCorta(prox)} (fin de pausa).\n\nNo se le cobrará nada hasta esa fecha.\n\n¿Aplicar la pausa?`)) return;
   }
   // Cancelación = acción REAL en Appstle (no solo registro) → confirmación explícita.
-  if(CANCELA_APPSTLE.has(resultado)){
+  if(CANCELA_APPSTLE.has(resultado) && !soloRegistro){
     const quien=(caso&&caso.nombre)?caso.nombre:'esta clienta';
     if(editId){
       if(!confirm(`Vas a cambiar el registro a «${RES_LABEL[resultado]}».\n\nOJO: editar un registro NO cancela la suscripción en Appstle. Si hay que cancelarla de verdad, hazlo desde «Registrar» o directamente en Appstle.\n\n¿Guardar el cambio?`)) return;
@@ -959,7 +969,7 @@ async function guardar(i){
       return;
     }
     // ── REGISTRAR una gestión nueva ──
-    const body={tipo_caso:caso.tipo==='fallo'?'fallo_pago':'baja', customer_id:caso.customer_id||'', contract_id:caso.contract_id||'', nombre:caso.nombre||'', email:caso.email||'', phone:caso.phone||'', contacto, resultado, agente:agActual(), nota, proxima_llamada:prox};
+    const body={tipo_caso:caso.tipo==='fallo'?'fallo_pago':'baja', customer_id:caso.customer_id||'', contract_id:caso.contract_id||'', nombre:caso.nombre||'', email:caso.email||'', phone:caso.phone||'', contacto, resultado, agente:agActual(), nota, proxima_llamada:prox, solo_registro:soloRegistro};
     const r=await fetch(API_BAJAS+'/api/dashboard/gestion',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
     const d=await r.json().catch(()=>null);
     if(sesionCaducada(r,d)){ avisarSesion(msg, gb); return; }
