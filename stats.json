@@ -25,8 +25,10 @@
     "pelo_unas":         { "label": "Pelo y uñas frágiles",    "pct": 39, "base": 85055, "olas": "shopify,shopify_v2,luna" }
   },
 
-  "top3_pct": 65,
+  "top_pct": 65,
+  "segundo_pct": 64,
   "sofoco_pct": 53,
+  "_titular": "El síntoma más común no es el sofoco (53%): el aumento de peso y la hinchazón empatan al 65%, seguidos de fatiga e insomnio al 64%. Antes del recálculo del 01/10/2026 la tesis era «fatiga, peso e insomnio empatan al 65%»: ese empate ya no existe y hinchazón pasó de quinta a primera. Si vuelven a moverse los puestos, hay que reescribir la prosa de la página además de los números — build_stats.py estampa cifras, no frases.",
 
   "fuentes": {
     "revenuehunt_woocommerce": 65586,
