@@ -1,6 +1,8 @@
 {
-  "_doc": "FUENTE ÚNICA DE VERDAD de la Radiografía de la Menopausia DOMMA. Edita AQUÍ y corre build_stats.py para propagar a radiografia.wearedomma.com, landing AEEM y dashboard. NO edites las cifras a mano en los HTML.",
-  "fecha_corte": "2026-07-14",
+  "_doc": "FUENTE ÚNICA DE VERDAD de la Radiografía de la Menopausia DOMMA. Edita AQUÍ y corre build_stats.py para propagar a radiografia.wearedomma.com, landing AEEM y dashboard. NO edites las cifras a mano en los HTML. OJO: este fichero se sirve en público (data.wearedomma.com/stats.json) — las notas de trabajo van en DOMMA-BI/RECALCULO_RADIOGRAFIA_01oct2026.md, no aquí.",
+  "_metodologia": "Prevalencia autorreportada. El % de cada síntoma se calcula sobre las mujeres a las que SÍ se les preguntó por él: los cuestionarios cambiaron entre 2022 y 2026 y no todas las olas ofrecían la misma lista. El campo 'base' de cada síntoma indica ese denominador y 'olas' su procedencia. Sólo se publican síntomas con pregunta directa.",
+
+  "fecha_corte": "2026-10-01",
   "n_total": 100000,
   "n_total_label": "100.000",
   "n_total_exacto": 99568,
@@ -8,27 +10,31 @@
   "n_analizada_label": "95.000",
   "n_analizada_exacto": 94651,
   "periodo": "2022-2026",
+
   "sintomas": {
-    "fatiga":     { "label": "Fatiga",          "pct": 65 },
-    "peso":       { "label": "Aumento de peso",  "pct": 65 },
-    "insomnio":   { "label": "Insomnio",         "pct": 65 },
-    "libido":     { "label": "Baja libido",      "pct": 63 },
-    "hinchazon":  { "label": "Hinchazón",        "pct": 56 },
-    "sofoco":     { "label": "Sofoco",           "pct": 54 },
-    "emocional":  { "label": "Inestabilidad emocional", "pct": 52 },
-    "sequedad":   { "label": "Sequedad vaginal", "pct": 49 },
-    "articular":  { "label": "Dolor articular",  "pct": 46 },
-    "pelo_unas":  { "label": "Pelo y uñas frágiles", "pct": 33 },
-    "sudores_nocturnos": { "label": "Sudores nocturnos", "pct": 14 }
+    "peso":              { "label": "Aumento de peso",         "pct": 65, "base": 98363, "olas": "woo,shopify,shopify_v2,luna" },
+    "hinchazon":         { "label": "Hinchazón",               "pct": 65, "base": 76383, "olas": "shopify,shopify_v2" },
+    "fatiga":            { "label": "Fatiga",                  "pct": 64, "base": 98363, "olas": "woo,shopify,shopify_v2,luna" },
+    "insomnio":          { "label": "Insomnio",                "pct": 64, "base": 98363, "olas": "woo,shopify,shopify_v2,luna" },
+    "libido":            { "label": "Baja libido",             "pct": 62, "base": 89691, "olas": "woo,shopify,shopify_v2" },
+    "emocional":         { "label": "Inestabilidad emocional", "pct": 60, "base": 85055, "olas": "shopify,shopify_v2,luna" },
+    "sofoco":            { "label": "Sofoco",                  "pct": 53, "base": 98363, "olas": "woo,shopify,shopify_v2,luna" },
+    "articular":         { "label": "Dolor articular",         "pct": 52, "base": 85055, "olas": "shopify,shopify_v2,luna" },
+    "sequedad":          { "label": "Sequedad vaginal",        "pct": 48, "base": 98363, "olas": "woo,shopify,shopify_v2,luna" },
+    "sudores_nocturnos": { "label": "Sudores nocturnos",       "pct": 48, "base": 24105, "olas": "woo,shopify_v2" },
+    "pelo_unas":         { "label": "Pelo y uñas frágiles",    "pct": 39, "base": 85055, "olas": "shopify,shopify_v2,luna" }
   },
+
   "top3_pct": 65,
-  "sofoco_pct": 54,
+  "sofoco_pct": 53,
+
   "fuentes": {
     "revenuehunt_woocommerce": 65586,
     "revenuehunt_shopify": 15757,
     "typeform_principal": 13308,
     "typeform_fisico": 729,
-    "quiz_luna": 4171
+    "quiz_luna": 8672
   },
-  "pie_prevalencia": "Prevalencia autorreportada · % sobre ~95.000 analizados · registro +100.000"
+
+  "pie_prevalencia": "Prevalencia autorreportada · % sobre la base que preguntaba cada síntoma (24.105–98.363) · registro +100.000"
 }

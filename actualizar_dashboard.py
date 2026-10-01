@@ -824,14 +824,47 @@ def combinar_datos(resultados):
     tf_total = next((r.get("total", 0) for r in resultados if "Typeform Principal" in r.get("fuente", "")), 0)
 
     # Top sintomas porcentaje
+    # ------------------------------------------------------------------
+    # DENOMINADOR POR SÍNTOMA (arreglado 01/10/2026)
+    # ------------------------------------------------------------------
+    # Antes esto dividía por `total` (la suma de TODAS las fuentes) para todos
+    # los síntomas. Pero cada ola del test preguntaba cosas distintas:
+    # `sudores_nocturnos` no se preguntaba en la ola grande de Shopify, y
+    # `hinchazon`/`dolor_articular`/`pelo_unas`/`perdida_memoria` no se
+    # preguntaban en WooCommerce. Dividir por el total hunde justo esos: en la
+    # base de estudio de Postgres, sudores nocturnos salía al 13% con el
+    # denominador común cuando con el correcto es 44%.
+    #
+    # El denominador correcto de un síntoma es la suma de los totales de las
+    # fuentes que SÍ lo preguntaban. Se detecta por presencia: si una fuente no
+    # tiene ni un solo caso de ese síntoma, no estaba en su menú. A estos
+    # volúmenes (decenas de miles por fuente) un síntoma ofrecido y marcado cero
+    # veces no existe, así que la heurística es segura.
+    #
+    # La verdad canónica de esto vive en `quiz_sintoma_ola` (DOMMA-BI/
+    # quiz_schema.sql): si algún día este script lee de Postgres, usa esa tabla.
+    def base_de(clave, campo):
+        base = sum(r.get("total", 0) for r in resultados
+                   if r.get(campo, {}).get(clave, 0) > 0)
+        return base or total
+
     top_sintomas = {}
+    bases_sintomas = {}
     for s, count in sintoma_combined.most_common(10):
-        top_sintomas[s] = round(count / total * 100, 1)
+        base = base_de(s, "sintomas")
+        top_sintomas[s] = round(count / base * 100, 1)
+        bases_sintomas[s] = base
 
     # Top emocional porcentaje
     top_emo = {}
     for e, count in emo_combined.most_common(10):
-        top_emo[e] = round(count / total * 100, 1)
+        top_emo[e] = round(count / base_de(e, "emocional") * 100, 1)
+
+    # Auditoría: que se vea cuándo un síntoma NO se preguntó en todas las olas.
+    print("\n  Denominador por síntoma (≠ total ⇒ no se preguntaba en todas las olas):")
+    for s, base in sorted(bases_sintomas.items(), key=lambda x: x[1]):
+        marca = "" if base == total else f"  ← {total - base:,} no lo preguntaban"
+        print(f"    {s:<26}{top_sintomas[s]:>6}%  sobre {base:>7,}{marca}")
 
     # Canal porcentaje
     canal_total = sum(canal_combined.values()) or 1
