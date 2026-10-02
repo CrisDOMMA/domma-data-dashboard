@@ -145,14 +145,28 @@ def stamp_radiografia(html, S):
 
 
 def stamp_aeem(html, S):
-    n = S["n_total_label"]
-    log = []
-    fallos = []
-    # "6 patrones clínicos basados en 90.000 mujeres"  (los 65%/55% de AEEM son CSS, no tocar)
-    html, c = re.subn(r'(basados en )[\d.]+( mujeres)', rf'\g<1>{n}\g<2>', html)
-    log.append(f"    N ·mujeres: {c}")
-    if c == 0:
-        fallos.append("N ·mujeres")
+    # La landing de AEEM NO tiene prevalencias: todos sus % son CSS (anchos,
+    # gradientes, border-radius) — auditado el 02/10/2026, no tocar.
+    # Lo que sí tiene son DOS cifras de N, y hasta hoy sólo se estampaba una:
+    # decía «basados en 100.000 mujeres» y, tres líneas más abajo, «90K mujeres
+    # en el estudio». Las dos van ahora en CUESTIONARIOS, porque los tests
+    # (104.140) y las mujeres (98.842) no son lo mismo: parte de la muestra
+    # repitió el cuestionario, así que «104.000 mujeres» sería falso.
+    tests = S["n_tests_label"]
+    log, fallos = [], []
+
+    def sub(pattern, repl, label):
+        nonlocal html
+        html, c = re.subn(pattern, repl, html)
+        log.append(f"    {label}: {c}")
+        if c == 0:
+            fallos.append(f"AEEM · {label}")
+
+    sub(r'(basados en )[\d.]+( cuestionarios)', rf'\g<1>{tests}\g<2>', "N ·cuestionarios")
+    # Tarjeta del hero: «104K cuestionarios del estudio»
+    kval = round(S["n_tests"] / 1000)
+    sub(r'(class="hp-n">)\d+K(</span><span class="hp-l">cuestionarios)',
+        rf'\g<1>{kval}K\g<2>', "N ·hero (K)")
     return html, log, fallos
 
 

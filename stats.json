@@ -2,7 +2,7 @@
   "_doc": "FUENTE ÚNICA DE VERDAD de la Radiografía de la Menopausia DOMMA. Edita AQUÍ y corre build_stats.py para propagar a radiografia.wearedomma.com, landing AEEM y dashboard. NO edites las cifras a mano en los HTML. OJO: este fichero se sirve en público (data.wearedomma.com/stats.json) — las notas de trabajo van en DOMMA-BI/RECALCULO_RADIOGRAFIA_01oct2026.md, no aquí.",
   "_metodologia": "Prevalencia autorreportada. El % de cada síntoma se calcula sobre las mujeres a las que SÍ se les preguntó por él: los cuestionarios cambiaron entre 2022 y 2026 y no todas las olas ofrecían la misma lista. El campo 'base' de cada síntoma indica ese denominador y 'olas' su procedencia. Sólo se publican síntomas con pregunta directa.",
 
-  "fecha_corte": "2026-10-01",
+  "fecha_corte": "2026-10-02",
   "n_total": 100000,
   "n_total_label": "100.000",
   "n_total_exacto": 99568,
@@ -10,6 +10,21 @@
   "n_analizada_label": "95.000",
   "n_analizada_exacto": 94651,
   "periodo": "2022-2026",
+
+  "_n_doc": "Hay DOS cifras y no son la misma: los tests superan a las mujeres porque algunas repitieron el cuestionario. Decir «104.000 cuestionarios» es correcto; decir «104.000 mujeres» no lo es.",
+  "n_tests": 104140,
+  "n_tests_label": "104.000",
+  "n_mujeres": 98842,
+  "n_mujeres_label": "99.000",
+  "_n_desglose": {
+    "csv_analisis": 89691,
+    "repeticiones_quiz_nuevo": 4960,
+    "recorte_solape_temporal": 17,
+    "estudio_fisico": 729,
+    "quiz_luna_tests": 8743,
+    "quiz_luna_mujeres": 8405,
+    "nota": "Las 4.960 son segundas respuestas de la misma mujer en el quiz de ene-abr 2026 (export bruto 15.757 → 10.797 tras dedup por email). LUNA tiene 8.743 tests de 8.405 mujeres. El recorte temporal de 06_actualizar_datos_aeem.py fueron solo 17 filas, no miles."
+  },
 
   "sintomas": {
     "peso":              { "label": "Aumento de peso",         "pct": 65, "base": 98363, "olas": "woo,shopify,shopify_v2,luna" },
@@ -35,7 +50,7 @@
     "revenuehunt_shopify": 15757,
     "typeform_principal": 13308,
     "typeform_fisico": 729,
-    "quiz_luna": 8672
+    "quiz_luna": 8743
   },
 
   "pie_prevalencia": "Prevalencia autorreportada · % sobre la base que preguntaba cada síntoma (24.105–98.363) · registro +100.000"
