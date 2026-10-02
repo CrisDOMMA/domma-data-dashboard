@@ -328,6 +328,12 @@ t('los correos a la clienta nombran a Marta, que es la coach real',
   && !/sesión con Ana/.test(WORKER));
 t('…y el enlace de agenda sigue siendo el calendario compartido «Coach Domma»',
   /AGENDA_COACH = "https:\/\/calendar\.app\.google\/ZVoMELJseJ8TBZMg7"/.test(WORKER));
+t('el worker normaliza los alias retirados al ESCRIBIR (sesiones cacheadas)',
+  /const ALIAS_AGENTE = \{ Ana: "Carme"/.test(WORKER)
+  && /normAgente\(b\.agente\)\.slice\(0, 60\)/.test(WORKER)
+  && /const agente = normAgente\(b\.agente\)/.test(WORKER));
+t('…porque el JWT se cachea y una sesión abierta sigue firmando con el nombre viejo',
+  /se cachea en el navegador/.test(WORKER));
 t('queda escrito POR QUÉ los dos nombres conviven (si no, alguien los unifica)',
   /PSEUDÓNIMOS/.test(WORKER) && /PSEUDÓNIMOS/.test(SRC));
 
