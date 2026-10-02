@@ -364,7 +364,7 @@
   <div class="tabpane" id="tab-resumen" style="display:none">
     <div class="rz-hero card">
       <div class="rz-resc">
-        <div class="rz-ct">Rescate de Ana · retención real</div>
+        <div class="rz-ct">Rescate de Carme · retención real</div>
         <div class="rz-big" id="rescBig"></div>
         <div class="rz-types" id="rescTypes"></div>
       </div>
@@ -655,7 +655,7 @@ function render(){
     : `<span class="rz-n" style="color:var(--muted)">0</span><span class="rz-u">aún sin rescates registrados</span>`;
   document.getElementById('rescTypes').innerHTML = rc.total
     ? RT.map(([kk,l,col])=>`<div class="rz-trow"><span class="rz-dot" style="background:${col}"></span><span class="rz-tname">${l}</span><span class="rz-tn">${money(rc[kk]||0)}</span></div>`).join('')
-    : `<div class="hint" style="margin:6px 0 0">En cuanto Ana registre sus llamadas en «A quién llamo», verás aquí <b>de qué</b> retiene: pausa, cambio de producto, cambio de fecha, cross-sell…</div>`;
+    : `<div class="hint" style="margin:6px 0 0">En cuanto Carme registre sus llamadas en «A quién llamo», verás aquí <b>de qué</b> retiene: pausa, cambio de producto, cambio de fecha, cross-sell…</div>`;
 
   // Embudo del periodo
   const pctW = decid && k.sesiones ? Math.round(100*decid/k.sesiones) : 0;
@@ -700,7 +700,7 @@ function render(){
   document.getElementById('accion').classList.toggle('alert', pendTotal>0);
   document.getElementById('accion').innerHTML = `
     <div class="rz-abig">${money(pendTotal)}</div>
-    <div class="rz-asub">clientas <b>esperando la llamada de Ana</b><br>${money(sol.pendientes.length)} piden baja · ${money(k.derivadas)} derivada${k.derivadas===1?'':'s'} a Ana${tarde?` · <b style="color:var(--red)">${tarde} pasa${tarde===1?'':'n'} de 72 h</b>`:''}</div>
+    <div class="rz-asub">clientas <b>esperando la llamada de Carme</b><br>${money(sol.pendientes.length)} piden baja · ${money(k.derivadas)} derivada${k.derivadas===1?'':'s'} a Carme${tarde?` · <b style="color:var(--red)">${tarde} pasa${tarde===1?'':'n'} de 72 h</b>`:''}</div>
     <a class="rz-cta" href="https://data.wearedomma.com/llamadas" target="_blank" rel="noopener">📞 Ir a «A quién llamo» →</a>`;
 
   // ── Análisis (pestaña «Por qué se van»), con el dato del periodo comparado al lado ──
@@ -751,7 +751,7 @@ function renderLlamar(){
   if(!document.getElementById('llamarBody')) return;   // pestaña movida a la estación /llamadas
   const nBaja = LLAMAR.filter(x=>x.tipo==='baja').length, nDer = LLAMAR.filter(x=>x.tipo==='derivada').length;
   document.getElementById('llamarCount').textContent = `· ${LLAMAR.length} por llamar`;
-  const defs = [['todas','Todas',LLAMAR.length],['baja','Solicitudes de baja',nBaja],['derivada','Derivadas a Ana',nDer]];
+  const defs = [['todas','Todas',LLAMAR.length],['baja','Solicitudes de baja',nBaja],['derivada','Derivadas a Carme',nDer]];
   document.getElementById('llamarFilters').innerHTML = defs.map(([k,l,n])=>
     `<span class="chip ${llamarFilter===k?'on':''}" onclick="setLlamarFilter('${k}')">${l} <b>${n}</b></span>`).join('');
   let list = (llamarFilter==='todas' ? LLAMAR : LLAMAR.filter(x=>x.tipo===llamarFilter))
@@ -1100,14 +1100,14 @@ function gestPill(g){
 function gestLine(g){ const t=RES_TONE[g.resultado]||''; return `<div class="gest-line"><span class="dispo-pill ${t}">${esc(RES_LABEL[g.resultado]||g.resultado)}</span><span class="gest-line-meta">${g.contacto==='no_localizada'?'no localizada':'localizada'}${g.agente?' · '+esc(g.agente):''} · ${fechaCorta(g.created_at)}</span>${g.nota?`<div class="gest-line-nota">${esc(g.nota)}</div>`:''}</div>`; }
 function histHtml(caso){ const h=histGestiones(caso); if(!h.length) return '<div class="gest-hist-empty">Sin gestiones registradas todavía.</div>'; return '<div class="gest-hist-t">Gestiones anteriores</div>'+h.slice(0,6).map(gestLine).join(''); }
 // Renombra los motivos técnicos a algo accionable en el listado (#5).
-function labelMotivo(m){ const M={gate_2pedidos:'Menos de 2 pedidos · acompañar',min_2_pedidos:'Menos de 2 pedidos · acompañar',min_permanencia:'Aún sin permanencia · acompañar',fallo_pago:'Fallo de pago',coach:'Derivada a Ana',salud:'Baja médica',incompatible:'Incompatibilidad con tratamiento',acumulo:'Acumulo producto',resultados:'No noté resultados',resuelto:'Ya resuelto · no lo necesito',puntual:'Solo lo quería puntual',precio:'Precio',economico:'Motivo económico',medicacion:'Incompatible medicación',direccion:'Cambio de dirección',otro:'Otro motivo'}; return M[m]||(m? m.charAt(0).toUpperCase()+m.slice(1) : '—'); }
-// «Por qué» de una derivada a Ana: usa el comentario técnico si lo hay, si no el motivo.
+function labelMotivo(m){ const M={gate_2pedidos:'Menos de 2 pedidos · acompañar',min_2_pedidos:'Menos de 2 pedidos · acompañar',min_permanencia:'Aún sin permanencia · acompañar',fallo_pago:'Fallo de pago',coach:'Derivada a Carme',salud:'Baja médica',incompatible:'Incompatibilidad con tratamiento',acumulo:'Acumulo producto',resultados:'No noté resultados',resuelto:'Ya resuelto · no lo necesito',puntual:'Solo lo quería puntual',precio:'Precio',economico:'Motivo económico',medicacion:'Incompatible medicación',direccion:'Cambio de dirección',otro:'Otro motivo'}; return M[m]||(m? m.charAt(0).toUpperCase()+m.slice(1) : '—'); }
+// «Por qué» de una derivada a Carme: usa el comentario técnico si lo hay, si no el motivo.
 function porQueDeriv(s){
   const CM={min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Tiene un fallo de pago'};
   const c=(s.comentario||'').trim();
   const cleg = CM[c] || (c && c.length<=60 ? c : '');
   const m = labelMotivo(s.motivo);
-  return cleg || (m && m!=='—' ? m : 'Derivada a Ana');
+  return cleg || (m && m!=='—' ? m : 'Derivada a Carme');
 }
 // Estado de llamada de una baja YA resuelta: si hubo gestión la muestra; si no, avisa en rojo.
 function resPill(caso){ const lg=ultimaGestion(caso); return lg ? gestPill(lg) : '<span class="lg-badge bad" title="Se canceló sin ninguna gestión registrada en el panel">Baja sin contactar</span>'; }

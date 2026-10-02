@@ -227,10 +227,16 @@ const SHOP_ADMIN='https://admin.shopify.com/store/wearedomma', APPSTLE_APP='subs
 // Equipo de retención al que se puede asignar un caso. Identidad real = la del login
 // (users role='retencion' en domma-pro-db); esta lista sólo alimenta el menú «Pasar a…».
 // Si entra o sale alguien del equipo, se toca AQUÍ y en domma-pro-db, en ningún sitio más.
+// ⚠️ DOMMA usa PSEUDÓNIMOS y aquí se mezclan los dos planos (decisión Cristina 02/10):
+//   `ayuda@` → **Carme** dentro del equipo · de cara a la clienta es **Marta**, la coach.
+//   Antes figuraba como «Ana», que se retira como etiqueta: las derivadas de coaching que
+//   decían «Ana» son de Carme. Migradas 551 gestiones + 133 asignaciones el 02/10.
+// El nombre REAL que se muestra sale del JWT (users.nombre en domma-pro-db), no de aquí:
+// esta lista sólo alimenta el menú «Pasar a…». Si cambia, se toca AQUÍ y en domma-pro-db.
 const EQUIPO=[
   {nombre:'Valentina', email:'compras@wearedomma.com'},
   {nombre:'Martina',   email:'martina.buxade@wearedomma.com'},
-  {nombre:'Ana',       email:'ayuda@wearedomma.com'},   // escalado: lo que no consiguen retener
+  {nombre:'Carme',     email:'ayuda@wearedomma.com'},   // escalado: lo que no consiguen retener
 ];
 let ASIG={};   // contract_id → {agente, agente_email, asignado_por, asignado_at}
 let FSEEN={};  // contract_id → first_seen: inicio del episodio de fallo EN CURSO. Es el ancla
@@ -327,7 +333,7 @@ function yo(){
 function agActual(){ return yo().nombre; }
 
 // ── Asignación ────────────────────────────────────────────────────────────────
-// Los fallos entran SIN dueño; cada una coge los suyos y «pasa a Ana» lo que no retiene.
+// Los fallos entran SIN dueño; cada una coge los suyos y «pasa a Carme» lo que no retiene.
 const asigDe   = c => ASIG[nid(c.contract_id)]||null;
 const duenoDe  = c => (asigDe(c)||{}).agente||'';
 const esMio    = c => duenoDe(c)===agActual();
@@ -343,7 +349,7 @@ function insigniaDueno(c){
 // Botones de asignación. Sólo en fallos de pago (es lo que reparte el equipo) y nunca en las
 // tarjetas de sólo consulta del registro del formulario.
 function botonesAsignacion(c,i){
-  // Vale para TODO lo que se trabaja: fallos, solicitudes de baja y derivadas a Ana
+  // Vale para TODO lo que se trabaja: fallos, solicitudes de baja y derivadas a Carme
   // (petición Cristina 23/09 — las derivadas también se las reparten entre ellas).
   // Sólo se excluyen las tarjetas de sólo consulta del registro del formulario y las
   // que no tienen contrato con el que identificar el caso.
@@ -382,8 +388,8 @@ function arrancar(){
   cargar();
 }
 
-const labelMotivo=m=>({gate_2pedidos:'Menos de 2 pedidos',min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Fallo de pago',salud:'Motivo médico',coach:'Derivada a Ana'}[m]||m||'—');
-function porQue(s){ const CM={min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Tiene un fallo de pago'}; const c=(s.comentario||'').trim(); return CM[c]||(c&&c.length<=60?c:'')||labelMotivo(s.motivo)||'Derivada a Ana'; }
+const labelMotivo=m=>({gate_2pedidos:'Menos de 2 pedidos',min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Fallo de pago',salud:'Motivo médico',coach:'Derivada a Carme'}[m]||m||'—');
+function porQue(s){ const CM={min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Tiene un fallo de pago'}; const c=(s.comentario||'').trim(); return CM[c]||(c&&c.length<=60?c:'')||labelMotivo(s.motivo)||'Derivada a Carme'; }
 
 async function cargar(){
   const H={'Content-Type':'application/json','Authorization':'Bearer '+token};

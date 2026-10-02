@@ -170,7 +170,8 @@ t('un cobro sin validar sigue contando en «Pagos por validar»',
 bloque('ASIGNACIÓN — se reparten fallos, bajas Y derivadas');
 API.set({ ASIG: { '502': { agente: 'Martina' }, '503': { agente: 'Valentina' } } });
 const conBotones = c => API.botonesAsignacion(c, 0);
-t('el equipo son las tres', API.EQUIPO.map(p => p.nombre).sort().join() === 'Ana,Martina,Valentina');
+// Carme, no Ana: `ayuda@` se renombró el 02/10 (ver bloque PSEUDÓNIMOS más abajo).
+t('el equipo son las tres', API.EQUIPO.map(p => p.nombre).sort().join() === 'Carme,Martina,Valentina');
 for (const tipo of ['fallo', 'baja', 'derivada'])
   t(`un caso de tipo «${tipo}» se puede repartir`, conBotones({ tipo, contract_id: '999' }).includes('Coger'));
 t('una derivada de otra se puede pasar, no coger',
@@ -307,6 +308,28 @@ t('el flag compara con la fecha de la solicitud',
 t('sin fecha de reactivación, no se marca',
   /if \(!ult\) return false/.test(WORKER));
 t('ya no queda el Set antiguo sin fechas', !/reactivadosSet/.test(WORKER));
+
+// ── 7f. PSEUDÓNIMOS — dos planos que no hay que «unificar» (02/10) ────
+// DOMMA usa pseudónimos: `ayuda@` es **Carme** dentro del equipo y **Marta** (la coach) de
+// cara a la clienta. Es la misma persona. La etiqueta «Ana» se retiró. Que la estación diga
+// Carme y los correos digan Marta NO es una incoherencia: es nombre interno vs nombre real.
+// Este bloque existe para que quien vea los dos nombres no los «arregle».
+bloque('PSEUDÓNIMOS — Carme dentro, Marta de cara a la clienta');
+
+t('el equipo de la estación es Carme · Valentina · Martina',
+  /nombre:'Carme',\s*email:'ayuda@wearedomma\.com'/.test(SRC)
+  && /nombre:'Valentina'/.test(SRC) && /nombre:'Martina'/.test(SRC));
+t('«Ana» ya no figura como miembro del equipo',
+  !/nombre:'Ana'/.test(SRC));
+t('las derivadas de coaching se rotulan a Carme, no a Ana',
+  /Derivada a Carme/.test(SRC) && !/Derivada a Ana/.test(SRC));
+t('los correos a la clienta nombran a Marta, que es la coach real',
+  (WORKER.match(/botonAgenda\("Agendar una sesión con Marta"\)/g) || []).length === 4
+  && !/sesión con Ana/.test(WORKER));
+t('…y el enlace de agenda sigue siendo el calendario compartido «Coach Domma»',
+  /AGENDA_COACH = "https:\/\/calendar\.app\.google\/ZVoMELJseJ8TBZMg7"/.test(WORKER));
+t('queda escrito POR QUÉ los dos nombres conviven (si no, alguien los unifica)',
+  /PSEUDÓNIMOS/.test(WORKER) && /PSEUDÓNIMOS/.test(SRC));
 
 // ── 8. Humo contra producción (opcional) ──────────────────────────────
 if (PROD) {
