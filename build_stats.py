@@ -152,7 +152,7 @@ def stamp_aeem(html, S):
     # en el estudio». Las dos van ahora en CUESTIONARIOS, porque los tests
     # (104.140) y las mujeres (98.842) no son lo mismo: parte de la muestra
     # repitió el cuestionario, así que «104.000 mujeres» sería falso.
-    tests = S["n_tests_label"]
+    tests = S["n_registro_label"]
     log, fallos = [], []
 
     def sub(pattern, repl, label):
@@ -164,7 +164,7 @@ def stamp_aeem(html, S):
 
     sub(r'(basados en )[\d.]+( cuestionarios)', rf'\g<1>{tests}\g<2>', "N ·cuestionarios")
     # Tarjeta del hero: «104K cuestionarios del estudio»
-    kval = round(S["n_tests"] / 1000)
+    kval = round(S["n_registro"] / 1000)
     sub(r'(class="hp-n">)\d+K(</span><span class="hp-l">cuestionarios)',
         rf'\g<1>{kval}K\g<2>', "N ·hero (K)")
     return html, log, fallos

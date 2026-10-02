@@ -11,20 +11,23 @@
   "n_analizada_exacto": 94651,
   "periodo": "2022-2026",
 
-  "_n_doc": "Hay DOS cifras y no son la misma: los tests superan a las mujeres porque algunas repitieron el cuestionario. Decir «104.000 cuestionarios» es correcto; decir «104.000 mujeres» no lo es.",
-  "n_tests": 104140,
-  "n_tests_label": "104.000",
-  "n_mujeres": 98842,
-  "n_mujeres_label": "99.000",
+  "_n_doc": "Hay DOS cifras que no son la misma. REGISTRO = cuestionarios recogidos en total. BASE ANALIZABLE = los que están en el dataset y sostienen las prevalencias. Divergen en ~5.800 porque hay un tramo del quiz de 2026 que nunca se importó (ver _n_hueco). Y los tests superan a las mujeres porque algunas repitieron: «104.000 cuestionarios» es correcto, «104.000 mujeres» no.",
+  "n_registro": 104195,
+  "n_registro_label": "104.000",
+  "n_base_analizable": 98434,
+  "n_mujeres_analizadas": 98100,
   "_n_desglose": {
-    "csv_analisis": 89691,
-    "repeticiones_quiz_nuevo": 4960,
+    "quiz_revenuehunt_grande": 65586,
+    "quiz_typeform_principal": 13308,
     "recorte_solape_temporal": 17,
     "estudio_fisico": 729,
-    "quiz_luna_tests": 8743,
-    "quiz_luna_mujeres": 8405,
-    "nota": "Las 4.960 son segundas respuestas de la misma mujer en el quiz de ene-abr 2026 (export bruto 15.757 → 10.797 tras dedup por email). LUNA tiene 8.743 tests de 8.405 mujeres. El recorte temporal de 06_actualizar_datos_aeem.py fueron solo 17 filas, no miles."
+    "quiz_ene_abr_2026": 15757,
+    "quiz_luna_tests": 8798,
+    "quiz_luna_mujeres": 8457,
+    "_verificado": "Todos salen del CSV limpio, de los scripts o de D1 en vivo, EXCEPTO quiz_ene_abr_2026=15.757: el único export que existe en disco (datos_nuevos/DOMMA_Quiz_responses_2026-04-28_085240.csv) tiene 11.023 filas a 28-abr, y las 4.734 restantes sólo las afirma este fichero (contadas el 14-jul-2026). Cuadra con el registro 99.568 que documenta RADIOGRAFIA_STATS_README para esa fecha, pero no se puede comprobar en local: hay que sacar el recuento final de RevenueHunt/Typeform.",
+    "_corrige": "El 01/10/2026 se escribió aquí un desglose con «4.960 repeticiones» que NO existe: el dedup por email de ese export quitó 226 filas, no 4.960. Las 4.734 son respuestas posteriores al export, no duplicados."
   },
+  "_n_hueco": "El quiz de ene-abr 2026 siguió recogiendo después del export del 28-abr y ese tramo (~4.734 respuestas) NUNCA entró en datos_limpios_menopausia.csv. Cuenta para el registro pero no aporta a ninguna prevalencia. Recuperarlo sumaría ~5.000 al dataset, y además son de la ola que SÍ preguntaba hinchazón y sudores nocturnos, que son los dos síntomas con la base más corta. El quiz ya está retirado (sus páginas dan 404), así que el tramo está congelado y es recuperable con una exportación.",
 
   "sintomas": {
     "peso":              { "label": "Aumento de peso",         "pct": 65, "base": 98363, "olas": "woo,shopify,shopify_v2,luna" },
