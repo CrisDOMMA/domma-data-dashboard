@@ -164,7 +164,11 @@ def stamp_aeem(html, S):
 
     sub(r'(basados en )[\d.]+( cuestionarios)', rf'\g<1>{tests}\g<2>', "N ·cuestionarios")
     # Tarjeta del hero: «104K cuestionarios del estudio»
-    kval = round(S["n_registro"] / 1000)
+    # Se deriva de n_registro_LABEL, no de n_registro: el registro real (104.346) y
+    # el titular publicado (100.000) son distintos a propósito, y calcular el K del
+    # crudo reponía «104K» en cada estampado, contradiciendo la línea de arriba que
+    # sí usa la etiqueta. En lo publicado manda la etiqueta.
+    kval = round(int(S["n_registro_label"].replace(".", "")) / 1000)
     sub(r'(class="hp-n">)\d+K(</span><span class="hp-l">cuestionarios)',
         rf'\g<1>{kval}K\g<2>', "N ·hero (K)")
     return html, log, fallos
