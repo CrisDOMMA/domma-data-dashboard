@@ -389,6 +389,27 @@ function arrancar(){
 }
 
 const labelMotivo=m=>({gate_2pedidos:'Menos de 2 pedidos',min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Fallo de pago',motivo_medico:'🩺 Baja médica · NO cancelada',salud:'🩺 Le sienta mal',incompatible:'🩺 Incompatible con su medicación',coach:'Derivada a Carme'}[m]||m||'—');
+// ── Casos médicos: el reloj de las 72h ────────────────────────────────────────────────
+// Una baja por `salud` (le sienta mal) o `incompatible` (choca con su medicación) ya no se
+// auto-cancela (cambio 22/10). Le prometemos llamarla en menos de 72h y su plan sigue vivo
+// mientras tanto, así que la promesa es ahora un plazo real. Avisamos a las 48h para que
+// queden 24 de margen, no al vencer.
+const MEDICO_AVISO_H = 48, MEDICO_LIMITE_H = 72;
+const esMedico = s => s && (['salud','incompatible'].includes(s.motivo) || (s.comentario||'')==='motivo_medico');
+/** Horas desde la solicitud. `fecha` llega como 'YYYY-MM-DD HH:MM' (UTC). */
+function horasDesde(f){
+  if(!f) return null;
+  const d=new Date(String(f).replace(' ','T')+(String(f).length<=16?':00Z':'Z'));
+  if(isNaN(d)) return null;
+  return Math.floor((Date.now()-d.getTime())/3600000);
+}
+/** Etiqueta del reloj médico: verde con margen, ámbar a las 48h, rojo pasadas las 72h. */
+function relojMedico(c){
+  if(!c || !c.medico || c.horas==null) return '';
+  if(c.horas>=MEDICO_LIMITE_H) return ` · 🚨 LLEVA ${c.horas} H SIN LLAMAR (prometimos 72)`;
+  if(c.horas>=MEDICO_AVISO_H)  return ` · ⚠️ ${c.horas} h · quedan ${MEDICO_LIMITE_H-c.horas} h de las 72`;
+  return ` · 🩺 ${c.horas} h de 72`;
+}
 function porQue(s){ const CM={min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Tiene un fallo de pago',motivo_medico:'🩺 Baja médica · sigue ACTIVA hasta que la llames'}; const c=(s.comentario||'').trim(); return CM[c]||(c&&c.length<=60?c:'')||labelMotivo(s.motivo)||'Derivada a Carme'; }
 
 async function cargar(){
@@ -483,7 +504,12 @@ async function cargar(){
 
   LISTA=[
     ...sol.map(s=>({tipo:'baja', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:labelMotivo(s.motivo), dias:s.dias, alerta:s.fuera_de_plazo, fecha:(s.fecha||'').slice(0,10)})),
-    ...der.map(s=>({tipo:'derivada', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:porQue(s), dias:s.dias, fecha:(s.fecha||'').slice(0,10)})),
+    ...der.map(s=>({tipo:'derivada', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:porQue(s), dias:s.dias, fecha:(s.fecha||'').slice(0,10),
+      // 🩺 Caso médico. Desde el 22/10 una baja por salud o por incompatibilidad con su
+      // medicación YA NO se cancela sola: la clienta sigue ACTIVA hasta que la llamemos. Si nos
+      // pasamos, se le cobra y se le envía otra vez un producto que acaba de decir que le sienta
+      // mal, y en el formulario ya no tiene botón para pararlo. Por eso tiene reloj propio.
+      medico: esMedico(s), horas: horasDesde(s.fecha)})),
     ...fa,
     ...resueltas,
   ];
@@ -677,10 +703,15 @@ function render(){
   const yaAgendadas = new Set(agendadas.map(claveDe));
   const pausasFuturas = pausas.filter(c=>!yaAgendadas.has(claveDe(c)));
   const derivPend   = vivas.filter(x=>x.tipo==='derivada');
+  // 🩺 Las médicas salen de «Derivadas» a su propio cubo: ahí dentro se pierden entre ~100
+  // casos y éstas tienen reloj. Ordenadas por las más viejas primero, que son las urgentes.
+  const medicas     = vd(vivas.filter(x=>x.medico)).sort((a,b)=>(b.horas||0)-(a.horas||0));
+  const medVencidas = medicas.filter(x=>x.horas>=MEDICO_LIMITE_H).length;
+  const medAviso    = medicas.filter(x=>x.horas>=MEDICO_AVISO_H).length;
   const reg         = dfil(REGISTRO);                       // registro completo del formulario (búsqueda)
   const cancel      = reg.filter(c=>c.cancelacion);         // subconjunto "cancelaciones" para el chip
-  const counts={todas:vivas.length+agendadas.length, agendadas:agendadas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausasFuturas.length, fallo:vivas.filter(x=>x.tipo==='fallo').length, wacurso:waCurso.length, porregistrar:porRegistrar.length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length, cancelada:cancel.length};
-  const defs=[['todas','Todas'],['agendadas','📅 Agendadas para hoy'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['wacurso','⏳ WhatsApp en curso'],['porregistrar','✅ Por registrar'],['cancelada','Canceladas'],['gestionadas','Contactadas'],['nolocal','No contactadas'],['porvalidar','Pagos por validar']];
+  const counts={todas:vivas.length+agendadas.length, medicas:medicas.length, agendadas:agendadas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausasFuturas.length, fallo:vivas.filter(x=>x.tipo==='fallo').length, wacurso:waCurso.length, porregistrar:porRegistrar.length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length, cancelada:cancel.length};
+  const defs=[['todas','Todas'],['agendadas','📅 Agendadas para hoy'],['medicas','🩺 Médicas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['wacurso','⏳ WhatsApp en curso'],['porregistrar','✅ Por registrar'],['cancelada','Canceladas'],['gestionadas','Contactadas'],['nolocal','No contactadas'],['porvalidar','Pagos por validar']];
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
   pintarVerDe();
   // Barra de progreso del día → da sensación de "hay un final".
@@ -691,9 +722,15 @@ function render(){
   const partes=[`${vivas.length} nuevas`, agendadas.length?`${agendadas.length} agendadas`:'',
                 porRegistrar.length?`${porRegistrar.length} por registrar`:''].filter(Boolean);
   const desglose=partes.length>1?` <span class="prog-det">(${partes.join(' · ')})</span>`:'';
+  // 🩺 El reloj de las médicas va en la barra del día: es lo único de la estación con un
+  // plazo que le hemos PROMETIDO a la clienta por escrito («te llamamos en menos de 72h»),
+  // y mientras tanto se le sigue cobrando. Si se pasa, tiene que doler verlo.
+  const avisoMedicas = medVencidas
+    ? ` · <b style="color:var(--red)">🚨 ${medVencidas} médica${medVencidas===1?'':'s'} pasa${medVencidas===1?'':'n'} de 72 h</b>`
+    : (medAviso ? ` · <b style="color:var(--amber)">🩺 ${medAviso} médica${medAviso===1?'':'s'} pasa${medAviso===1?'':'n'} de 48 h</b>` : '');
   const totalDia=gestHoy+pendientes, pct=totalDia?Math.round(gestHoy/totalDia*100):0;
   document.getElementById('progreso').innerHTML = totalDia
-    ? `<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt"><b>${gestHoy}</b> gestionada${gestHoy===1?'':'s'} hoy · quedan <b>${pendientes}</b>${desglose}</div></div>` : '';
+    ? `<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt"><b>${gestHoy}</b> gestionada${gestHoy===1?'':'s'} hoy · quedan <b>${pendientes}</b>${desglose}${avisoMedicas}</div></div>` : '';
   document.getElementById('dateClear').style.display=fechaFil?'inline-block':'none';
   // Búsqueda: encuentra a CUALQUIERA — pendientes de llamar + contactadas + no contactadas
   // (aunque su caso ya no esté en la lista). Sin búsqueda: respeta el chip.
@@ -721,6 +758,7 @@ function render(){
     for(const c of [...LISTA, ...gestionadasCards(), ...REGISTRO]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||'').toLowerCase(); if(!k||seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
   } else if(filtro==='wacurso'){ VIS=waCurso; }
   else if(filtro==='porregistrar'){ VIS=porRegistrar; }
+  else if(filtro==='medicas'){ VIS=medicas; }
   else if(filtro==='agendadas'){ VIS=agendadas; }
   else if(filtro==='gestionadas'){ VIS=contactadas; }
   else if(filtro==='nolocal'){ VIS=nolocal; }
@@ -803,10 +841,10 @@ function tarjeta(c,i){
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
   const nHist=histDe(c).length;
   const meta=(c.email?`✉️ <b>${esc(c.email)}</b>`:'')+(c.email&&c.phone?' · ':'')+(c.phone?`📱 <b>${esc(c.phone)}</b>`:'')+((!c.email&&!c.phone)?'<span style="color:var(--amber)">sin contacto — abre su ficha</span>':'');
-  return `<div class="card" data-state="${(c.esCancelada||c.salida==='cancelada')?'red':(c.resuelto&&c.salida!=='pagada')?'amber':((c.registro&&(c.directa||c.estado==='pausa'))||c.resuelto||c.esPagado||(c.gestionada&&!c.noLoc&&!c.esCobroHecho))?'green':'amber'}" id="c${i}">
+  return `<div class="card" data-state="${(c.medico&&c.horas>=MEDICO_LIMITE_H)?'red':(c.medico&&c.horas>=MEDICO_AVISO_H)?'amber':(c.esCancelada||c.salida==='cancelada')?'red':(c.resuelto&&c.salida!=='pagada')?'amber':((c.registro&&(c.directa||c.estado==='pausa'))||c.resuelto||c.esPagado||(c.gestionada&&!c.noLoc&&!c.esCobroHecho))?'green':'amber'}" id="c${i}">
     <div class="stripe"></div>
     <div class="body">
-      <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div>${chip}</div>
+      <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${esc(relojMedico(c))}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div>${chip}</div>
       <div class="cmeta-row"><span class="cmeta">${meta}</span>${insigniaDueno(c)}${nHist?`<a class="histlink" href="#" data-n="${nHist}" onclick="toggleHist(${i},this);return false">Ver historial · ${nHist}</a>`:''}</div>
       <div class="hist" id="hist${i}" hidden>${histInner(c,i)}</div>
       <div class="actions">

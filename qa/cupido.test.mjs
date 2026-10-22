@@ -361,6 +361,33 @@ t('y de que es médica, para no mezclarla con las de permanencia',
 t('queda escrito el riesgo de que le llegue otro cobro',
   /se le cobrará otra vez un\s*\n\s*\/\/ producto que dice que le sienta mal/.test(WORKER));
 
+// ── 7h. EL RELOJ DE LAS MÉDICAS (22/10) ──────────────────────────────
+// Desde que las médicas no se auto-cancelan, la clienta sigue ACTIVA hasta que la llamen y
+// le hemos prometido por escrito «menos de 72h». Si se pasa, se le cobra y se le envía otra
+// vez un producto que dice que le sienta mal — y ya no tiene botón para pararlo. El aviso a
+// las 48h deja 24h de margen. Sin esto, el plazo depende de que alguien se acuerde.
+bloque('MÉDICAS — el reloj de las 72h');
+
+t('se avisa a las 48h y el límite es 72h',
+  /MEDICO_AVISO_H = 48, MEDICO_LIMITE_H = 72/.test(SRC));
+t('se reconoce como médica por motivo o por el comentario del worker',
+  /\['salud','incompatible'\]\.includes\(s\.motivo\)/.test(SRC)
+  && /\(s\.comentario\|\|''\)==='motivo_medico'/.test(SRC));
+t('el reloj cuenta en HORAS, no en días (72h no es «3 días»)',
+  /Math\.floor\(\(Date\.now\(\)-d\.getTime\(\)\)\/3600000\)/.test(SRC));
+t('la fecha se interpreta como UTC, no como hora local',
+  /replace\(' ','T'\)\+\(String\(f\)\.length<=16\?':00Z':'Z'\)/.test(SRC));
+t('la tarjeta se pone ROJA al pasar de 72h y ámbar al pasar de 48h',
+  /c\.medico&&c\.horas>=MEDICO_LIMITE_H\)\?'red':\(c\.medico&&c\.horas>=MEDICO_AVISO_H\)\?'amber'/.test(SRC));
+t('el reloj se pinta en el texto de la tarjeta',
+  /\$\{esc\(relojMedico\(c\)\)\}/.test(SRC));
+t('las médicas tienen cubo y chip propios (en Derivadas se pierden entre ~100)',
+  /\['medicas','🩺 Médicas'\]/.test(SRC) && /filtro==='medicas'\)\{ VIS=medicas; \}/.test(SRC));
+t('las más viejas salen primero',
+  /medicas\s*=\s*vd\(vivas\.filter\(x=>x\.medico\)\)\.sort\(\(a,b\)=>\(b\.horas\|\|0\)-\(a\.horas\|\|0\)\)/.test(SRC));
+t('la barra del día canta las vencidas',
+  /medVencidas[\s\S]{0,160}pasa\$\{medVencidas===1\?'':'n'\} de 72 h/.test(SRC));
+
 // ── 8. Humo contra producción (opcional) ──────────────────────────────
 if (PROD) {
   bloque('PRODUCCIÓN — endpoints y páginas vivas');
