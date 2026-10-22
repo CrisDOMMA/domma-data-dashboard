@@ -337,6 +337,30 @@ t('…porque el JWT se cachea y una sesión abierta sigue firmando con el nombre
 t('queda escrito POR QUÉ los dos nombres conviven (si no, alguien los unifica)',
   /PSEUDÓNIMOS/.test(WORKER) && /PSEUDÓNIMOS/.test(SRC));
 
+// ── 7g. BAJAS MÉDICAS — ya NO se cancelan solas (22/10) ──────────────
+// Antes se auto-cancelaban con sólo 2 pedidos. Medido en octubre: 35 mujeres se fueron así
+// sin que nadie hablara con ellas (22 «incompatible con mi medicación», 13 «me sienta mal»).
+// Ahora van TODAS a Carme. Si alguien devuelve el `pasaGate` de médicas a una condición de
+// pedidos, vuelven a perderse 35 conversaciones al mes y este test salta.
+bloque('BAJAS MÉDICAS — van a Carme, no se cancelan solas');
+
+t('una baja médica NUNCA pasa el gate (va siempre a derivación)',
+  /const pasaGate = esBajaMedica\s*\n\s*\?\s*false/.test(WORKER));
+// Ojo: `!esBajaMedica && t.pedidos >= …` SÍ sigue existiendo en `porTiempo`, y es correcto.
+// Lo que no puede volver es la excepción que dejaba pasar a la médica contando pedidos.
+t('ya no queda la excepción vieja de «sólo 2 pedidos» para médicas',
+  !/esBajaMedica\s*\n?\s*\?\s*\(esTestCust \|\| t\.pedidos/.test(WORKER));
+t('salud e incompatible siguen siendo los dos motivos médicos',
+  /MOTIVOS_MEDICOS = \["salud", "incompatible"\]/.test(WORKER));
+t('la derivación se marca como `motivo_medico`, no como falta de permanencia',
+  /esBajaMedica \? "motivo_medico"/.test(WORKER));
+t('el panel avisa de que la clienta sigue ACTIVA hasta la llamada',
+  /sigue ACTIVA hasta que la llames/.test(SRC));
+t('y de que es médica, para no mezclarla con las de permanencia',
+  /motivo_medico:'🩺 Baja médica · NO cancelada'/.test(SRC));
+t('queda escrito el riesgo de que le llegue otro cobro',
+  /se le cobrará otra vez un\s*\n\s*\/\/ producto que dice que le sienta mal/.test(WORKER));
+
 // ── 8. Humo contra producción (opcional) ──────────────────────────────
 if (PROD) {
   bloque('PRODUCCIÓN — endpoints y páginas vivas');
