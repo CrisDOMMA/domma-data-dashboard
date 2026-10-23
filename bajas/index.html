@@ -696,11 +696,15 @@ function render(){
 
   // Acción
   const tarde = sol.pendientes.filter(s=>s.fuera_de_plazo).length;
-  const pendTotal = sol.pendientes.length + (k.derivadas||0);
+  // Solo las que NO tienen llamada registrada (decisión Cristina 23/10): antes sumaba todas
+  // las derivadas del periodo y decía «170 esperando» con el 85% ya trabajado por Carme.
+  // Con un worker viejo (sin el campo) cae al total de antes para no pintar 0 falso.
+  const porLlamar = k.derivadas_por_llamar ?? k.derivadas ?? 0;
+  const pendTotal = sol.pendientes.length + porLlamar;
   document.getElementById('accion').classList.toggle('alert', pendTotal>0);
   document.getElementById('accion').innerHTML = `
     <div class="rz-abig">${money(pendTotal)}</div>
-    <div class="rz-asub">clientas <b>esperando la llamada de Carme</b><br>${money(sol.pendientes.length)} piden baja · ${money(k.derivadas)} derivada${k.derivadas===1?'':'s'} a Carme${tarde?` · <b style="color:var(--red)">${tarde} pasa${tarde===1?'':'n'} de 72 h</b>`:''}</div>
+    <div class="rz-asub">clientas <b>por llamar hoy, sin ninguna llamada aún</b><br>${money(sol.pendientes.length)} piden baja · ${money(porLlamar)} derivada${porLlamar===1?'':'s'} sin llamada${tarde?` · <b style="color:var(--red)">${tarde} pasa${tarde===1?'':'n'} de 72 h</b>`:''}</div>
     <a class="rz-cta" href="https://data.wearedomma.com/llamadas" target="_blank" rel="noopener">📞 Ir a «A quién llamo» →</a>`;
 
   // ── Análisis (pestaña «Por qué se van»), con el dato del periodo comparado al lado ──
