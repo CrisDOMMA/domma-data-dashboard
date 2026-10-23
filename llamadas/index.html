@@ -388,7 +388,7 @@ function arrancar(){
   cargar();
 }
 
-const labelMotivo=m=>({gate_2pedidos:'Menos de 2 pedidos',min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Fallo de pago',motivo_medico:'🩺 Baja médica · NO cancelada',salud:'🩺 Le sienta mal',incompatible:'🩺 Incompatible con su medicación',coach:'Derivada a Carme'}[m]||m||'—');
+const labelMotivo=m=>({gate_2pedidos:'Baja · menos de 2 pedidos',min_2_pedidos:'Baja · menos de 2 pedidos',min_permanencia:'Baja · aún sin permanencia',fallo_pago:'Fallo de pago',motivo_medico:'🩺 Baja médica · NO cancelada',salud:'🩺 Le sienta mal',incompatible:'🩺 Incompatible con su medicación',coach:'Derivada a Carme'}[m]||m||'—');
 // ── Casos médicos: el reloj de las 72h ────────────────────────────────────────────────
 // Una baja por `salud` (le sienta mal) o `incompatible` (choca con su medicación) ya no se
 // auto-cancela (cambio 22/10). Le prometemos llamarla en menos de 72h y su plan sigue vivo
@@ -410,7 +410,7 @@ function relojMedico(c){
   if(c.horas>=MEDICO_AVISO_H)  return ` · ⚠️ ${c.horas} h · quedan ${MEDICO_LIMITE_H-c.horas} h de las 72`;
   return ` · 🩺 ${c.horas} h de 72`;
 }
-function porQue(s){ const CM={min_2_pedidos:'Menos de 2 pedidos',min_permanencia:'Aún sin permanencia',fallo_pago:'Tiene un fallo de pago',motivo_medico:'🩺 Baja médica · sigue ACTIVA hasta que la llames'}; const c=(s.comentario||'').trim(); return CM[c]||(c&&c.length<=60?c:'')||labelMotivo(s.motivo)||'Derivada a Carme'; }
+function porQue(s){ const CM={min_2_pedidos:'Baja · menos de 2 pedidos',min_permanencia:'Baja · aún sin permanencia',fallo_pago:'Tiene un fallo de pago',motivo_medico:'🩺 Baja médica · sigue ACTIVA hasta que la llames'}; const c=(s.comentario||'').trim(); return CM[c]||(c&&c.length<=60?c:'')||labelMotivo(s.motivo)||'Derivada a Carme'; }
 
 async function cargar(){
   const H={'Content-Type':'application/json','Authorization':'Bearer '+token};
