@@ -73,6 +73,10 @@
   .cname a:hover{border-color:var(--indigo)}
   .cwhy{font-size:13px;color:var(--muted);margin-top:2px;font-weight:600}
   .antig{color:var(--indigo)}
+  /* 🔔 Lo que dijo la clienta, en sus términos. Sin esto la alerta es un nombre suelto y
+     Carme llama a ciegas. Se lee como una cita, no como una etiqueta más. */
+  .lectura{font-size:13px;line-height:1.45;color:var(--ink);background:var(--amber-bg);border-left:3px solid var(--amber);
+           border-radius:0 8px 8px 0;padding:8px 10px;margin-top:8px}
   .cmeta-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:6px;flex-wrap:wrap}
   .cmeta{font-size:12.5px;color:var(--muted);word-break:break-word;flex:1;min-width:0}
   .cmeta b{color:var(--ink);font-weight:600}
@@ -307,6 +311,9 @@ if(new URLSearchParams(location.search).has('embed')) document.documentElement.c
 (function(){ const m=location.hash.match(/token=([^&]+)/); if(m){ localStorage.setItem('domma_analytics_token',decodeURIComponent(m[1])); history.replaceState(null,'',location.pathname); } })();
 let token=localStorage.getItem('domma_analytics_token')||'';
 let LISTA=[], REGISTRO=[], GEST={byC:{},byCust:{}}, GALL=[], filtro='todas', fechaFil='', busca='', orden='antiguas';
+// 🔔 Señales de baja que LUNA detectó y que NO han acabado en nada: ni agendaron cita con
+// Marta, ni pasaron por el formulario. Viven aparte de LISTA a propósito (ver `cargar`).
+let SENALES=[];
 // De quién es la lista que se está viendo: '__mias__' | '' (todas) | nombre | '__libre__'.
 // Arranca en «Mías» para que cada una entre directa a lo suyo (petición Cristina 24/09);
 // a partir de ahí se recuerda lo que elija.
@@ -421,15 +428,18 @@ function porQue(s){ const CM={min_2_pedidos:'Baja · menos de 2 pedidos',min_per
 
 async function cargar(){
   const H={'Content-Type':'application/json','Authorization':'Bearer '+token};
-  let bajas={}, hoyFallos={}, gest={}, toq={};
+  let bajas={}, hoyFallos={}, gest={}, toq={}, sen={};
   try{
-    const [rb,rf,rg,rt]=await Promise.all([
+    const [rb,rf,rg,rt,rs]=await Promise.all([
       fetch(API_BAJAS+'/api/dashboard',{method:'POST',headers:H,body:JSON.stringify({incluir_test:false})}).then(r=>r.json()),
       fetch(API_TODAY).then(r=>r.json()).catch(()=>({})),   // fallos ACTIVOS reales de Appstle (sin el bug de fechas de /failures-since)
       fetch(API_BAJAS+'/api/dashboard/gestiones',{method:'POST',headers:H,body:JSON.stringify({limit:500})}).then(r=>r.json()),
       fetch(API_TOQUES+'?token='+METRICS_TOKEN).then(r=>r.json()).catch(()=>({})),   // toques WhatsApp por teléfono
+      // 🔔 Señales de baja (22/10). `.catch` a propósito: es una sección NUEVA y secundaria —
+      // si el endpoint falla, la estación tiene que seguir funcionando igual. Nunca al revés.
+      fetch(API_BAJAS+'/api/dashboard/senales-baja',{method:'POST',headers:H,body:JSON.stringify({dias:30})}).then(r=>r.json()).catch(()=>({})),
     ]);
-    bajas=rb||{}; hoyFallos=rf||{}; gest=rg||{}; toq=rt||{};
+    bajas=rb||{}; hoyFallos=rf||{}; gest=rg||{}; toq=rt||{}; sen=rs||{};
     pintaFrescura('frescura', bajas._frescura);
   }catch(e){ document.getElementById('list').innerHTML='<div class="empty">No se pudo cargar. Recarga la página.</div>'; return; }
   if(bajas.error==='no_autorizado'){ logout(); return; }
@@ -536,10 +546,52 @@ async function cargar(){
         customer_id:x.customer_id, contract_id:x.contract_id, fecha:(x.fecha||'').slice(0,10),
         why:`${ESTL[x.estado]||'Registrada'} · ${labelMotivo(x.motivo)}${x.reactivada?' · reactivada después':''}`}));
   }
+  // ── 🔔 ALERTA DE BAJA (22/10/2026) ────────────────────────────────────────────────────
+  // LUNA detecta la señal; el backend ya descarta a quien agendó cita con Marta, a quien
+  // pasó por el formulario y a las que se gestionan solas (pedir la baja, pausar, «no me
+  // escribáis»). Lo que llega aquí son las que necesitan una PERSONA y no la han tenido.
+  //
+  // ⚠️ Fuera de LISTA a propósito. Si entraran, contarían en «Todas» y en la barra del día,
+  // y volveríamos a hinchar la cola justo después de haberla vaciado: una señal no es una
+  // baja pedida, es una llamada proactiva. Tiene chip propio y no toca el resto.
+  {
+    const yaEnCola=new Set(LISTA.map(c=>nid(c.contract_id)||String(c.customer_id||'')||(c.email||'').toLowerCase()).filter(Boolean));
+    const vistos=new Set();
+    SENALES=((sen&&sen.casos)||[])
+      .filter(s=>{
+        // Si ya está en la cola por otra vía (fallo, baja, derivada), no se duplica: la
+        // llamada ya está programada y verla dos veces es trabajo fantasma.
+        const k=nid(s.contract_id)||String(s.customer_id||'')||(s.email||'').toLowerCase()||s.telefono||'';
+        if(!k||yaEnCola.has(k)||vistos.has(k)) return false; vistos.add(k); return true;
+      })
+      .map(s=>({
+        tipo:'senal', senal:true, motivo:s.motivo,
+        nombre:s.nombre, email:s.email, phone:s.telefono,
+        customer_id:s.customer_id||'', contract_id:s.contract_id,
+        fecha:String(s.ultima_senal||'').slice(0,10),
+        dias:diasDe(String(s.ultima_senal||'').slice(0,10)),
+        estado_sub:s.estado_sub, proxima_renovacion:s.proxima_renovacion,
+        // Lo que ve Carme para saber a qué llama. Sin esto la sección es una lista de nombres.
+        lectura:s.lectura||null,
+        // Los paréntesis importan: `||` liga más flojo que `+`, y sin ellos los sufijos se
+        // pegaban SOLO a la rama de respaldo y desaparecían en los tres casos normales.
+        why:(LBL_SENAL[s.motivo]||'Señal de baja')
+            +(s.veces>1?` · lo ha dicho ${s.veces} veces`:'')
+            +(s.proxima_renovacion?` · renueva el ${fechaCorta(s.proxima_renovacion)}`:''),
+      }));
+  }
   motivador();
   render();
   enriquecerTelefonos();   // en segundo plano: rellena el móvil que falta (Appstle no lo trae) desde Shopify
 }
+// Los tres motivos que llegan a la estación. El resto los filtra el backend.
+// `no_puede_darse_de_baja` va primero en todas partes: es un fallo NUESTRO y la tiene esperando.
+const LBL_SENAL={
+  no_puede_darse_de_baja:'🚪 No consigue darse de baja — fallo nuestro',
+  efectos_secundarios:'🩺 Efectos secundarios',
+  no_le_funciona:'😕 Dice que no le funciona',
+};
+const ORDEN_SENAL=['no_puede_darse_de_baja','efectos_secundarios','no_le_funciona'];
 // (La métrica de bajas médicas vive en el Resumen de «Gestión suscripciones» /bajas — aquí no:
 // Carme no hace nada con ellas, se cancelan solas desde el formulario.)
 
@@ -717,8 +769,15 @@ function render(){
   const medAviso    = medicas.filter(x=>x.horas>=MEDICO_AVISO_H).length;
   const reg         = dfil(REGISTRO);                       // registro completo del formulario (búsqueda)
   const cancel      = reg.filter(c=>c.cancelacion);         // subconjunto "cancelaciones" para el chip
-  const counts={todas:vivas.length+agendadas.length, medicas:medicas.length, agendadas:agendadas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausasFuturas.length, fallo:vivas.filter(x=>x.tipo==='fallo').length, wacurso:waCurso.length, porregistrar:porRegistrar.length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length, cancelada:cancel.length};
-  const defs=[['todas','Todas'],['agendadas','📅 Agendadas para hoy'],['medicas','🩺 Médicas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['wacurso','⏳ WhatsApp en curso'],['porregistrar','✅ Por registrar'],['cancelada','Canceladas'],['gestionadas','Contactadas'],['nolocal','No localizadas'],['porvalidar','Pagos por validar']];
+  // 🔔 Señales: SIN `vd()` a propósito. No tienen asignación (muchas ni siquiera traen
+  // contrato), así que filtrarlas por dueña las dejaría en cero para todo el mundo — y la
+  // estación abre en «Mías». Es una lista compartida: la ve quien tenga un rato.
+  // Ya gestionadas: si alguien registró una llamada con esa clienta después de la señal,
+  // sale del cubo. Si no, un caso atendido se queda ahí dando la lata para siempre.
+  const senales = dfil(SENALES).filter(c=>!histDe(c).some(g=>String(g.created_at||'').slice(0,10)>=String(c.fecha||'')));
+  const senAtascadas = senales.filter(c=>c.motivo==='no_puede_darse_de_baja').length;
+  const counts={todas:vivas.length+agendadas.length, medicas:medicas.length, agendadas:agendadas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausasFuturas.length, fallo:vivas.filter(x=>x.tipo==='fallo').length, senal:senales.length, wacurso:waCurso.length, porregistrar:porRegistrar.length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length, cancelada:cancel.length};
+  const defs=[['todas','Todas'],['agendadas','📅 Agendadas para hoy'],['medicas','🩺 Médicas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['senal','🔔 Alerta de baja'],['wacurso','⏳ WhatsApp en curso'],['porregistrar','✅ Por registrar'],['cancelada','Canceladas'],['gestionadas','Contactadas'],['nolocal','No localizadas'],['porvalidar','Pagos por validar']];
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
   pintarVerDe();
   // Barra de progreso del día → da sensación de "hay un final".
@@ -766,6 +825,7 @@ function render(){
   } else if(filtro==='wacurso'){ VIS=waCurso; }
   else if(filtro==='porregistrar'){ VIS=porRegistrar; }
   else if(filtro==='medicas'){ VIS=medicas; }
+  else if(filtro==='senal'){ VIS=senales; }
   else if(filtro==='agendadas'){ VIS=agendadas; }
   else if(filtro==='gestionadas'){ VIS=contactadas; }
   else if(filtro==='nolocal'){ VIS=nolocal; }
@@ -776,6 +836,10 @@ function render(){
   else { VIS = filtro==='todas' ? [...agendadas, ...vivas] : vivas.filter(x=>x.tipo===filtro); }
   // Ordenar por antigüedad (por defecto, las que llevan más tiempo esperando primero).
   VIS = VIS.slice().sort((a,b)=> orden==='antiguas' ? diasEspera(b)-diasEspera(a) : diasEspera(a)-diasEspera(b));
+  // 🔔 En «Alerta de baja» el motivo manda sobre la antigüedad: la que no consigue darse de
+  // baja es un fallo nuestro y lleva días esperando una respuesta que no llega. El botón de
+  // orden sigue funcionando, pero dentro de cada motivo.
+  if(filtro==='senal') VIS = VIS.slice().sort((a,b)=>ORDEN_SENAL.indexOf(a.motivo)-ORDEN_SENAL.indexOf(b.motivo));
   // …pero un compromiso con fecha va SIEMPRE delante: te comprometiste a llamarla hoy.
   if(!busca && (filtro==='todas'||filtro==='agendadas'))
     VIS = [...VIS.filter(c=>c.prox), ...VIS.filter(c=>!c.prox)];
@@ -784,6 +848,10 @@ function render(){
     : filtro==='nolocal' ? `${VIS.length} sin localizar (llamadas sin respuesta)`
     : filtro==='cancelada' ? `${VIS.length} baja${VIS.length===1?'':'s'} registrada${VIS.length===1?'':'s'}`
     : filtro==='wacurso' ? `${VIS.length} con el WhatsApp trabajando — aún no llamar`
+    // Las atascadas se cantan aparte: son las únicas de este cubo que son culpa nuestra.
+    : filtro==='senal' ? (VIS.length
+        ? `${VIS.length} para llamar${senAtascadas?` — ${senAtascadas} no ${senAtascadas===1?'consiguió':'consiguieron'} darse de baja`:''}`
+        : 'ninguna señal sin atender 👌')
     : filtro==='porregistrar' ? (()=>{ const n=s=>VIS.filter(c=>c.salida===s).length;
         const det=[n('pagada')?`${n('pagada')} pagaron`:'', n('cancelada')?`${n('cancelada')} cancelaron`:'',
                    n('sin_pago')?`${n('sin_pago')} sin cobro`:''].filter(Boolean).join(' · ');
@@ -804,7 +872,7 @@ function render(){
   const rotulo=document.querySelector('.hero-lbl');
   if(rotulo) rotulo.textContent = verDe==='__mias__' ? `Tu lista — ${agActual()}`
     : verDe==='__libre__' ? 'Casos sin dueño' : verDe ? `La lista de ${verDe}` : 'A quién llamar hoy (todo el equipo)';
-  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin localizar 👌':filtro==='cancelada'?'Ninguna baja registrada por el formulario todavía.':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':filtro==='wacurso'?'Ninguna con la secuencia de WhatsApp en curso.':filtro==='agendadas'?'Ninguna llamada agendada para hoy 👌':verDe==='__mias__'?'No tienes casos asignados. Mira «Sin dueño» en el desplegable de arriba y coge los que vayas a trabajar.':'Nada por llamar aquí. 👌';
+  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin localizar 👌':filtro==='cancelada'?'Ninguna baja registrada por el formulario todavía.':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':filtro==='wacurso'?'Ninguna con la secuencia de WhatsApp en curso.':filtro==='agendadas'?'Ninguna llamada agendada para hoy 👌':filtro==='senal'?'Ninguna señal de baja sin atender 👌 LUNA avisa aquí de las que necesitan una llamada.':verDe==='__mias__'?'No tienes casos asignados. Mira «Sin dueño» en el desplegable de arriba y coge los que vayas a trabajar.':'Nada por llamar aquí. 👌';
   document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${vacio}</div>`;
 }
 function setBusca(v){ busca=(v||'').toLowerCase().trim(); render(); }
@@ -861,6 +929,8 @@ function tarjeta(c,i){
                  :'<span class="chip amber">Comprobando…</span>')
     : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.esPausa?'<span class="chip green">Retenida · pausa</span>':c.esSegunda?'<span class="chip amber">2ª llamada</span>':c.esCancelada?'<span class="chip red">Cancelada</span>':c.noLoc?'<span class="chip amber">No localizada</span>':'<span class="chip green">Contactada</span>')
     : c.waCurso?'<span class="chip amber">⏳ WhatsApp en curso</span>'
+    // 🔔 La atascada va en rojo: no es «riesgo de baja», es una mujer a la que no dejamos irse.
+    : c.tipo==='senal'?`<span class="chip ${c.motivo==='no_puede_darse_de_baja'?'red':'amber'}">🔔 Alerta de baja</span>`
     : c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
   const nHist=histDe(c).length;
@@ -869,6 +939,7 @@ function tarjeta(c,i){
     <div class="stripe"></div>
     <div class="body">
       <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${esc(relojMedico(c))}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div><div class="ctr">${puntosContactos(c)}${chip}</div></div>
+      ${c.lectura?`<div class="lectura">💬 ${esc(c.lectura)}</div>`:''}
       <div class="cmeta-row"><span class="cmeta">${meta}</span>${insigniaDueno(c)}${nHist?`<a class="histlink" href="#" data-n="${nHist}" onclick="toggleHist(${i},this);return false">Ver historial · ${nHist}</a>`:''}</div>
       <div class="hist" id="hist${i}" hidden>${histInner(c,i)}</div>
       <div class="actions">
