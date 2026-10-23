@@ -80,6 +80,13 @@
   .histlink:hover{text-decoration:underline}
   .b.dis{background:#F3F1EC;color:#B4B2AB;border:1.5px solid var(--line);cursor:not-allowed;pointer-events:none;font-weight:600;font-size:12px;padding:6px 10px}
   .chip{font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:20px;white-space:nowrap;flex:none}
+  .ctr{display:flex;align-items:center;gap:8px;flex:none}
+  .dots{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .dots b{margin-left:4px;font-weight:700}
+  .dot{width:9px;height:9px;border-radius:50%;border:1.5px solid #C9C4BA;box-sizing:border-box}
+  .dot.on{background:var(--indigo-2);border-color:var(--indigo-2)}
+  .dots.max{color:var(--red)}
+  .dots.max .dot.on{background:var(--red);border-color:var(--red)}
   .chip.amber{background:var(--amber-bg);color:var(--amber)} .chip.green{background:var(--green-bg);color:var(--green)} .chip.red{background:var(--red-bg);color:var(--red)}
 
   .hist{margin-top:11px;padding:10px 12px;background:#FAF8F4;border:1px solid var(--line);border-radius:11px}
@@ -823,6 +830,23 @@ function pintarVerDe(){
 }
 function setFecha(v){ fechaFil=v||''; const el=document.getElementById('dateFil'); if(el) el.value=fechaFil; render(); }
 
+// ── Los 4 contactos (regla Cristina 23/10): cada clienta debe recibir 4 llamadas antes de
+// decidir el cierre. Cuentan SOLO las llamadas registradas en la estación (gestiones), no los
+// WhatsApp de LUNA. El punto se rellena solo al guardar: nadie teclea nada nuevo.
+function contactosDe(c){
+  const h=histDe(c); if(!h.length) return 0;
+  // Ancla del episodio: el first_seen del fallo si existe; si no, la fecha de entrada del
+  // caso. En tarjetas ya gestionadas no hay fecha de entrada: cuentan todas las registradas
+  // (lo mismo que dice «Ver historial»).
+  const ancla=String(FSEEN[nid(c.contract_id)]||(!c.gestionada&&c.fecha)||'').slice(0,10);
+  return h.filter(g=>!g.es_test&&(!ancla||String(g.created_at||'').slice(0,10)>=ancla)).length;
+}
+function puntosContactos(c){
+  if(c.registro) return '';   // solo consulta: el caso ya está cerrado, no aplica la pauta
+  const n=contactosDe(c), tope=n>=4;
+  const dots=[0,1,2,3].map(k=>`<span class="dot${k<Math.min(n,4)?' on':''}"></span>`).join('');
+  return `<span class="dots${tope?' max':''}" title="${n} llamada${n===1?'':'s'} registrada${n===1?'':'s'} con esta clienta${tope?' — pauta cumplida: decidir cierre':' — la pauta son 4'}">${dots}<b>${Math.min(n,4)} de 4</b></span>`;
+}
 function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
   // Última gestión de esta clienta (para el botón fijo «Deshacer»). No aplica a las de solo consulta (registro).
@@ -835,7 +859,7 @@ function tarjeta(c,i){
                  :c.salida==='pagada'?'<span class="chip green">Ha pagado</span>'
                  :c.salida==='sin_pago'?'<span class="chip amber">Sin cobro confirmado</span>'
                  :'<span class="chip amber">Comprobando…</span>')
-    : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.esPausa?'<span class="chip green">Retenida · pausa</span>':c.esSegunda?'<span class="chip amber">2ª llamada</span>':c.esCancelada?'<span class="chip red">Cancelada</span>':c.noLoc?'<span class="chip amber">No contactada</span>':'<span class="chip green">Contactada</span>')
+    : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.esPausa?'<span class="chip green">Retenida · pausa</span>':c.esSegunda?'<span class="chip amber">2ª llamada</span>':c.esCancelada?'<span class="chip red">Cancelada</span>':c.noLoc?'<span class="chip amber">No localizada</span>':'<span class="chip green">Contactada</span>')
     : c.waCurso?'<span class="chip amber">⏳ WhatsApp en curso</span>'
     : c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
@@ -844,7 +868,7 @@ function tarjeta(c,i){
   return `<div class="card" data-state="${(c.medico&&c.horas>=MEDICO_LIMITE_H)?'red':(c.medico&&c.horas>=MEDICO_AVISO_H)?'amber':(c.esCancelada||c.salida==='cancelada')?'red':(c.resuelto&&c.salida!=='pagada')?'amber':((c.registro&&(c.directa||c.estado==='pausa'))||c.resuelto||c.esPagado||(c.gestionada&&!c.noLoc&&!c.esCobroHecho))?'green':'amber'}" id="c${i}">
     <div class="stripe"></div>
     <div class="body">
-      <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${esc(relojMedico(c))}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div>${chip}</div>
+      <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${esc(relojMedico(c))}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div><div class="ctr">${puntosContactos(c)}${chip}</div></div>
       <div class="cmeta-row"><span class="cmeta">${meta}</span>${insigniaDueno(c)}${nHist?`<a class="histlink" href="#" data-n="${nHist}" onclick="toggleHist(${i},this);return false">Ver historial · ${nHist}</a>`:''}</div>
       <div class="hist" id="hist${i}" hidden>${histInner(c,i)}</div>
       <div class="actions">
