@@ -634,7 +634,7 @@ function gestionadasCards(soloContacto){
   const seen=new Set(), out=[];
   // Una gestión que CIERRA el caso manda sobre las posteriores. Elisa Madrid: Ana lo resolvió
   // como duplicada el 16 y Martina registró otro intento el 18 (el caso volvía cada día, ya
-  // arreglado) — sin esto saldría en «No contactadas» como si siguiera pendiente.
+  // arreglado) — sin esto saldría en «No localizadas» como si siguiera pendiente.
   const cierres={};
   for(const g of GALL){
     if(g.es_test || !CIERRA.has(g.resultado)) continue;
@@ -711,7 +711,7 @@ function render(){
   const reg         = dfil(REGISTRO);                       // registro completo del formulario (búsqueda)
   const cancel      = reg.filter(c=>c.cancelacion);         // subconjunto "cancelaciones" para el chip
   const counts={todas:vivas.length+agendadas.length, medicas:medicas.length, agendadas:agendadas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausasFuturas.length, fallo:vivas.filter(x=>x.tipo==='fallo').length, wacurso:waCurso.length, porregistrar:porRegistrar.length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length, cancelada:cancel.length};
-  const defs=[['todas','Todas'],['agendadas','📅 Agendadas para hoy'],['medicas','🩺 Médicas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['wacurso','⏳ WhatsApp en curso'],['porregistrar','✅ Por registrar'],['cancelada','Canceladas'],['gestionadas','Contactadas'],['nolocal','No contactadas'],['porvalidar','Pagos por validar']];
+  const defs=[['todas','Todas'],['agendadas','📅 Agendadas para hoy'],['medicas','🩺 Médicas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['wacurso','⏳ WhatsApp en curso'],['porregistrar','✅ Por registrar'],['cancelada','Canceladas'],['gestionadas','Contactadas'],['nolocal','No localizadas'],['porvalidar','Pagos por validar']];
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
   pintarVerDe();
   // Barra de progreso del día → da sensación de "hay un final".
@@ -774,7 +774,7 @@ function render(){
     VIS = [...VIS.filter(c=>c.prox), ...VIS.filter(c=>!c.prox)];
   document.getElementById('left').textContent = busca ? `${VIS.length} resultado${VIS.length===1?'':'s'}`
     : filtro==='gestionadas' ? `${VIS.length} contactada${VIS.length===1?'':'s'}`
-    : filtro==='nolocal' ? `${VIS.length} sin contactar`
+    : filtro==='nolocal' ? `${VIS.length} sin localizar (llamadas sin respuesta)`
     : filtro==='cancelada' ? `${VIS.length} baja${VIS.length===1?'':'s'} registrada${VIS.length===1?'':'s'}`
     : filtro==='wacurso' ? `${VIS.length} con el WhatsApp trabajando — aún no llamar`
     : filtro==='porregistrar' ? (()=>{ const n=s=>VIS.filter(c=>c.salida===s).length;
@@ -797,7 +797,7 @@ function render(){
   const rotulo=document.querySelector('.hero-lbl');
   if(rotulo) rotulo.textContent = verDe==='__mias__' ? `Tu lista — ${agActual()}`
     : verDe==='__libre__' ? 'Casos sin dueño' : verDe ? `La lista de ${verDe}` : 'A quién llamar hoy (todo el equipo)';
-  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin contactar 👌':filtro==='cancelada'?'Ninguna baja registrada por el formulario todavía.':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':filtro==='wacurso'?'Ninguna con la secuencia de WhatsApp en curso.':filtro==='agendadas'?'Ninguna llamada agendada para hoy 👌':verDe==='__mias__'?'No tienes casos asignados. Mira «Sin dueño» en el desplegable de arriba y coge los que vayas a trabajar.':'Nada por llamar aquí. 👌';
+  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin localizar 👌':filtro==='cancelada'?'Ninguna baja registrada por el formulario todavía.':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':filtro==='wacurso'?'Ninguna con la secuencia de WhatsApp en curso.':filtro==='agendadas'?'Ninguna llamada agendada para hoy 👌':verDe==='__mias__'?'No tienes casos asignados. Mira «Sin dueño» en el desplegable de arriba y coge los que vayas a trabajar.':'Nada por llamar aquí. 👌';
   document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${vacio}</div>`;
 }
 function setBusca(v){ busca=(v||'').toLowerCase().trim(); render(); }
