@@ -261,6 +261,8 @@ bloque('CASOS CERRADOS — que se pueda registrar la llamada');
 
 const WORKER = fs.readFileSync(
   path.join(RAIZ, '..', 'flujo-bajas', 'worker', 'src', 'index.js'), 'utf8');
+const SRC_WEB = fs.readFileSync(
+  path.join(RAIZ, '..', 'flujo-bajas', 'web', 'index.html'), 'utf8');
 
 t('la tarjeta de consulta CON contrato ya ofrece «Registrar»',
   /\$\{\(c\.registro && !nid\(c\.contract_id\)\)\?''/.test(SRC));
@@ -337,29 +339,35 @@ t('…porque el JWT se cachea y una sesión abierta sigue firmando con el nombre
 t('queda escrito POR QUÉ los dos nombres conviven (si no, alguien los unifica)',
   /PSEUDÓNIMOS/.test(WORKER) && /PSEUDÓNIMOS/.test(SRC));
 
-// ── 7g. BAJAS MÉDICAS — ya NO se cancelan solas (22/10) ──────────────
-// Antes se auto-cancelaban con sólo 2 pedidos. Medido en octubre: 35 mujeres se fueron así
-// sin que nadie hablara con ellas (22 «incompatible con mi medicación», 13 «me sienta mal»).
-// Ahora van TODAS a Carme. Si alguien devuelve el `pasaGate` de médicas a una condición de
-// pedidos, vuelven a perderse 35 conversaciones al mes y este test salta.
-bloque('BAJAS MÉDICAS — van a Carme, no se cancelan solas');
+// ── 7g. LA BAJA SE COMPLETA EN EL FORMULARIO (22/10, tarde) ──────────
+// El formulario ES la vía de baja: la clienta la termina ahí y el motivo queda registrado,
+// que es lo que hacía falta para medir. A la estación solo llega lo que el gate S19 frena y
+// los fallos de pago.
+//
+// Esto se tocó DOS veces el 22/10: por la mañana se mandaron todas las médicas a Carme sin
+// cancelar, y por la tarde se revirtió. Razón de la vuelta atrás: obligar a esperar una
+// llamada dejaba a la clienta sin salida — 9 escribieron «no puedo darme de baja» en un mes,
+// una de ellas lo intentó 10 veces en una hora cambiando de motivo. Y el muro no retiene:
+// 7 de esas 9 acabaron canceladas igual, solo que enfadadas y por WhatsApp.
+bloque('BAJA — se completa en el formulario, no en una llamada');
 
-t('una baja médica NUNCA pasa el gate (va siempre a derivación)',
-  /const pasaGate = esBajaMedica\s*\n\s*\?\s*false/.test(WORKER));
-// Ojo: `!esBajaMedica && t.pedidos >= …` SÍ sigue existiendo en `porTiempo`, y es correcto.
-// Lo que no puede volver es la excepción que dejaba pasar a la médica contando pedidos.
-t('ya no queda la excepción vieja de «sólo 2 pedidos» para médicas',
-  !/esBajaMedica\s*\n?\s*\?\s*\(esTestCust \|\| t\.pedidos/.test(WORKER));
-t('salud e incompatible siguen siendo los dos motivos médicos',
-  /MOTIVOS_MEDICOS = \["salud", "incompatible"\]/.test(WORKER));
-t('la derivación se marca como `motivo_medico`, no como falta de permanencia',
-  /esBajaMedica \? "motivo_medico"/.test(WORKER));
-t('el panel avisa de que la clienta sigue ACTIVA hasta la llamada',
-  /sigue ACTIVA hasta que la llames/.test(SRC));
-t('y de que es médica, para no mezclarla con las de permanencia',
-  /motivo_medico:'🩺 Baja médica · NO cancelada'/.test(SRC));
-t('queda escrito el riesgo de que le llegue otro cobro',
-  /se le cobrará otra vez un\s*\n\s*\/\/ producto que dice que le sienta mal/.test(WORKER));
+t('«Continuar con mi baja» EJECUTA la baja, no abre una solicitud',
+  /onclick="action\('baja'\)">Continuar con mi baja/.test(SRC_WEB)
+  && !/onclick="solicitarBaja\(\)"/.test(SRC_WEB));
+t('ya no queda la función que la convertía en solicitud de 72h',
+  !/function solicitarBaja\(/.test(SRC_WEB));
+t('la pantalla médica vuelve a ofrecer la baja inmediata',
+  /onclick="action\('baja'\)">Darme de baja ahora/.test(SRC_WEB));
+t('…y mantiene la alternativa de llamada, sin obligar a ella',
+  /Prefiero que me llaméis/.test(SRC_WEB));
+t('el aviso de la ventana de 5 días sigue en la pantalla médica',
+  /\$\{avisoRenovacion\(\)\}[\s\S]{0,200}Darme de baja ahora/.test(SRC_WEB));
+t('una baja médica se cancela sola con 2 pedidos (no exige los 2 meses)',
+  /esBajaMedica\s*\n?\s*\?\s*\(esTestCust \|\| t\.pedidos >= Number\(env\.MIN_PEDIDOS\)\)/.test(WORKER));
+t('el gate S19 sigue en pie para el resto de motivos',
+  /: cumpleMinimo\(env, c, t, customerId\)/.test(WORKER));
+t('el motivo se sigue registrando al cancelar (es para lo que se mide)',
+  /motivo:STATE\.motivo/.test(SRC_WEB));
 
 // ── 7h. EL RELOJ DE LAS MÉDICAS (22/10) ──────────────────────────────
 // Desde que las médicas no se auto-cancelan, la clienta sigue ACTIVA hasta que la llamen y
