@@ -103,6 +103,7 @@
   .pill.en_gestion{background:#FCF3E0;color:var(--amber)}
   .pill.a_la_espera{background:#EDEEF4;color:var(--navy)}
   .pill.resuelta{background:#E7F5EF;color:var(--green)}
+  .pill.revision_facturacion{background:#E3F0F7;color:#1B6E9E}
   .pill.cerrada_sin_solucion{background:#F0EEF6;color:#7A5CC0}
   .pill.transporte{background:#EDEEF4;color:var(--navy)} .pill.almacen{background:#FCF3E0;color:var(--amber)}
   .dias{font-weight:650;font-variant-numeric:tabular-nums}
@@ -206,7 +207,8 @@
         <select id="fEstado" onchange="pintarLista()">
           <option value="">Todos</option><option value="vivas" selected>Vivas (sin resolver)</option>
           <option value="abierta">Abierta</option><option value="en_gestion">En gestión</option>
-          <option value="a_la_espera">A la espera</option><option value="resuelta">Resuelta</option>
+          <option value="a_la_espera">A la espera</option><option value="revision_facturacion">Revisión facturación</option>
+          <option value="resuelta">Resuelta</option>
           <option value="cerrada_sin_solucion">Cerrada sin solución</option>
         </select>
       </div>
@@ -258,7 +260,8 @@
       <div class="field"><label>Gestionada por</label><input id="m_gestionado_por" placeholder="Valentina, Ana…"></div>
       <div class="field"><label>Estado</label>
         <select id="m_estado"><option value="abierta">Abierta</option><option value="en_gestion">En gestión</option>
-          <option value="a_la_espera">A la espera</option><option value="resuelta">Resuelta</option>
+          <option value="a_la_espera">A la espera</option><option value="revision_facturacion">Revisión facturación</option>
+          <option value="resuelta">Resuelta</option>
           <option value="cerrada_sin_solucion">Cerrada sin solución</option></select>
       </div>
       <div class="field"><label>Acción de resolución</label>
@@ -303,11 +306,11 @@ const TIPOS = {
     deterioro_producto:'Deterioro de producto', no_procesado_a_tiempo:'No procesado a tiempo', pedido_duplicado_error:'Pedido duplicado por error' },
 };
 const L_TIPO = Object.assign({desconocido:'Sin clasificar'}, TIPOS.transporte, TIPOS.almacen);
-const L_ESTADO = { abierta:'Abierta', en_gestion:'En gestión', a_la_espera:'A la espera', resuelta:'Resuelta', cerrada_sin_solucion:'Cerrada sin solución' };
+const L_ESTADO = { abierta:'Abierta', en_gestion:'En gestión', a_la_espera:'A la espera', revision_facturacion:'Revisión facturación', resuelta:'Resuelta', cerrada_sin_solucion:'Cerrada sin solución' };
 const L_ACCION = { duplicado:'Duplicado', reenvio:'Reenvío', cupon_tienda:'Cupón tienda', reembolso_parcial:'Reembolso parcial',
   reembolso_total:'Reembolso total', abono_portes:'Abono portes', sin_coste:'Sin coste', otro:'Otro' };
 const L_ZONA = { peninsula:'Península', baleares:'Baleares', canarias:'Canarias', ceuta_melilla:'Ceuta/Melilla' };
-const VIVAS = new Set(['abierta','en_gestion','a_la_espera']);
+const VIVAS = new Set(['abierta','en_gestion','a_la_espera','revision_facturacion']);
 
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const d2s = d => d.toISOString().slice(0,10);
