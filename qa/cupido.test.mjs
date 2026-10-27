@@ -64,7 +64,8 @@ const PIEZAS = [
   linea('let verDe ='),
   extraer('function histDe'), extraer('function gestionadaHoy'),
   extraer('function casoCerrado'), extraer('function enEspera'),
-  extraer('function yaRegistrada'), extraer('function gestionadasCards'),
+  extraer('function yaRegistrada'), linea('const SALVA='), extraer('function yaSalvada'),
+  extraer('function gestionadasCards'),
   linea('const soloDig='), linea('const sinPre ='), extraer('const matchB='),
 ].filter(Boolean);
 
@@ -78,7 +79,7 @@ const cargar = new Function('estado', `
   let busca = '';
   ${PIEZAS.join('\n')}
   return { CATALOGO, TERMINAL, CIERRA, ESPERA, COBRO_HECHO, EQUIPO,
-           gestionadaHoy, casoCerrado, enEspera, yaRegistrada, gestionadasCards,
+           gestionadaHoy, casoCerrado, enEspera, yaRegistrada, yaSalvada, gestionadasCards,
            botonesAsignacion, duenoDe, sinDueno, esMio, agActual, filtrarPorDueno,
            verDePorDefecto: () => verDe,
            conVerDe(v){ verDe = v; },
@@ -100,7 +101,7 @@ function conGestiones(gestiones, fseen) {
 }
 const CASO = { contract_id: '1', first_seen: d(9), fecha: d(9) };
 /** ¿Sale hoy en «por llamar»? (mismo filtro que render()) */
-const porLlamar = c => !API.gestionadaHoy(c) && !API.yaRegistrada(c) && !API.casoCerrado(c) && !API.enEspera(c);
+const porLlamar = c => !API.gestionadaHoy(c) && !API.yaRegistrada(c) && !API.casoCerrado(c) && !API.enEspera(c) && !API.yaSalvada(c);
 
 // ── 1. El catálogo declara lo que creemos ─────────────────────────────
 bloque('CATÁLOGO — quién cierra, quién espera, quién vuelve');
@@ -142,6 +143,21 @@ conGestiones([{ resultado: 'ajuste_duplicada', created_at: d(60) + ' 10:00' }], 
 t('ajuste de hace 60 días → se llama', porLlamar(NUEVO));
 conGestiones([{ resultado: 'cobro_manual', created_at: d(70) + ' 10:00' }], { '1': d(3) });
 t('cobro de hace 70 días → se llama', porLlamar(NUEVO));
+
+// ── 3b. Lo salvado no vuelve a la lista (decisión Cristina 27/10) ─────
+bloque('RETENIDAS — una clienta salvada deja de aparecer como pendiente');
+conGestiones([{ resultado: 'retenida', created_at: d(2) + ' 10:00' }]);
+t('retenida hace 2 días → no vuelve  [caso Guadalupe]', !porLlamar(CASO));
+conGestiones([{ resultado: 'pausa', created_at: d(2) + ' 10:00' }]);
+t('pausada → no vuelve cada mañana (su recontacto entra por Agendadas)', !porLlamar(CASO));
+conGestiones([{ resultado: 'cambio_producto', created_at: d(2) + ' 10:00' }]);
+t('un cambio de producto también es retención', !porLlamar(CASO));
+conGestiones([{ resultado: 'retenida', created_at: d(60) + ' 10:00' }], { '1': d(3) });
+t('retenida hace 60 días y vuelve a entrar → se llama (ancla de episodio)', porLlamar(NUEVO));
+conGestiones([{ resultado: 'retenida',  created_at: d(4) + ' 10:00' },
+              { resultado: 'intento_1', created_at: d(1) + ' 09:00' }]);
+t('tras la retención, un intento nuevo la devuelve al juego', porLlamar(CASO));
+t('render() descarta de verdad las ya salvadas', /&& !yaSalvada\(c\)/.test(SRC));
 
 // ── 4. Manda la gestión más reciente del episodio ─────────────────────
 bloque('ORDEN — lo último que pasó es lo que vale');

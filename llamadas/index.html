@@ -671,6 +671,18 @@ function yaRegistrada(caso){
   const corte=String(caso.last_seen||caso.fecha||'').slice(0,10);
   return histDe(caso).some(g=>TERMINAL.has(g.resultado) && String(g.created_at||'').slice(0,10)>=corte);
 }
+// Retención conseguida (decisión Cristina 27/10, caso Guadalupe Moreno): si la ÚLTIMA gestión
+// del episodio es una retención, la tarjeta sale de «por llamar» — eran 94 ya salvadas
+// reapareciendo cada mañana como pendientes (2 de cada 3 tarjetas eran ruido). La clienta
+// sigue en «Contactadas» y en el buscador. La pausa también sale: su recontacto ya vuelve
+// solo, por «Agendadas», en su fecha — no cada día. Manda la gestión MÁS RECIENTE del
+// episodio: un intento o una cancelación posterior la devuelve al juego.
+const SALVA=new Set(['retenida','pausa','cambio_producto','cambio_fecha','venta_cruzada','upsell']);
+function yaSalvada(caso){
+  const desde=String(caso.first_seen||caso.fecha||'').slice(0,10);
+  const h=histDe(caso).filter(g=>!g.es_test&&(!desde||String(g.created_at||'').slice(0,10)>=desde));
+  return !!h.length && SALVA.has(h[0].resultado);   // GALL viene DESC → h[0] es la última
+}
 const fechaCorta=s=>{ if(!s)return''; const d=new Date(String(s).replace(' ','T')+'Z'); return isNaN(d)?esc(s):d.toLocaleDateString('es-ES',{day:'2-digit',month:'short'}); };
 function histInner(caso, i){
   const h=histDe(caso); if(!h.length) return '';
@@ -733,7 +745,7 @@ let VIS=[];   // lista exacta que se está pintando (índice de las tarjetas →
 function render(){
   RENDER_DIFERIDO=false;   // cualquier render real satisface el aplazado pendiente
   const gestHoy=LISTA.filter(gestionadaHoy).length;                 // ya gestionadas hoy (terminal)
-  let vivas=LISTA.filter(c=>!gestionadaHoy(c) && !yaRegistrada(c) && !casoCerrado(c) && !enEspera(c)); // desaparecen del día
+  let vivas=LISTA.filter(c=>!gestionadaHoy(c) && !yaRegistrada(c) && !casoCerrado(c) && !enEspera(c) && !yaSalvada(c)); // desaparecen del día
   if(fechaFil) vivas=vivas.filter(c=>c.fecha===fechaFil);          // filtro por día (calendario)
   let waCurso=vivas.filter(x=>x.waCurso);                          // WhatsApp trabajando: fuera de «por llamar», pero visibles y buscables
   vivas=vivas.filter(x=>!x.waCurso);
