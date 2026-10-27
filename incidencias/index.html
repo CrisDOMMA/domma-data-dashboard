@@ -35,6 +35,8 @@
   .btn:hover{background:var(--navy-2)}
   .btn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--border)}
   .btn.ghost:hover{border-color:var(--navy)}
+  .btn.ok{background:var(--green)}
+  .btn.ok:hover{background:#17835A}
   .login .btn{width:100%}
   .err{color:var(--red);font-size:13px;margin-top:10px;min-height:16px}
 
@@ -278,6 +280,7 @@
     </div>
     <div class="modal-foot">
       <button class="btn" id="mGuardar" onclick="guardar()">Guardar</button>
+      <button class="btn ok" id="mResolver" onclick="marcarResuelta()">✓ Marcar resuelta</button>
       <span class="err" id="mErr" style="margin:0"></span>
       <button class="btn ghost x" onclick="cerrarModal()">Cancelar</button>
     </div>
@@ -533,6 +536,13 @@ function abrirModal(id){
   document.getElementById('modalBg').classList.add('on');
 }
 function cerrarModal(){ document.getElementById('modalBg').classList.remove('on'); }
+// Cierre en un clic: estado Resuelta + fecha de hoy (si no hay) y guarda
+function marcarResuelta(){
+  document.getElementById('m_estado').value='resuelta';
+  if(!document.getElementById('m_fecha_resolucion').value)
+    document.getElementById('m_fecha_resolucion').value=hoy();
+  guardar();
+}
 function guardar(){
   const b={ ambito:document.getElementById('m_ambito').value, tipo:document.getElementById('m_tipo').value };
   M_CAMPOS.forEach(c=>{ b[c]=document.getElementById('m_'+c).value; });
