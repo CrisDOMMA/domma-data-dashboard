@@ -37,6 +37,8 @@
   .btn.ghost:hover{border-color:var(--navy)}
   .btn.ok{background:var(--green)}
   .btn.ok:hover{background:#17835A}
+  .btn.danger{background:#fff;color:var(--red);border:1.5px solid var(--border)}
+  .btn.danger:hover{border-color:var(--red);background:#FEF7F6}
   .login .btn{width:100%}
   .err{color:var(--red);font-size:13px;margin-top:10px;min-height:16px}
 
@@ -285,7 +287,8 @@
       <button class="btn" id="mGuardar" onclick="guardar()">Guardar</button>
       <button class="btn ok" id="mResolver" onclick="marcarResuelta()">✓ Marcar resuelta</button>
       <span class="err" id="mErr" style="margin:0"></span>
-      <button class="btn ghost x" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn danger x" id="mBorrar" onclick="borrarIncidencia()">🗑 Eliminar</button>
+      <button class="btn ghost" onclick="cerrarModal()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -536,9 +539,24 @@ function abrirModal(id){
   document.getElementById('m_trans_otro').style.display=std.includes(t)?'none':'';
   document.getElementById('m_trans_otro').value=std.includes(t)?'':t;
   document.getElementById('mErr').textContent='';
+  document.getElementById('mBorrar').style.display=id?'':'none';
   document.getElementById('modalBg').classList.add('on');
 }
 function cerrarModal(){ document.getElementById('modalBg').classList.remove('on'); }
+// Eliminar (solo en edición): confirmación con nombre y pedido; el worker guarda
+// copia en la papelera incidencias_borradas antes de borrar.
+function borrarIncidencia(){
+  if(!EDIT_ID) return;
+  const r=ROWS.find(x=>x.id===EDIT_ID)||{};
+  const quien=[r.cliente_nombre, r.pedido_id?('#'+r.pedido_id):null].filter(Boolean).join(' · ')||('#'+EDIT_ID);
+  if(!confirm('¿Eliminar la incidencia de '+quien+'?\n\nSe guarda una copia interna por si hay que recuperarla.')) return;
+  const btn=document.getElementById('mBorrar'); btn.disabled=true;
+  api('/api/incidencias/borrar',{id:EDIT_ID}).then(d=>{
+    btn.disabled=false;
+    if(d.error){ document.getElementById('mErr').textContent=d.error; return; }
+    cerrarModal(); load();
+  }).catch(e=>{ btn.disabled=false; document.getElementById('mErr').textContent='Error: '+e.message; });
+}
 // Cierre en un clic: estado Resuelta + fecha de hoy (si no hay) y guarda
 function marcarResuelta(){
   document.getElementById('m_estado').value='resuelta';
