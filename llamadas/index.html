@@ -522,7 +522,10 @@ async function cargar(){
 
   LISTA=[
     ...sol.map(s=>({tipo:'baja', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:labelMotivo(s.motivo), dias:s.dias, alerta:s.fuera_de_plazo, fecha:(s.fecha||'').slice(0,10)})),
-    ...der.map(s=>({tipo:'derivada', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:porQue(s), dias:s.dias, fecha:(s.fecha||'').slice(0,10),
+    // 💳 `fallo_pago:1` lo pone el worker cruzando con la worklist de fallos (card Valentina
+    // 27/10): la derivada nace de un fallo de pago vivo → el worker ya la asignó a Martina o
+    // Valentina y aquí solo se dice en la tarjeta. Si la clienta ya pagó, ni siquiera llega.
+    ...der.map(s=>({tipo:'derivada', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:porQue(s)+(s.fallo_pago?' · 💳 fallo de pago vivo':''), dias:s.dias, fecha:(s.fecha||'').slice(0,10),
       // 🩺 Caso médico. Desde el 22/10 una baja por salud o por incompatibilidad con su
       // medicación YA NO se cancela sola: la clienta sigue ACTIVA hasta que la llamemos. Si nos
       // pasamos, se le cobra y se le envía otra vez un producto que acaba de decir que le sienta
