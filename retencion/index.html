@@ -554,9 +554,48 @@ function estadoCat(desenlace){
   const e = (desenlace||'').toLowerCase();
   if(e==='abierta')    return {cat:'abierta',    cls:'red',   txt:'Abierta',    abierta:true};
   if(e==='recuperada') return {cat:'recuperada', cls:'green', txt:'Recuperada', abierta:false};
+  if(e==='cobro_hecho')return {cat:'cobro_hecho',cls:'amber', txt:'Cobro hecho · validar', abierta:false};
   if(e==='baja')       return {cat:'baja',       cls:'grey',  txt:'Se dio de baja', abierta:false};
   if(e==='pausada')    return {cat:'pausada',    cls:'amber', txt:'Pausada',    abierta:false};
   return {cat:'otro', cls:'grey', txt:desenlace||'—', abierta:true};
+}
+
+// ── Conciliación con el CRM (reporte Valentina 27/10) ──────────────────────────────
+// Todo lo que viene de /today llega como «abierta», pero si el equipo YA registró el
+// desenlace (cobro hecho, cancelación, pausa) el ticket no puede seguir en rojo sumando
+// «días esperando»: distorsiona los indicadores y provoca revisiones dobles. Manda la
+// última gestión del caso. Honestidad (criterio Cristina 23/09, «ha pagado cuando
+// realmente haya pagado»): cobro_manual/actualizar_pago NO se pintan «Recuperada»,
+// llevan píldora propia «Cobro hecho · validar»; solo `pagado` (validado) es verde.
+// El cobro/la pausa solo valen si la gestión es POSTERIOR al fallo (fail_date se resetea
+// con cada reintento: si Appstle volvió a fallar después, sigue abierta). La cancelación
+// cierra siempre: un contrato cancelado no vuelve a fallar.
+function desenlaceSegunGestion(g){
+  if(!g || g.es_test) return null;
+  const r=String(g.resultado||'');
+  if(r==='pagado' || r==='ajuste_duplicada') return 'recuperada';
+  if(CANCELA_APPSTLE.has(r) || r==='cancelado' || r.startsWith('cancelar')) return 'baja';
+  if(r==='cobro_manual' || r==='actualizar_pago') return 'cobro_hecho';
+  if(r==='pausa') return 'pausada';
+  return null;
+}
+function conciliarDesenlaces(){
+  const aplicar=f=>{
+    const g=ultimaGestion({contract_id:f.id||f.contract_id}); if(!g) return null;
+    const d=desenlaceSegunGestion(g); if(!d) return null;
+    const gDia=String(g.created_at||'').slice(0,10);
+    const fallo=String(f.fecha||f.primer_fallo||'').slice(0,10);
+    if(d!=='baja' && fallo && gDia<fallo) return null;   // el fallo es posterior a la gestión
+    return d;
+  };
+  ITEMS.forEach(f=>{ if(f.desenlace==='abierta'){ const d=aplicar(f); if(d) f.desenlace=d; } });
+  if(LAST_FS){
+    const det=LAST_FS.detalle||[];
+    det.forEach(f=>{ if(f.desenlace==='abierta'){ const d=aplicar(f); if(d) f.desenlace=d; } });
+    LAST_FS.desenlace={abierta:{n:det.filter(x=>x.desenlace==='abierta').length},
+                       baja:{n:det.filter(x=>x.desenlace==='baja').length},
+                       pausada:{n:det.filter(x=>x.desenlace==='pausada').length}};
+  }
 }
 
 // Appstle guarda algunos nombres con el escape unicode roto (ñ → "u00f1",
@@ -621,6 +660,7 @@ async function cargarGestiones(){
     const d = await r.json(); const byC={};
     (d.gestiones||[]).forEach(g=>{ const c=String(g.contract_id||'').split('.')[0]; if(c){ (byC[c]=byC[c]||[]).push(g); } });
     GEST={byC};
+    conciliarDesenlaces();   // con el CRM cargado, los tickets ya gestionados dejan de estar «abiertos»
     // Rescate de Carme = cobros que recupera en su llamada. Una clienta = su gestión más reciente
     // (evita contar dos veces). Solo con agente real (no pruebas). cobro_manual + actualizar_pago = recuperados.
     const rf={cobro_manual:0, actualizar_pago:0, total:0};
@@ -812,6 +852,7 @@ function renderListado(){
       <select onchange="setFiltro(this.value)">
         ${opt('abiertas','Abiertas · a llamar')}
         ${opt('recuperada','Recuperadas')}
+        ${opt('cobro_hecho','Cobro hecho · por validar')}
         ${opt('baja','Se dieron de baja')}
         ${opt('pausada','Pausadas')}
         ${opt('todas','Todas')}
@@ -870,7 +911,7 @@ function renderListado(){
 
   return `<div class="sect">Listado de fallos · a quién llamar</div>${bar}
     <div class="card" style="margin-top:8px">
-      <p class="hint"><b>Cobro</b> = si ha pagado (Appstle en vivo): «Abierta» sigue sin cobrar. <b>Gestión</b> = lo que hicimos en la llamada. «Días» ≥7 en ámbar, ≥14 en rojo. La lista de llamadas de Carme son las de cobro «Abierta».</p>
+      <p class="hint"><b>Cobro</b> = si ha pagado (Appstle en vivo + lo registrado en el CRM): «Abierta» sigue sin cobrar; «Cobro hecho · validar» ya se cobró y espera la validación de Cristina; «Se dio de baja» tiene cancelación registrada. <b>Gestión</b> = lo que hicimos en la llamada. «Días» ≥7 en ámbar, ≥14 en rojo. La lista de llamadas de Carme son las de cobro «Abierta».</p>
       <div style="overflow-x:auto"><table>
         <thead><tr><th>Clienta</th><th>Cobro</th><th>Gestión</th><th class="num">Importe</th><th class="num">Días</th><th>1er fallo</th><th>Teléfono</th><th>Contactar</th></tr></thead>
         <tbody>${rows || `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">Sin fallos con este filtro</td></tr>`}</tbody>
@@ -942,7 +983,9 @@ function heroRecuperacion(){
 function construirResumen(){
   const fsA = LAST_FS; if(!fsA) return;
   const a=resumir(fsA);
-  const det=fsA.detalle||[];
+  // Solo las ABIERTAS: tras conciliar con el CRM, las que ya tienen cobro/cancelación
+  // registrados salen del riesgo y de la lista de llamadas (reporte Valentina 27/10).
+  const det=(fsA.detalle||[]).filter(x=>x.desenlace==='abierta');
   const activos=det.filter(x=>(x.tipo||'fallo_pago')!=='dunning_skipped').length;
   const backlog=a.abiertas-activos;
   const riesgoAct=det.filter(x=>(x.tipo||'fallo_pago')!=='dunning_skipped').reduce((s,x)=>s+(parseFloat(x.importe)||0),0);
