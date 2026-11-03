@@ -511,13 +511,20 @@ async function cargar(){
     FSEEN=fsMap;   // se guarda global: lo usan casoCerrado() y gestionadasCards()
     fa.forEach(f=>{ const fs=fsMap[nid(f.contract_id)]; if(fs){ f.first_seen=fs;   // inicio REAL del episodio: ancla de casoCerrado()
       const dFs=diasDe(fs); if(dFs!=null&&(f.dias==null||dFs>f.dias)) f.dias=dFs; } });
+    // 📞 Pidió llamada a LUNA estando ya en fallos (card Valentina 28/10): LUNA ya NO manda el
+    // email «Asesoría personalizada» → ESTA tarjeta es el único sitio donde se ve. Puede no ser
+    // del pago (caso Olga: quería volver a pedir), por eso va el motivo literal.
+    const llMap={}; (wr.worklist||[]).forEach(row=>{ if(row.luna_llamada) llMap[nid(row.contract_id)]=row.luna_llamada; });
+    [...fa, ...resueltas].forEach(f=>{ const ll=llMap[nid(f.contract_id)]; if(!ll) return;
+      f.pideLlamada=true; f.why=(f.why||'Fallo de pago')+` · 📞 pidió llamada por WhatsApp (${String(ll.fecha||'').slice(0,10)}): «${ll.motivo||'sin motivo'}»`; });
   }catch(e){}
 
   // GATE por toques reales de WhatsApp: Carme llama cuando la secuencia ya hizo su trabajo →
   // (≥2 toques) O (sin teléfono, WhatsApp no llega) O (≥5 días desde el PRIMER fallo). Pero las
   // que el WhatsApp aún está trabajando ya NO desaparecen del panel (parecían perdidas y ni la
   // búsqueda las encontraba): quedan marcadas waCurso → chip propio + buscables, fuera de «por llamar».
-  const pasaGate=f=> ((f.wa&&f.wa.toque>=2)) || !f.hasTel || (f.dias!=null && f.dias>=5);
+  // Si ella ha PEDIDO que la llamemos, no se espera al WhatsApp.
+  const pasaGate=f=> f.pideLlamada || ((f.wa&&f.wa.toque>=2)) || !f.hasTel || (f.dias!=null && f.dias>=5);
   fa.forEach(f=>{ if(!f.resuelto && !pasaGate(f)){ f.waCurso=true; f.why=(f.why||'Fallo de pago')+' · ⏳ deja terminar al WhatsApp'; } });
 
   LISTA=[
