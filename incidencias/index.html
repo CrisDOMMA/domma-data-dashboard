@@ -115,6 +115,12 @@
   td.cli{font-weight:650;font-size:13.5px}
   .quien{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:#EDEEF4;color:var(--navy);white-space:nowrap}
   .quien.vacia{background:var(--track);color:var(--muted);font-weight:500}
+  /* Reloj de respuesta (protocolo 06/11/2026): rojo 2 h · amarillo 4 h · verde 24 h laborables */
+  .reloj{font-size:12px;font-weight:650;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .reloj.vencida{color:var(--red)} .reloj.pronto{color:var(--amber)} .reloj.bien{color:var(--green)} .reloj.hecha{color:var(--muted);font-weight:500}
+  .punto{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
+  .punto.rojo{background:#d94b45} .punto.amarillo{background:#e0940f} .punto.verde{background:#02a09d}
+  .aviso-reloj{background:#FBE9E7;color:var(--red);border-radius:10px;padding:10px 14px;margin:0 0 12px;font-weight:600;font-size:14px}
 
   /* Modal alta/editar */
   .modal-bg{position:fixed;inset:0;background:rgba(16,22,55,.45);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:30px 16px;overflow-y:auto}
@@ -216,9 +222,10 @@
       </div>
       <div class="field" style="flex:1"><label>Buscar</label><input id="buscar" placeholder="Clienta, pedido, razón…" oninput="pintarLista()"></div>
     </div>
+    <div class="aviso-reloj" id="relojAviso" style="display:none"></div>
     <div class="tablewrap">
       <table>
-        <thead><tr><th>Fecha</th><th>Pedido</th><th>Clienta</th><th>Ámbito</th><th>Tipo</th><th>Transportista</th><th>Estado</th><th>Días</th><th>Gestiona</th><th>Acción</th><th>Coste</th></tr></thead>
+        <thead><tr><th>Responder</th><th>Fecha</th><th>Pedido</th><th>Clienta</th><th>Ámbito</th><th>Tipo</th><th>Transportista</th><th>Estado</th><th>Días</th><th>Gestiona</th><th>Acción</th><th>Coste</th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
     </div>
@@ -278,13 +285,18 @@
       <div class="field"><label>¿Acabó en baja?</label>
         <select id="m_baja_asociada"><option value="0">No</option><option value="1">Sí</option></select>
       </div>
-      <div class="field"><label>¿Fotos?</label>
+      <div class="field"><label>Color (urgencia)</label>
+        <select id="m_prioridad"><option value="">—</option><option value="rojo">Rojo · 2 h</option>
+          <option value="amarillo">Amarillo · 4 h</option><option value="verde">Verde · 24 h</option></select>
+      </div>
+      <div class="field"><label>¿Fotos? (ya no se piden a la clienta)</label>
         <select id="m_registro_fotografico"><option value="0">No</option><option value="1">Sí</option></select>
       </div>
       <div class="field wide"><label>Observaciones / gestión</label><textarea id="m_observaciones"></textarea></div>
     </div>
     <div class="modal-foot">
       <button class="btn" id="mGuardar" onclick="guardar()">Guardar</button>
+      <button class="btn ok" id="mRespondida" onclick="marcarRespondida()" style="display:none">✉ Respondida</button>
       <button class="btn ok" id="mResolver" onclick="marcarResuelta()">✓ Marcar resuelta</button>
       <span class="err" id="mErr" style="margin:0"></span>
       <button class="btn danger x" id="mBorrar" onclick="borrarIncidencia()">🗑 Eliminar</button>
@@ -490,11 +502,22 @@ function pintarLista(){
   let rows=ROWS;
   if(filtro==='vivas') rows=rows.filter(r=>VIVAS.has(r.estado));
   else if(filtro) rows=rows.filter(r=>r.estado===filtro);
-  if(q) rows=rows.filter(r=>[r.cliente_nombre,r.cliente_email,r.pedido_id,r.razon,r.observaciones].join(' ').toLowerCase().includes(q));
+  if(q) rows=rows.filter(r=>[r.cliente_nombre,r.cliente_email,r.pedido_id,r.razon,r.observaciones,r.productos].join(' ').toLowerCase().includes(q));
+  // primero las que esperan respuesta, la que vence antes arriba; el resto, como venían (fecha desc)
+  rows=rows.slice().sort((a,b)=>{
+    const pa=esperaRespuesta(a), pb=esperaRespuesta(b);
+    if(pa&&pb) return Date.parse(a.limite_respuesta_at)-Date.parse(b.limite_respuesta_at);
+    return pa===pb?0:(pa?-1:1);
+  });
+  const vencidas=ROWS.filter(r=>esperaRespuesta(r)&&Date.parse(r.limite_respuesta_at)<Date.now());
+  const av=document.getElementById('relojAviso');
+  av.style.display=vencidas.length?'':'none';
+  av.textContent=vencidas.length?`⏰ ${vencidas.length} ${vencidas.length===1?'clienta lleva':'clientas llevan'} más del plazo sin respuesta: están arriba del todo.`:'';
   document.getElementById('tbody').innerHTML=rows.map(r=>{
     const viva=VIVAS.has(r.estado);
     const dcls=viva?(r.dias>=7?'red':(r.dias>=3?'amber':'')):'';
     return `<tr class="click" onclick="abrirModal(${r.id})">
+      <td>${celdaReloj(r)}</td>
       <td>${esc(r.fecha_incidencia||r.fecha_registro||'')}</td>
       <td class="ped">${r.pedido_id?'#'+esc(r.pedido_id):'—'}</td>
       <td class="cli">${esc(r.cliente_nombre||'—')}</td>
@@ -510,6 +533,37 @@ function pintarLista(){
   document.getElementById('listaFoot').textContent=`${rows.length} incidencias · clic en una fila para editar/cerrar`;
 }
 
+// ── Reloj de respuesta ──
+// Solo llevan reloj las que tienen plazo (formulario o alta con color). Las viejas, «—».
+function esperaRespuesta(r){
+  return !!r.limite_respuesta_at && !r.primera_respuesta_at && VIVAS.has(r.estado);
+}
+function durTxt(min){
+  min=Math.abs(Math.round(min));
+  if(min<60) return min+' min';
+  const h=Math.floor(min/60), m=min%60;
+  return h<48 ? (h+' h'+(m?' '+m:'')) : Math.round(h/24)+' d';
+}
+function celdaReloj(r){
+  const punto=r.prioridad?`<span class="punto ${r.prioridad}" title="${r.prioridad}"></span>`:'';
+  if(!r.limite_respuesta_at) return punto||'<span class="reloj hecha">—</span>';
+  if(r.primera_respuesta_at) return punto+'<span class="reloj hecha">✔ respondida</span>';
+  if(!VIVAS.has(r.estado)) return punto+'<span class="reloj hecha">cerrada</span>';
+  const quedan=(Date.parse(r.limite_respuesta_at)-Date.now())/60000;
+  if(quedan<0) return punto+`<span class="reloj vencida">vencida hace ${durTxt(quedan)}</span>`;
+  return punto+`<span class="reloj ${quedan<60?'pronto':'bien'}">quedan ${durTxt(quedan)}</span>`;
+}
+// Botón «Respondida»: para el reloj (alguien ya ha escrito a la clienta) sin tocar el estado
+function marcarRespondida(){
+  if(!EDIT_ID) return;
+  const btn=document.getElementById('mRespondida'); btn.disabled=true;
+  api('/api/incidencias/respondida',{id:EDIT_ID}).then(d=>{
+    btn.disabled=false;
+    if(d.error){ document.getElementById('mErr').textContent=d.error; return; }
+    cerrarModal(); load();
+  }).catch(e=>{ btn.disabled=false; document.getElementById('mErr').textContent='Error: '+e.message; });
+}
+
 // ── Modal ──
 function tiposDelAmbito(sel){
   const amb=document.getElementById('m_ambito').value;
@@ -520,12 +574,13 @@ function tiposDelAmbito(sel){
 }
 const M_CAMPOS=['cliente_nombre','cliente_email','pedido_id','fecha_incidencia','fecha_pedido','cp',
   'causa_responsable','razon','medio_informacion','gestionado_por','estado','accion_resolucion','fecha_resolucion',
-  'coste_eur','pedido_duplicado_id','baja_asociada','registro_fotografico','observaciones'];
+  'coste_eur','pedido_duplicado_id','baja_asociada','registro_fotografico','observaciones','prioridad'];
 function abrirModal(id){
   EDIT_ID=id||null;
   const r=id?ROWS.find(x=>x.id===id):null;
   document.getElementById('mTitulo').textContent=r?`Incidencia #${r.id} · ${r.cliente_nombre||''}`:'Nueva incidencia';
-  document.getElementById('mSub').textContent=r?`Registrada ${r.fecha_registro||r.created_at||''}${r.gestionado_por?' · '+r.gestionado_por:''}`:'Se registra en D1 al momento — adiós Excel';
+  document.getElementById('mSub').textContent=r?`Registrada ${r.fecha_registro||r.created_at||''}${r.gestionado_por?' · '+r.gestionado_por:''}${r.medio_informacion==='formulario'?' · vino por el formulario':''}${r.productos?' · productos: '+r.productos:''}${r.acuse_estado&&r.acuse_estado.startsWith('ko')?' · ⚠️ el email a la clienta NO salió':''}`:'Con color, arranca el reloj de respuesta (rojo 2 h · amarillo 4 h · verde 24 h laborables)';
+  document.getElementById('mRespondida').style.display=(r&&esperaRespuesta(r))?'':'none';
   document.getElementById('m_ambito').value=r?r.ambito:'transporte';
   tiposDelAmbito(r?r.tipo:null);
   M_CAMPOS.forEach(c=>{ const el=document.getElementById('m_'+c); el.value=r&&r[c]!=null?r[c]:(c==='estado'?'abierta':(c==='baja_asociada'||c==='registro_fotografico'?'0':'')); });
