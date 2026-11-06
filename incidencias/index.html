@@ -526,7 +526,7 @@ function pintarLista(){
       <td>${celdaReloj(r)}</td>
       <td>${esc(r.fecha_incidencia||r.fecha_registro||'')}</td>
       <td class="ped">${r.pedido_id?'#'+esc(r.pedido_id):'—'}</td>
-      <td class="cli">${esc(r.cliente_nombre||'—')}${r.es_test?' <span class="pill a_la_espera">PRUEBA</span>':''}${r.registro_fotografico&&r.medio_informacion==='formulario'?' 📷':''}</td>
+      <td class="cli">${esc(r.cliente_nombre||'—')}${r.es_test?' <span class="pill a_la_espera">PRUEBA</span>':''}${r.registro_fotografico&&r.medio_informacion==='formulario'?' 📷':''}${r.acuse_estado&&r.acuse_estado.startsWith('ko')?' <span title="El email a la clienta NO salió">⚠️✉️</span>':''}</td>
       <td><span class="pill ${r.ambito}">${r.ambito==='transporte'?'Transporte':'Almacén'}</span></td>
       <td>${esc(L_TIPO[r.tipo]||r.tipo||'—')}</td>
       <td>${r.ambito==='transporte'?esc((r.transportista||'desconocido').toUpperCase()):'—'}</td>
@@ -590,10 +590,10 @@ function abrirModal(id){
   document.getElementById('mRespondida').style.display=(r&&esperaRespuesta(r))?'':'none';
   // fotos que subió la clienta (opcionales): se piden aparte, no van en el listado
   const fz=document.getElementById('mFotos'); fz.innerHTML='';
-  if(r&&r.registro_fotografico&&r.medio_informacion==='formulario'){
+  if(r&&r.registro_fotografico){
     fz.innerHTML='<span class="hint">Cargando fotos…</span>';
     api('/api/incidencias/fotos',{id:r.id}).then(d=>{
-      fz.innerHTML=(d.fotos||[]).map(f=>`<a href="${f.url}" target="_blank" rel="noopener"><img src="${f.url}" alt="foto de la clienta" style="width:96px;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--line);margin-right:8px"></a>`).join('')||'<span class="hint">Sin fotos</span>';
+      fz.innerHTML=(d.fotos||[]).map(f=>`<a href="#" onclick="verFoto(this.firstChild.src);return false"><img src="${f.url}" alt="foto de la clienta" style="width:96px;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--line);margin-right:8px"></a>`).join('')||'<span class="hint">Sin fotos</span>';
     }).catch(()=>{ fz.innerHTML='<span class="hint">No se pudieron cargar las fotos</span>'; });
   }
   document.getElementById('m_ambito').value=r?r.ambito:'transporte';
@@ -611,6 +611,11 @@ function abrirModal(id){
   document.getElementById('mErr').textContent='';
   document.getElementById('mBorrar').style.display=id?'':'none';
   document.getElementById('modalBg').classList.add('on');
+}
+function verFoto(dataUrl){
+  // la ventana se abre YA (dentro del clic) para que el navegador no la bloquee; luego se le pone la foto
+  const w=window.open('','_blank');
+  fetch(dataUrl).then(r=>r.blob()).then(b=>{ if(w) w.location=URL.createObjectURL(b); });
 }
 function cerrarModal(){ document.getElementById('modalBg').classList.remove('on'); }
 // Eliminar (solo en edición): confirmación con nombre y pedido; el worker guarda
@@ -660,6 +665,16 @@ function arrancar(){
   document.getElementById('loginBox').style.display='none';
   document.getElementById('app').style.display='';
   usarPreset('todo');
+  // cada 2 min: solo el listado (no Shopify ni Amphora). No si hay una ficha abierta o la pestaña está oculta.
+  setInterval(()=>{
+    if(document.hidden || document.getElementById('modalBg').classList.contains('on')) return;
+    const desde=document.getElementById('desde').value, hasta=document.getElementById('hasta').value;
+    api('/api/incidencias/list',{desde,hasta,ambito:document.getElementById('fAmbito').value}).then(d=>{
+      ROWS=d.incidencias||[]; pintar(); pintaFrescura('frescura', d._frescura);
+    }).catch(()=>{});
+    if(document.getElementById('fPruebas')?.checked)
+      api('/api/incidencias/list',{incluir_test:true}).then(d=>{ PRUEBAS=(d.incidencias||[]).filter(r=>r.es_test); pintarLista(); }).catch(()=>{});
+  }, 120000);
 }
 // arranque: si hay token probamos directamente; si el worker devuelve 401, logout() → login
 if(token){ arrancar(); } else { document.getElementById('loginBox').style.display='flex'; }
