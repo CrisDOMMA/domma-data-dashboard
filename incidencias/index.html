@@ -221,6 +221,7 @@
         </select>
       </div>
       <div class="field" style="flex:1"><label>Buscar</label><input id="buscar" placeholder="Clienta, pedido, razón…" oninput="pintarLista()"></div>
+      <div class="field"><label>Pruebas</label><label style="display:flex;gap:6px;align-items:center;font-size:13px;padding-top:6px"><input type="checkbox" id="fPruebas" onchange="load()"> Ver pruebas del equipo</label></div>
     </div>
     <div class="aviso-reloj" id="relojAviso" style="display:none"></div>
     <div class="tablewrap">
@@ -293,6 +294,7 @@
         <select id="m_registro_fotografico"><option value="0">No</option><option value="1">Sí</option></select>
       </div>
       <div class="field wide"><label>Observaciones / gestión</label><textarea id="m_observaciones"></textarea></div>
+      <div class="field wide" id="mFotos"></div>
     </div>
     <div class="modal-foot">
       <button class="btn" id="mGuardar" onclick="guardar()">Guardar</button>
@@ -308,6 +310,7 @@
 <script>
 const API = 'https://domma-incidencias.cristina-ed1.workers.dev';
 const AUTH_API = 'https://domma-pro-api.cristina-ed1.workers.dev';
+let PRUEBAS = [];   // incidencias de prueba del equipo (es_test=1): solo en el listado, nunca en los KPIs
 let ROWS = [], PEDIDOS = null, ENVIOS = null, TAB = 'resumen', EDIT_ID = null;
 
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
@@ -375,6 +378,9 @@ function load(){
   api('/api/incidencias/list',{desde,hasta,ambito}).then(d=>{
     ROWS=d.incidencias||[]; pintar(); pintaFrescura('frescura', d._frescura);
   });
+  PRUEBAS=[];
+  if(document.getElementById('fPruebas')?.checked)
+    api('/api/incidencias/list',{incluir_test:true}).then(d=>{ PRUEBAS=(d.incidencias||[]).filter(r=>r.es_test); pintarLista(); });
   // denominadores: si el rango está abierto, desde la primera incidencia de 2026
   PEDIDOS=null; ENVIOS=null;
   const rango={desde: desde||'2026-01-01', hasta: hasta||hoy()};
@@ -499,7 +505,7 @@ function pintarCharts(){
 function pintarLista(){
   const filtro=document.getElementById('fEstado').value;
   const q=(document.getElementById('buscar').value||'').toLowerCase();
-  let rows=ROWS;
+  let rows=todas();
   if(filtro==='vivas') rows=rows.filter(r=>VIVAS.has(r.estado));
   else if(filtro) rows=rows.filter(r=>r.estado===filtro);
   if(q) rows=rows.filter(r=>[r.cliente_nombre,r.cliente_email,r.pedido_id,r.razon,r.observaciones,r.productos].join(' ').toLowerCase().includes(q));
@@ -509,7 +515,7 @@ function pintarLista(){
     if(pa&&pb) return Date.parse(a.limite_respuesta_at)-Date.parse(b.limite_respuesta_at);
     return pa===pb?0:(pa?-1:1);
   });
-  const vencidas=ROWS.filter(r=>esperaRespuesta(r)&&Date.parse(r.limite_respuesta_at)<Date.now());
+  const vencidas=todas().filter(r=>esperaRespuesta(r)&&Date.parse(r.limite_respuesta_at)<Date.now());
   const av=document.getElementById('relojAviso');
   av.style.display=vencidas.length?'':'none';
   av.textContent=vencidas.length?`⏰ ${vencidas.length} ${vencidas.length===1?'clienta lleva':'clientas llevan'} más del plazo sin respuesta: están arriba del todo.`:'';
@@ -520,7 +526,7 @@ function pintarLista(){
       <td>${celdaReloj(r)}</td>
       <td>${esc(r.fecha_incidencia||r.fecha_registro||'')}</td>
       <td class="ped">${r.pedido_id?'#'+esc(r.pedido_id):'—'}</td>
-      <td class="cli">${esc(r.cliente_nombre||'—')}</td>
+      <td class="cli">${esc(r.cliente_nombre||'—')}${r.es_test?' <span class="pill a_la_espera">PRUEBA</span>':''}${r.registro_fotografico&&r.medio_informacion==='formulario'?' 📷':''}</td>
       <td><span class="pill ${r.ambito}">${r.ambito==='transporte'?'Transporte':'Almacén'}</span></td>
       <td>${esc(L_TIPO[r.tipo]||r.tipo||'—')}</td>
       <td>${r.ambito==='transporte'?esc((r.transportista||'desconocido').toUpperCase()):'—'}</td>
@@ -533,6 +539,7 @@ function pintarLista(){
   document.getElementById('listaFoot').textContent=`${rows.length} incidencias · clic en una fila para editar/cerrar`;
 }
 
+const todas=()=>ROWS.concat(PRUEBAS);
 // ── Reloj de respuesta ──
 // Solo llevan reloj las que tienen plazo (formulario o alta con color). Las viejas, «—».
 function esperaRespuesta(r){
@@ -577,10 +584,18 @@ const M_CAMPOS=['cliente_nombre','cliente_email','pedido_id','fecha_incidencia',
   'coste_eur','pedido_duplicado_id','baja_asociada','registro_fotografico','observaciones','prioridad'];
 function abrirModal(id){
   EDIT_ID=id||null;
-  const r=id?ROWS.find(x=>x.id===id):null;
+  const r=id?todas().find(x=>x.id===id):null;
   document.getElementById('mTitulo').textContent=r?`Incidencia #${r.id} · ${r.cliente_nombre||''}`:'Nueva incidencia';
   document.getElementById('mSub').textContent=r?`Registrada ${r.fecha_registro||r.created_at||''}${r.gestionado_por?' · '+r.gestionado_por:''}${r.medio_informacion==='formulario'?' · vino por el formulario':''}${r.productos?' · productos: '+r.productos:''}${r.acuse_estado&&r.acuse_estado.startsWith('ko')?' · ⚠️ el email a la clienta NO salió':''}`:'Con color, arranca el reloj de respuesta (rojo 2 h · amarillo 4 h · verde 24 h laborables)';
   document.getElementById('mRespondida').style.display=(r&&esperaRespuesta(r))?'':'none';
+  // fotos que subió la clienta (opcionales): se piden aparte, no van en el listado
+  const fz=document.getElementById('mFotos'); fz.innerHTML='';
+  if(r&&r.registro_fotografico&&r.medio_informacion==='formulario'){
+    fz.innerHTML='<span class="hint">Cargando fotos…</span>';
+    api('/api/incidencias/fotos',{id:r.id}).then(d=>{
+      fz.innerHTML=(d.fotos||[]).map(f=>`<a href="${f.url}" target="_blank" rel="noopener"><img src="${f.url}" alt="foto de la clienta" style="width:96px;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--line);margin-right:8px"></a>`).join('')||'<span class="hint">Sin fotos</span>';
+    }).catch(()=>{ fz.innerHTML='<span class="hint">No se pudieron cargar las fotos</span>'; });
+  }
   document.getElementById('m_ambito').value=r?r.ambito:'transporte';
   tiposDelAmbito(r?r.tipo:null);
   M_CAMPOS.forEach(c=>{ const el=document.getElementById('m_'+c); el.value=r&&r[c]!=null?r[c]:(c==='estado'?'abierta':(c==='baja_asociada'||c==='registro_fotografico'?'0':'')); });
@@ -602,7 +617,7 @@ function cerrarModal(){ document.getElementById('modalBg').classList.remove('on'
 // copia en la papelera incidencias_borradas antes de borrar.
 function borrarIncidencia(){
   if(!EDIT_ID) return;
-  const r=ROWS.find(x=>x.id===EDIT_ID)||{};
+  const r=todas().find(x=>x.id===EDIT_ID)||{};
   const quien=[r.cliente_nombre, r.pedido_id?('#'+r.pedido_id):null].filter(Boolean).join(' · ')||('#'+EDIT_ID);
   if(!confirm('¿Eliminar la incidencia de '+quien+'?\n\nSe guarda una copia interna por si hay que recuperarla.')) return;
   const btn=document.getElementById('mBorrar'); btn.disabled=true;
