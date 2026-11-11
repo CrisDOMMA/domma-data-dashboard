@@ -107,7 +107,7 @@
   .pill.resuelta{background:#E7F5EF;color:var(--green)}
   .pill.revision_facturacion{background:#E3F0F7;color:#1B6E9E}
   .pill.cerrada_sin_solucion{background:#F0EEF6;color:#7A5CC0}
-  .pill.transporte{background:#EDEEF4;color:var(--navy)} .pill.almacen{background:#FCF3E0;color:var(--amber)}
+  .pill.transporte{background:#EDEEF4;color:var(--navy)} .pill.almacen{background:#FCF3E0;color:var(--amber)} .pill.gestion{background:#E8F4EE;color:#1F6B47}
   .dias{font-weight:650;font-variant-numeric:tabular-nums}
   .dias.amber{color:var(--amber)} .dias.red{color:var(--red)}
   /* pedido + clienta en primer plano */
@@ -178,7 +178,7 @@
     <div class="field"><label>Desde</label><input type="date" id="desde" onchange="rangoCustom()"></div>
     <div class="field"><label>Hasta</label><input type="date" id="hasta" onchange="rangoCustom()"></div>
     <div class="field"><label>Ámbito</label>
-      <select id="fAmbito"><option value="">Todos</option><option value="transporte">Transporte</option><option value="almacen">Almacén</option></select>
+      <select id="fAmbito"><option value="">Todos</option><option value="transporte">Transporte</option><option value="almacen">Almacén</option><option value="gestion">Cambio de dirección</option></select>
     </div>
     <button class="btn" onclick="load()">Aplicar</button>
     <div class="spacer"></div>
@@ -244,7 +244,7 @@
     <div class="fgrid">
       <div class="field"><label>Ámbito *</label>
         <select id="m_ambito" onchange="tiposDelAmbito()">
-          <option value="transporte">Transporte</option><option value="almacen">Almacén</option>
+          <option value="transporte">Transporte</option><option value="almacen">Almacén</option><option value="gestion">Cambio de dirección</option>
         </select>
       </div>
       <div class="field"><label>Tipo *</label><select id="m_tipo"></select></div>
@@ -311,6 +311,7 @@
 const API = 'https://domma-incidencias.cristina-ed1.workers.dev';
 const AUTH_API = 'https://domma-pro-api.cristina-ed1.workers.dev';
 let PRUEBAS = [];   // incidencias de prueba del equipo (es_test=1): solo en el listado, nunca en los KPIs
+let GESTION = [];  // cambios de dirección (ámbito gestion): solo listado y reloj, nunca KPIs
 let ROWS = [], PEDIDOS = null, ENVIOS = null, TAB = 'resumen', EDIT_ID = null;
 
 if(new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
@@ -322,8 +323,14 @@ const TIPOS = {
     retraso_entrega:'Retraso de entrega', no_entregado_rechazado:'No entregado / rechazado', deterioro_transito:'Deterioro en tránsito' },
   almacen: { producto_faltante:'Producto faltante', producto_extra:'Producto extra', producto_incorrecto:'Producto incorrecto',
     deterioro_producto:'Deterioro de producto', no_procesado_a_tiempo:'No procesado a tiempo', pedido_duplicado_error:'Pedido duplicado por error' },
+  // 11/11/2026: la clienta pide cambiar la dirección por el formulario (antes, email a ayuda@).
+  // No es un fallo de envío: va en el listado y en el reloj, pero NO en KPIs, gráficos ni tasas.
+  gestion: { cambio_direccion:'Cambio de dirección' },
 };
-const L_TIPO = Object.assign({desconocido:'Sin clasificar'}, TIPOS.transporte, TIPOS.almacen);
+const L_TIPO = Object.assign({desconocido:'Sin clasificar'}, TIPOS.transporte, TIPOS.almacen, TIPOS.gestion);
+const L_AMBITO = { transporte:'Transporte', almacen:'Almacén', gestion:'Cambio de dirección' };
+// separa los cambios de dirección de las incidencias (que son las que cuentan en KPIs y tasas)
+function repartir(lista){ ROWS=lista.filter(r=>r.ambito!=='gestion'); GESTION=lista.filter(r=>r.ambito==='gestion'); }
 const L_ESTADO = { abierta:'Abierta', en_gestion:'En gestión', a_la_espera:'A la espera', revision_facturacion:'Revisión facturación', resuelta:'Resuelta', cerrada_sin_solucion:'Cerrada sin solución' };
 const L_ACCION = { duplicado:'Duplicado', reenvio:'Reenvío', cupon_tienda:'Cupón tienda', reembolso_parcial:'Reembolso parcial',
   reembolso_total:'Reembolso total', abono_portes:'Abono portes', sin_coste:'Sin coste', otro:'Otro' };
@@ -376,7 +383,7 @@ function load(){
   const desde=document.getElementById('desde').value, hasta=document.getElementById('hasta').value;
   const ambito=document.getElementById('fAmbito').value;
   api('/api/incidencias/list',{desde,hasta,ambito}).then(d=>{
-    ROWS=d.incidencias||[]; pintar(); pintaFrescura('frescura', d._frescura);
+    repartir(d.incidencias||[]); pintar(); pintaFrescura('frescura', d._frescura);
   });
   PRUEBAS=[];
   if(document.getElementById('fPruebas')?.checked)
@@ -446,8 +453,9 @@ function pintarKpis(){
       <div class="s">P95: ${p95!=null?p95+' d':'—'} · sobre ${dias.length} cerradas con fechas</div></div>
     <div class="kpi"><div class="l">Coste total</div><div class="n">${eur(coste)}</div>
       <div class="s">solo lo registrado con importe</div></div>`;
-  document.getElementById('badgeAbiertas').textContent=vivas.length;
-  document.getElementById('badgeAbiertas').className='badge'+(vivas.length?'':' calm');
+  const abiertasTodas=vivas.length+GESTION.filter(r=>VIVAS.has(r.estado)).length;  // el badge cuenta también los cambios de dirección pendientes
+  document.getElementById('badgeAbiertas').textContent=abiertasTodas;
+  document.getElementById('badgeAbiertas').className='badge'+(abiertasTodas?'':' calm');
 }
 
 // ── helper: lista de barras ──
@@ -527,7 +535,7 @@ function pintarLista(){
       <td>${esc(r.fecha_incidencia||r.fecha_registro||'')}</td>
       <td class="ped">${r.pedido_id?'#'+esc(r.pedido_id):'—'}</td>
       <td class="cli">${esc(r.cliente_nombre||'—')}${r.es_test?' <span class="pill a_la_espera">PRUEBA</span>':''}${r.registro_fotografico&&r.medio_informacion==='formulario'?' 📷':''}${r.acuse_estado&&r.acuse_estado.startsWith('ko')?' <span title="El email a la clienta NO salió">⚠️✉️</span>':''}</td>
-      <td><span class="pill ${r.ambito}">${r.ambito==='transporte'?'Transporte':'Almacén'}</span></td>
+      <td><span class="pill ${r.ambito}">${L_AMBITO[r.ambito]||r.ambito}</span></td>
       <td>${esc(L_TIPO[r.tipo]||r.tipo||'—')}</td>
       <td>${r.ambito==='transporte'?esc((r.transportista||'desconocido').toUpperCase()):'—'}</td>
       <td><span class="pill ${r.estado}">${L_ESTADO[r.estado]||r.estado}</span></td>
@@ -539,7 +547,7 @@ function pintarLista(){
   document.getElementById('listaFoot').textContent=`${rows.length} incidencias · clic en una fila para editar/cerrar`;
 }
 
-const todas=()=>ROWS.concat(PRUEBAS);
+const todas=()=>ROWS.concat(GESTION, PRUEBAS);
 // ── Reloj de respuesta ──
 // Solo llevan reloj las que tienen plazo (formulario o alta con color). Las viejas, «—».
 function esperaRespuesta(r){
@@ -670,7 +678,7 @@ function arrancar(){
     if(document.hidden || document.getElementById('modalBg').classList.contains('on')) return;
     const desde=document.getElementById('desde').value, hasta=document.getElementById('hasta').value;
     api('/api/incidencias/list',{desde,hasta,ambito:document.getElementById('fAmbito').value}).then(d=>{
-      ROWS=d.incidencias||[]; pintar(); pintaFrescura('frescura', d._frescura);
+      repartir(d.incidencias||[]); pintar(); pintaFrescura('frescura', d._frescura);
     }).catch(()=>{});
     if(document.getElementById('fPruebas')?.checked)
       api('/api/incidencias/list',{incluir_test:true}).then(d=>{ PRUEBAS=(d.incidencias||[]).filter(r=>r.es_test); pintarLista(); }).catch(()=>{});
