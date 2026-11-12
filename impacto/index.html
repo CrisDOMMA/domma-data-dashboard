@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>DOMMA · Impacto de la baja nueva</title>
+<style>
+  :root{
+    --navy:#1C296A; --bg:#F8F7F5; --card:#FFFFFF; --text:#141a34; --muted:#6A6E85; --border:#ECE8E0;
+    --green:#1F9D6B; --amber:#C0820A; --red:#C0453B; --green-bg:#E7F5EF; --amber-bg:#FBF1DC; --red-bg:#FBE9E7; --soft:#FAF8F4;
+    /* Series (validadas con dataviz/validate_palette.js, modo claro): orden fijo, nunca se reciclan */
+    --s1:#4A63D0; --s2:#C0820A; --s3:#8A6FD0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
+  .wrap{max-width:1200px;margin:0 auto;padding:24px 20px 80px}
+  h1{font-size:21px;font-weight:600;margin:0;letter-spacing:-.01em}
+  .tag{font-size:13px;color:var(--muted);margin-top:3px}
+  .controls{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin:18px 0;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .field select,.field input{padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);font:inherit;font-size:13px;outline:none;min-width:150px}
+  .field input:focus,.field select:focus{border-color:var(--navy)}
+  .seg{display:inline-flex;border:1.5px solid var(--border);border-radius:8px;overflow:hidden}
+  .seg button{border:0;background:var(--card);padding:9px 16px;font:inherit;font-size:13px;cursor:pointer;color:var(--muted)}
+  .seg button.on{background:var(--navy);color:#fff;font-weight:600}
+  .spacer{flex:1}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 22px;margin-bottom:16px}
+  .card h2{font-size:15px;font-weight:600;margin:0 0 2px}
+  .card .sub{font-size:12.5px;color:var(--muted);margin:0 0 14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:860px){.grid2{grid-template-columns:1fr}}
+  /* Veredicto */
+  .hero{display:grid;grid-template-columns:1.2fr 2fr;gap:22px;align-items:center}
+  @media(max-width:860px){.hero{grid-template-columns:1fr}}
+  .hero .big{font-size:42px;font-weight:600;letter-spacing:-.02em;line-height:1.1;color:var(--navy)}
+  .hero .big small{font-size:15px;font-weight:400;color:var(--muted)}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;border-radius:20px;padding:4px 11px;margin-bottom:10px}
+  .pill.ok{background:var(--green-bg);color:#0F6B47}.pill.warn{background:var(--amber-bg);color:#7A5A12}.pill.bad{background:var(--red-bg);color:#8E2F27}
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:860px){.tiles{grid-template-columns:1fr 1fr}}
+  .tile{background:var(--soft);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+  .tile .l{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+  .tile .v{font-size:24px;font-weight:600;margin-top:4px}
+  .tile .d{font-size:12px;color:var(--muted);margin-top:2px}
+  /* Gráficos */
+  .chart{position:relative}
+  .chart svg{display:block;width:100%;height:auto;overflow:visible}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:0 0 8px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .tip{position:absolute;pointer-events:none;background:#141a34;color:#fff;font-size:12px;border-radius:8px;padding:8px 10px;white-space:nowrap;z-index:5;display:none;line-height:1.5}
+  details{margin-top:10px;font-size:12.5px}
+  details summary{cursor:pointer;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--border)}
+  td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .bar{height:8px;border-radius:4px;background:var(--s1);display:inline-block;vertical-align:middle;margin-right:8px}
+  .dim{color:var(--muted)}
+  .note{font-size:12.5px;color:var(--muted);margin-top:10px}
+  .chip{display:inline-block;font-size:11.5px;font-weight:600;border-radius:12px;padding:2px 9px;background:var(--soft);border:1px solid var(--border)}
+  .err{background:var(--red-bg);color:#8E2F27;border-radius:10px;padding:14px 16px}
+  a{color:var(--navy)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Impacto de la baja nueva</h1>
+  <div class="tag">Desde el 12-nov-2026 cualquier clienta puede darse de baja sin llamada. Aquí se ve si eso mueve el negocio.</div>
+
+  <div class="controls">
+    <div class="field"><label>Agrupar por</label>
+      <div class="seg" id="segG"><button data-g="semana" class="on">Semana</button><button data-g="mes">Mes</button></div></div>
+    <div class="field"><label for="rango">Periodo</label>
+      <select id="rango"><option value="56">Últimas 8 semanas</option><option value="84" selected>Últimas 12 semanas</option><option value="0">Todo (desde agosto)</option></select></div>
+    <div class="field"><label for="q">Persona</label><input id="q" type="search" placeholder="Nombre o email"></div>
+    <div class="spacer"></div>
+    <div class="dim" id="fresco" style="font-size:12px"></div>
+  </div>
+
+  <div id="app"><div class="card dim">Cargando datos…</div></div>
+</div>
+
+<script>
+const API = 'https://domma-bajas.cristina-ed1.workers.dev';
+(function(){ const m = location.hash.match(/token=([^&]+)/); if(m){ try{ localStorage.setItem('domma_analytics_token', decodeURIComponent(m[1])); }catch(e){} history.replaceState(null,'',location.pathname+location.search); } })();
+let token = ''; try{ token = localStorage.getItem('domma_analytics_token') || ''; }catch(e){}
+let D = null, G = 'semana', RANGO = 84, Q = '';
+
+const TIPOS = { baja_form:'Se dio de baja en el formulario', solicitud_baja:'Pidió la baja (la tramitaba el equipo)', oferta10:'Aceptó el 10% y sigue',
+  pausa:'Pausó', espaciar:'Espació envíos', cita_revision:'Reservó revisión con Marta', cita_regalo:'Reservó la sesión de regalo', derivada_llamada:'Derivada a llamada (antes del cambio)' };
+const MOTIVOS = { resultados:'No nota resultados', precio:'Precio', acumulo:'Se le acumula', puntual:'Prefiere comprar suelto', resuelto:'Ya está mejor',
+  salud:'Le sienta mal', incompatible:'Incompatible con medicación', otro:'Otro', gate_2pedidos:'Menos de 2 pedidos', min_2_pedidos:'Menos de 2 pedidos', min_permanencia:'Permanencia' };
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dia = s => new Date(s+'T12:00:00Z');
+const iso = d => d.toISOString().slice(0,10);
+const masDias = (s,n) => { const d = dia(s); d.setUTCDate(d.getUTCDate()+n); return iso(d); };
+const difDias = (a,b) => Math.round((dia(b)-dia(a))/86400000);
+const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function periodo(s){ // clave del periodo al que pertenece el día `s`
+  if(G==='mes') return s.slice(0,7);
+  const d = dia(s); const w = (d.getUTCDay()+6)%7; d.setUTCDate(d.getUTCDate()-w); return iso(d); // lunes
+}
+function etiqueta(p){ return G==='mes' ? MES[+p.slice(5,7)-1]+' '+p.slice(2,4) : (+p.slice(8,10))+' '+MES[+p.slice(5,7)-1]; }
+function finPeriodo(p){ if(G==='mes'){ const d = new Date(Date.UTC(+p.slice(0,4), +p.slice(5,7), 0, 12)); return iso(d); } return masDias(p,6); }
+function periodos(){
+  const desde = RANGO ? masDias(D.hoy, -RANGO) : D.desde;
+  const out = []; let p = periodo(desde < D.desde ? D.desde : desde);
+  while(p <= D.hoy){ out.push(p); p = periodo(masDias(finPeriodo(p),1)); }
+  return out;
+}
+const coincide = e => !Q || (e.n+' '+e.e).toLowerCase().includes(Q);
+
+// ── Gráfico de barras (apiladas si hay varias series). Un solo eje. Marca el día del cambio. ──
+function barras(id, ps, series, {unidad='mujeres'}={}){
+  const el = document.getElementById(id); if(!el) return;
+  const W = 560, H = 210, L = 34, R = 8, T = 22, B = 26, iw = W-L-R, ih = H-T-B;
+  const tot = ps.map((_,i)=>series.reduce((a,s)=>a+s.v[i],0));
+  const max = Math.max(4, ...tot); const paso = max<=8?2:max<=20?5:max<=50?10:max<=120?25:max<=300?50:100;
+  const top = Math.ceil(max/paso)*paso, y = v => T+ih-(v/top)*ih;
+  const bw = Math.min(34, iw/ps.length-4), cx = i => L+(i+.5)*(iw/ps.length);
+  let g = '';
+  for(let v=0; v<=top; v+=paso) g += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#ECE8E0"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="10.5" fill="#6A6E85">${v}</text>`;
+  const iC = ps.findIndex(p => finPeriodo(p) >= D.cambio);
+  if(iC >= 0){ // línea del cambio, colocada dentro del periodo según el día
+    const p = ps[iC], frac = Math.max(0, Math.min(1, difDias(p, D.cambio)/(difDias(p, finPeriodo(p))+1)));
+    const x = L+(iC+frac)*(iw/ps.length) - (frac===0?2:0);
+    g += `<line x1="${x}" x2="${x}" y1="${T-10}" y2="${T+ih}" stroke="#141a34" stroke-dasharray="3 3"/><text x="${x-5}" y="${T-12}" text-anchor="end" font-size="10.5" fill="#141a34" font-weight="600">12-nov · cambio</text>`;
+  }
+  const cada = Math.ceil(ps.length/9);
+  ps.forEach((p,i)=>{
+    let base = 0; const encurso = finPeriodo(p) > D.hoy;
+    series.forEach((s,si)=>{ const v = s.v[i]; if(!v) return;
+      const y1 = y(base+v), h = y(base)-y1; base += v;
+      const arriba = series.slice(si+1).every(o=>!o.v[i]); const r = arriba ? Math.min(4,h) : 0;
+      g += `<path d="M${cx(i)-bw/2},${y1+h} v${-(h-r)} q0,${-r} ${r},${-r} h${bw-2*r} q${r},0 ${r},${r} v${h-r} z" fill="${s.c}" opacity="${encurso?.5:1}" stroke="#fff" stroke-width="${series.length>1?2:0}"/>`;
+    });
+    if(i%cada===0 || i===ps.length-1) g += `<text x="${cx(i)}" y="${H-8}" text-anchor="middle" font-size="10.5" fill="#6A6E85">${etiqueta(p)}</text>`;
+    g += `<rect data-i="${i}" x="${L+i*(iw/ps.length)}" y="${T}" width="${iw/ps.length}" height="${ih}" fill="transparent"/>`;
+  });
+  const leyenda = series.length>1 ? `<div class="legend">${series.map(s=>`<span><i style="background:${s.c}"></i>${esc(s.n)}</span>`).join('')}</div>` : '';
+  const tabla = `<details><summary>Ver datos</summary><table><tr><th>${G==='mes'?'Mes':'Semana del'}</th>${series.map(s=>`<th class="num">${esc(s.n)}</th>`).join('')}</tr>${ps.map((p,i)=>`<tr><td>${etiqueta(p)}${finPeriodo(p)>D.hoy?' <span class="dim">(en curso)</span>':''}</td>${series.map(s=>`<td class="num">${s.v[i]}</td>`).join('')}</tr>`).join('')}</table></details>`;
+  el.innerHTML = `${leyenda}<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg><div class="tip"></div></div>${tabla}`;
+  const tip = el.querySelector('.tip'), ch = el.querySelector('.chart');
+  el.querySelectorAll('rect[data-i]').forEach(rc=>{
+    rc.addEventListener('mousemove', ev=>{ const i = +rc.dataset.i, p = ps[i];
+      tip.innerHTML = `<b>${G==='mes'?etiqueta(p):'Semana del '+etiqueta(p)}</b>${finPeriodo(p)>D.hoy?' · en curso':''}<br>`+series.map(s=>`${esc(s.n)}: <b>${s.v[i]}</b>`).join('<br>')+(series.length>1?`<br>Total: <b>${tot[i]}</b>`:'')+`<br><span style="opacity:.7">${unidad}</span>`;
+      tip.style.display='block'; const b = ch.getBoundingClientRect(); let x = ev.clientX-b.left+12; if(x+tip.offsetWidth>b.width) x = ev.clientX-b.left-tip.offsetWidth-12;
+      tip.style.left = x+'px'; tip.style.top = Math.max(0, ev.clientY-b.top-10)+'px'; });
+    rc.addEventListener('mouseleave', ()=> tip.style.display='none');
+  });
+}
+
+// ── Antes / después: ritmo por semana (se compara por día para que sea justo) ──
+function ritmo(contar){
+  const dAntes = 42, ini = masDias(D.cambio, -dAntes), fin = masDias(D.cambio, -1);
+  const dDesp = Math.max(1, difDias(D.cambio, D.hoy)+1);
+  const a = contar(ini, fin)/dAntes*7, b = contar(D.cambio, D.hoy)/dDesp*7;
+  // Con menos de 7 días no se extrapola a semana: se enseña el recuento tal cual.
+  const corto = dDesp < 7, nDesp = contar(D.cambio, D.hoy);
+  return { a, b, dDesp, corto, nDesp, pct: (a>0 && !corto) ? (b-a)/a*100 : null };
+}
+const contarEv = tipos => (ini,fin) => D.eventos.filter(e => tipos.includes(e.t) && e.d>=ini && e.d<=fin && coincide(e)).length;
+const contarBajasReales = (ini,fin) => Object.entries(D.bajas_dia).reduce((a,[d,n]) => a + (d>=ini && d<=fin ? n : 0), 0);
+const f1 = n => (Math.round(n*10)/10).toLocaleString('es-ES');
+const signo = p => p==null ? '' : ' · '+(p>0?'+':'')+Math.round(p)+'%';
+const valor = r => r.corto ? `${r.nDesp}<span class="dim" style="font-size:13px;font-weight:400"> en ${r.dDesp} día${r.dDesp===1?'':'s'}</span>` : `${f1(r.b)}<span class="dim" style="font-size:13px;font-weight:400"> /sem</span>`;
+
+function pinta(){
+  const ps = periodos();
+  const serie = tipos => ps.map(p => D.eventos.filter(e => tipos.includes(e.t) && periodo(e.d)===p && coincide(e)).length);
+  const reales = ps.map(p => Object.entries(D.bajas_dia).reduce((a,[d,n]) => a + (periodo(d)===p ? n : 0), 0));
+  const altasP = ps.map(p => D.contratos.filter(c => periodo(c.a)===p).length);
+
+  // Veredicto
+  const R = ritmo(contarBajasReales), pocos = R.dDesp < 14;
+  let cls, txt, icono;
+  if(pocos){ cls='warn'; icono='⏳'; txt=`Pronto para concluir: solo ${R.dDesp} día${R.dDesp===1?'':'s'} desde el cambio`; }
+  else if(R.pct > 15){ cls='bad'; icono='▲'; txt='Las bajas reales suben'; }
+  else if(R.pct < -15){ cls='ok'; icono='▼'; txt='Las bajas reales bajan'; }
+  else { cls='ok'; icono='●'; txt='Las bajas reales no se han movido'; }
+  const T = [
+    ['Bajas por formulario', ritmo(contarEv(['baja_form','solicitud_baja'])), 'incluye las que antes pedían la baja al equipo'],
+    ['Aceptan el 10%', ritmo(contarEv(['oferta10'])), 'nuevo: antes no existía'],
+    ['Citas con Marta', ritmo(contarEv(['cita_revision','cita_regalo'])), 'antes eran derivaciones obligadas: '+f1(ritmo(contarEv(['derivada_llamada'])).a)+'/sem'],
+    ['Pausan o espacian', ritmo(contarEv(['pausa','espaciar'])), ''],
+  ];
+
+  // Cohortes: supervivencia a N días, solo con las altas que ya han cumplido N días
+  const cohortes = ps.map(p => { const cs = D.contratos.filter(c => periodo(c.a)===p);
+    const viva = N => { const el = cs.filter(c => masDias(c.a,N) <= D.hoy); if(el.length < 5) return null;
+      return { n: el.length, pct: el.filter(c => !c.b || difDias(c.a,c.b) > N).length/el.length*100 }; };
+    return { p, altas: cs.length, d14: viva(14), d35: viva(35), d63: viva(63) }; }).filter(c => c.altas);
+  const celda = v => v==null ? '<td class="num dim">aún pronto</td>' : `<td class="num"><span class="bar" style="width:${Math.round(v.pct*.6)}px"></span>${Math.round(v.pct)}% <span class="dim">de ${v.n}</span></td>`;
+  // Comparación justa: altas desde el cambio frente a las 6 semanas anteriores, a los mismos días de vida
+  const nuevas = D.contratos.filter(c => c.a >= D.cambio), previas = D.contratos.filter(c => c.a >= masDias(D.cambio,-42) && c.a < D.cambio);
+  const vivaA = (cs,N) => { const el = cs.filter(c => masDias(c.a,N) <= D.hoy); return el.length>=20 ? { n: el.length, pct: el.filter(c => !c.b || difDias(c.a,c.b) > N).length/el.length*100 } : null; };
+  let fraseCoh = `Aún no hay suficientes altas nuevas con 14 días de vida para comparar (hacen falta 20; el primer dato fiable, hacia el ${etiquetaDia(masDias(D.cambio,21))}).`;
+  for(const N of [35,14]){ const a = vivaA(nuevas,N), b = vivaA(previas,N); if(a && b){ fraseCoh = `A los ${N} días siguen activas el <b>${Math.round(a.pct)}%</b> de las altas nuevas (${a.n}) frente al <b>${Math.round(b.pct)}%</b> de las 6 semanas anteriores (${b.n}).`; break; } }
+
+  // Reseñas
+  const res = D.resenas || [], resBaja = ps.map(p => res.filter(r => r.estrellas<=2 && r.sobre_baja && periodo(r.fecha)===p).length);
+  const ultCarga = res.reduce((a,r)=> r.cargada_at>a ? r.cargada_at : a, '');
+
+  // Personas
+  const desde = ps[0]; const filas = D.eventos.filter(e => e.d>=desde && coincide(e) && e.t!=='derivada_llamada' || (e.d>=desde && coincide(e) && Q)).slice().reverse();
+
+  document.getElementById('app').innerHTML = `
+  <div class="card"><div class="hero">
+    <div><span class="pill ${cls}">${icono} ${txt}</span>
+      <div class="big">${R.corto ? R.nDesp : f1(R.b)} <small>${R.corto ? `bajas reales en ${R.dDesp} día${R.dDesp===1?'':'s'}` : 'bajas reales por semana'}</small></div>
+      <div class="dim" style="margin-top:6px">Antes del cambio: <b>${f1(R.a)}</b> por semana${R.corto ? ' (unas '+f1(R.a/7)+' al día)' : signo(R.pct)}. Son todas las bajas de Appstle, por cualquier vía.</div></div>
+    <div class="tiles">${T.map(([l,r,nota])=>`<div class="tile"><div class="l">${l}</div><div class="v">${valor(r)}</div><div class="d">antes ${f1(r.a)}/sem${signo(r.pct)}</div>${nota?`<div class="d">${nota}</div>`:''}</div>`).join('')}</div>
+  </div><div class="note">«Antes» = las 6 semanas previas al 12-nov. «Después» = desde el 12-nov hasta hoy (${R.dDesp} día${R.dDesp===1?'':'s'}). Se compara el ritmo por día, pasado a semana; con menos de 7 días se enseña el recuento tal cual.${Q?' Los datos del formulario están filtrados por la persona buscada; las bajas reales y las cohortes, no.':''}</div></div>
+
+  <div class="grid2">
+    <div class="card"><h2>Bajas reales, por cualquier vía</h2><p class="sub">Lo que de verdad pierde el negocio. Fuente: Appstle.</p><div id="c1"></div></div>
+    <div class="card"><h2>Bajas por el formulario</h2><p class="sub">Es normal que suba: antes el muro las frenaba o las tramitaba el equipo.</p><div id="c2"></div></div>
+    <div class="card"><h2>Aceptan el 10% y siguen</h2><p class="sub">Clientas que iban a irse y se quedan con el descuento.</p><div id="c3"></div></div>
+    <div class="card"><h2>Citas con Marta</h2><p class="sub">Cuenta quien pulsa «reservar», no la reserva terminada.</p><div id="c4"></div></div>
+    <div class="card"><h2>Pausan o espacian</h2><p class="sub">Se quedan, pero frenan los envíos.</p><div id="c5"></div></div>
+    <div class="card"><h2>Altas nuevas</h2><p class="sub">Para leer las bajas en contexto. Fuente: Appstle.</p><div id="c6"></div></div>
+  </div>
+
+  <div class="card"><h2>¿Renuevan igual las altas nuevas?</h2><p class="sub">De cada grupo de altas, cuántas siguen activas a los 14, 35 y 63 días. El día 35 ya ha pasado el primer cobro.</p>
+    <p style="margin:0 0 14px">${fraseCoh}</p>
+    <table><tr><th>Altas ${G==='mes'?'del mes':'de la semana del'}</th><th class="num">Altas</th><th class="num">Activas a 14 días</th><th class="num">Activas a 35 días</th><th class="num">Activas a 63 días</th></tr>
+    ${cohortes.map(c=>`<tr><td>${etiqueta(c.p)}${c.p<=D.cambio && finPeriodo(c.p)>=D.cambio?' <span class="chip">cambio</span>':''}</td><td class="num">${c.altas}</td>${celda(c.d14)}${celda(c.d35)}${celda(c.d63)}</tr>`).join('')}</table>
+    <div class="note">Cada porcentaje usa solo las altas que ya han cumplido esos días. «Activa» = sin baja en Appstle; una pausa cuenta como activa.</div></div>
+
+  <div class="card"><h2>Reseñas de Trustpilot sobre la baja</h2><p class="sub">Reseñas de 1 y 2 estrellas que hablan de la baja o la suscripción.</p>
+    ${res.length ? `<div id="c7"></div><table style="margin-top:14px"><tr><th>Fecha</th><th>Estrellas</th><th>Tema</th><th>Qué dice (resumen)</th></tr>${res.filter(r=>r.estrellas<=2).slice(0,12).map(r=>`<tr><td>${etiquetaDia(r.fecha)}</td><td>${'★'.repeat(r.estrellas)}</td><td>${r.sobre_baja?'<span class="chip">baja / suscripción</span>':esc(r.tema||'')}</td><td>${esc(r.resumen||'')}${r.url?` · <a href="${esc(r.url)}" target="_blank" rel="noopener">ver</a>`:''}</td></tr>`).join('')}</table>
+    <div class="note">Trustpilot no deja leerse de forma automática: estas reseñas se cargan a mano. Última carga: ${ultCarga?etiquetaDia(ultCarga.slice(0,10)):'—'}.</div>` : '<div class="dim">Todavía no hay reseñas cargadas.</div>'}</div>
+
+  <div class="card"><h2>Personas</h2><p class="sub">Qué hizo cada clienta en el formulario${Q?', filtrado por «'+esc(Q)+'»':''}. ${filas.length>300?'Se muestran las 300 más recientes de '+filas.length+'.':filas.length+' en el periodo.'}</p>
+    <table><tr><th>Fecha</th><th>Nombre</th><th>Email</th><th>Qué hizo</th><th>Motivo</th></tr>
+    ${filas.slice(0,300).map(e=>`<tr><td>${etiquetaDia(e.d)}</td><td>${esc(e.n)||'<span class="dim">—</span>'}</td><td>${esc(e.e)}</td><td>${TIPOS[e.t]||e.t}</td><td>${esc(MOTIVOS[e.m]||e.m)}</td></tr>`).join('') || '<tr><td colspan="5" class="dim">Nadie con ese filtro.</td></tr>'}</table></div>`;
+
+  barras('c1', ps, [{n:'Bajas reales', c:'var(--s1)', v:reales}], {unidad:'contratos'});
+  barras('c2', ps, [{n:'Baja directa', c:'var(--s1)', v:serie(['baja_form'])},{n:'Pidió la baja al equipo', c:'var(--s2)', v:serie(['solicitud_baja'])}]);
+  barras('c3', ps, [{n:'Aceptan el 10%', c:'var(--s1)', v:serie(['oferta10'])}]);
+  barras('c4', ps, [{n:'Revisión con Marta', c:'var(--s1)', v:serie(['cita_revision'])},{n:'Sesión de regalo', c:'var(--s2)', v:serie(['cita_regalo'])},{n:'Derivada a llamada (antes)', c:'var(--s3)', v:serie(['derivada_llamada'])}]);
+  barras('c5', ps, [{n:'Pausan', c:'var(--s1)', v:serie(['pausa'])},{n:'Espacian', c:'var(--s2)', v:serie(['espaciar'])}]);
+  barras('c6', ps, [{n:'Altas', c:'var(--s1)', v:altasP}], {unidad:'contratos'});
+  if(res.length) barras('c7', ps, [{n:'Reseñas 1-2★ sobre la baja', c:'var(--s1)', v:resBaja}], {unidad:'reseñas'});
+  document.getElementById('fresco').textContent = 'Altas y bajas reales: actualizadas el '+(D.ultimo_sync?etiquetaDia(D.ultimo_sync.slice(0,10))+' '+D.ultimo_sync.slice(11,16)+' UTC':'—')+' (cada 6 h)';
+}
+function etiquetaDia(s){ return (+s.slice(8,10))+' '+MES[+s.slice(5,7)-1]+(s.slice(0,4)!==D.hoy.slice(0,4)?' '+s.slice(2,4):''); }
+
+async function cargar(){
+  const app = document.getElementById('app');
+  if(!token){ app.innerHTML = '<div class="err">No hay sesión. Entra desde el <a href="/">Data Hub</a>.</div>'; return; }
+  try{
+    const r = await fetch(API+'/api/dashboard/impacto', {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:'{}'});
+    if(r.status===401){ app.innerHTML = '<div class="err">Tu sesión ha caducado o no tienes permiso. Vuelve a entrar desde el <a href="/">Data Hub</a>.</div>'; return; }
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    D = await r.json(); pinta();
+  }catch(e){ app.innerHTML = '<div class="err">No se han podido cargar los datos ('+esc(e.message)+'). Recarga la página.</div>'; }
+}
+document.querySelectorAll('#segG button').forEach(b => b.onclick = () => { G = b.dataset.g; document.querySelectorAll('#segG button').forEach(x => x.classList.toggle('on', x===b)); if(D) pinta(); });
+document.getElementById('rango').onchange = e => { RANGO = +e.target.value; if(D) pinta(); };
+document.getElementById('q').oninput = e => { Q = e.target.value.trim().toLowerCase(); if(D) pinta(); };
+cargar();
+</script>
+</body>
+</html>
