@@ -429,8 +429,13 @@ document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='
     </div>
 
     <div class="card" style="margin-top:20px;">
-        <h3>Funnel por fuente de tráfico</h3>
+        <h3>Funnel por fuente, país o dominio</h3>
         <p class="subtitle">El agregado miente: cada canal se comporta de forma distinta en el último paso</p>
+        <div id="funnelPorBtns" style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+          <button type="button" data-por="fuente" onclick="setFunnelPor('fuente')" style="padding:6px 14px;border-radius:16px;border:1px solid #101637;background:#101637;color:#fff;font-size:12px;cursor:pointer">Fuente</button>
+          <button type="button" data-por="pais" onclick="setFunnelPor('pais')" style="padding:6px 14px;border-radius:16px;border:1px solid #101637;background:#fff;color:#101637;font-size:12px;cursor:pointer">País</button>
+          <button type="button" data-por="dominio" onclick="setFunnelPor('dominio')" style="padding:6px 14px;border-radius:16px;border:1px solid #101637;background:#fff;color:#101637;font-size:12px;cursor:pointer">Dominio</button>
+        </div>
         <div id="funnelFuentesAviso" style="display:none;background:#fff8e6;border:1px solid #f3d97a;color:#7a5a16;padding:10px 14px;border-radius:8px;margin:12px 0 0 0;font-size:12px;line-height:1.5"></div>
         <div id="funnelFuentes" style="margin-top:14px;overflow-x:auto"></div>
         <div id="funnelFuentesNota" style="color:#666;font-size:12px;margin-top:12px;line-height:1.5"></div>
@@ -612,6 +617,25 @@ async function downloadLunaCsv(){
   }
 }
 
+// Corte de la tarjeta "Funnel por fuente, país o dominio". País y dominio existen
+// sólo desde el 12/11/2026 (migración 009 del quiz): antes no se guardaban.
+let FUNNEL_POR = 'fuente';
+async function setFunnelPor(por){
+  FUNNEL_POR = por;
+  document.querySelectorAll('#funnelPorBtns button').forEach(b => {
+    const on = b.dataset.por === por;
+    b.style.background = on ? '#101637' : '#fff';
+    b.style.color = on ? '#fff' : '#101637';
+  });
+  try{
+    const desde = document.getElementById('lunaDesde')?.value || '2026-01-01';
+    const hasta = document.getElementById('lunaHasta')?.value || '';
+    const r = await fetch(`${LUNA_FUENTES_ENDPOINT}?token=${LUNA_TOKEN}&desde=${desde}${hasta ? '&hasta='+hasta : ''}&por=${por}`);
+    const d = await r.json();
+    if(d.ok) renderFunnelFuentes(d);
+  }catch(e){ console.error('funnel por '+por+' failed', e); }
+}
+
 async function loadLuna(){
   try{
     // Rango de fechas según selector (default: todo el periodo)
@@ -622,7 +646,7 @@ async function loadLuna(){
       fetch(`${LUNA_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}`),
       fetch(`${LUNA_FUNNEL_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}`),
       fetch(`${LUNA_COMPRAS_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}`),
-      fetch(`${LUNA_FUENTES_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}`)
+      fetch(`${LUNA_FUENTES_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}&por=${FUNNEL_POR}`)
     ]);
     if(!rExp.ok) throw new Error('http '+rExp.status);
     const data = await rExp.json();
@@ -826,9 +850,22 @@ function renderFunnelFuentes(data){
   const nota = document.getElementById('funnelFuentesNota');
   if(!slot) return;
 
-  const fuentes = (data.fuentes || []).filter(f => f.completan >= 10);
-  const descartadas = (data.fuentes || []).filter(f => f.completan < 10);
+  // por = 'fuente' (utm) | 'pais' | 'dominio'. En país/dominio el dato va desde la VISITA,
+  // así que se enseñan también "Visitan" y "Empiezan" y no se exige un mínimo de tests
+  // (un país nuevo empieza con pocos). Las sesiones anteriores al 12/11/2026 no lo traen.
+  const por = data.por || 'fuente';
+  const esDim = por !== 'fuente';
+  const sinDato = esDim ? (data.fuentes || []).find(f => f.fuente === '(sin dato)') : null;
+  const fuentes = esDim
+    ? (data.fuentes || []).filter(f => f.fuente !== '(sin dato)').sort((a,b) => b.visitan - a.visitan).slice(0,15)
+    : (data.fuentes || []).filter(f => f.completan >= 10);
+  const descartadas = esDim ? [] : (data.fuentes || []).filter(f => f.completan < 10);
   const t = data.totales || {};
+  const cabecera = por === 'pais' ? 'País' : (por === 'dominio' ? 'Dominio' : 'Fuente');
+  if(esDim && fuentes.length === 0){
+    slot.innerHTML = `<p style="color:#666;font-size:13px;margin:8px 0">Aún no hay sesiones con ${por === 'pais' ? 'país' : 'dominio'} guardado en este periodo. Se guarda desde el 12/11/2026.</p>`;
+    aviso.style.display = 'none'; nota.innerHTML = ''; return;
+  }
   if(fuentes.length === 0){
     slot.innerHTML = `<p style="color:#666;font-size:13px;margin:8px 0">Sin datos suficientes en el periodo.</p>`;
     aviso.style.display = 'none'; nota.innerHTML = ''; return;
@@ -836,7 +873,10 @@ function renderFunnelFuentes(data){
 
   // Arriba del funnel sólo es fiable si la utm viajaba ya en los eventos
   const fiable = (data.utm_en_eventos_pct || 0) >= 50;
-  if(!fiable){
+  if(esDim){
+    aviso.style.display = 'block';
+    aviso.innerHTML = `📌 <strong>${cabecera} se guarda desde el 12/11/2026.</strong> En este periodo lo tiene el ${data.dato_pct || 0}% de las sesiones${sinDato ? ` (${sinDato.visitan.toLocaleString('es-ES')} sesiones anteriores quedan fuera de la tabla)` : ''}. El TOTAL de abajo suma sólo las filas de la tabla.`;
+  } else if(!fiable){
     aviso.style.display = 'block';
     aviso.innerHTML = `⚠️ <strong>El desglose arranca en "completan el test".</strong> Hasta el 22/09/2026 la fuente sólo se guardaba al acabar el test, así que de quien abandonó antes no sabemos de dónde venía — repartir "visitan" o "inician" por canal daría un número inventado. Desde esa fecha la fuente viaja en cada evento y el funnel se podrá partir entero.`;
   } else {
@@ -856,6 +896,8 @@ function renderFunnelFuentes(data){
   const filas = fuentes.map(f => `
     <tr style="border-bottom:1px solid #f0ece4">
       <td style="padding:9px 10px 9px 0;font-size:13px;white-space:nowrap"><strong>${f.fuente}</strong></td>
+      ${esDim ? `<td style="padding:9px 10px;font-size:13px;text-align:right">${f.visitan.toLocaleString('es-ES')}</td>
+      <td style="padding:9px 10px;font-size:13px;text-align:right">${f.inician.toLocaleString('es-ES')} <span style="color:#888;font-size:11px">${f.pct_visita_inicia}%</span></td>` : ''}
       <td style="padding:9px 10px;font-size:13px;text-align:right">${f.completan.toLocaleString('es-ES')}</td>
       <td style="padding:9px 10px;font-size:13px;text-align:right">${f.ven_plan.toLocaleString('es-ES')}</td>
       <td style="padding:9px 10px;font-size:13px;text-align:right">${f.pulsan_cta.toLocaleString('es-ES')}</td>
@@ -872,13 +914,21 @@ function renderFunnelFuentes(data){
       <td style="padding:9px 0 9px 10px;font-size:13px;text-align:right;white-space:nowrap">${eur(f.revenue_eur)}</td>
     </tr>`).join('');
 
+  // En país/dominio el total es el de las filas visibles (sin las sesiones "(sin dato)")
+  if(esDim){
+    ['visitan','inician','completan','ven_plan','pulsan_cta','compran','revenue_eur'].forEach(k => {
+      t[k] = fuentes.reduce((a,f) => a + (f[k] || 0), 0);
+    });
+  }
   const pctTotal = t.ven_plan > 0 ? (100*t.pulsan_cta/t.ven_plan).toFixed(1) : '0';
   const crTotal = t.completan > 0 ? (100*t.compran/t.completan).toFixed(1) : '0';
 
   slot.innerHTML = `
     <table style="width:100%;border-collapse:collapse;min-width:620px">
       <thead><tr style="border-bottom:2px solid #e8e2d6;color:#666;font-size:11px;text-transform:uppercase;letter-spacing:.03em">
-        <th style="text-align:left;padding:0 10px 8px 0">Fuente</th>
+        <th style="text-align:left;padding:0 10px 8px 0">${cabecera}</th>
+        ${esDim ? `<th style="text-align:right;padding:0 10px 8px">Visitan</th>
+        <th style="text-align:right;padding:0 10px 8px">Empiezan</th>` : ''}
         <th style="text-align:right;padding:0 10px 8px">Completan</th>
         <th style="text-align:right;padding:0 10px 8px">Ven plan</th>
         <th style="text-align:right;padding:0 10px 8px">CTA</th>
@@ -890,6 +940,8 @@ function renderFunnelFuentes(data){
       <tbody>${filas}
         <tr style="border-top:2px solid #e8e2d6;background:#faf8f4">
           <td style="padding:10px 10px 10px 0;font-size:13px"><strong>TOTAL</strong></td>
+          ${esDim ? `<td style="padding:10px;font-size:13px;text-align:right"><strong>${(t.visitan||0).toLocaleString('es-ES')}</strong></td>
+          <td style="padding:10px;font-size:13px;text-align:right"><strong>${(t.inician||0).toLocaleString('es-ES')}</strong></td>` : ''}
           <td style="padding:10px;font-size:13px;text-align:right"><strong>${(t.completan||0).toLocaleString('es-ES')}</strong></td>
           <td style="padding:10px;font-size:13px;text-align:right"><strong>${(t.ven_plan||0).toLocaleString('es-ES')}</strong></td>
           <td style="padding:10px;font-size:13px;text-align:right"><strong>${(t.pulsan_cta||0).toLocaleString('es-ES')}</strong></td>
@@ -903,7 +955,7 @@ function renderFunnelFuentes(data){
 
   // Lectura automática: ¿hay algún canal desplomado respecto al mejor?
   const partes = [];
-  partes.push(`Antes de este desglose: <strong>${(t.visitan||0).toLocaleString('es-ES')}</strong> visitan la landing y <strong>${(t.inician||0).toLocaleString('es-ES')}</strong> empiezan el test (${t.visitan>0?Math.round(100*t.inician/t.visitan):0}%).`);
+  if(!esDim) partes.push(`Antes de este desglose: <strong>${(t.visitan||0).toLocaleString('es-ES')}</strong> visitan la landing y <strong>${(t.inician||0).toLocaleString('es-ES')}</strong> empiezan el test (${t.visitan>0?Math.round(100*t.inician/t.visitan):0}%).`);
   const rotas = fuentes.filter(f => mejor > 0 && f.pct_plan_cta / mejor < 0.25 && f.ven_plan >= 100);
   if(rotas.length){
     rotas.forEach(f => {
