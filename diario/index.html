@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>DOMMA · Diario de suscripciones</title>
+<style>
+  :root{
+    --navy:#1C296A; --bg:#F8F7F5; --card:#FFFFFF; --text:#141a34; --muted:#6A6E85; --border:#ECE8E0;
+    --green:#1F9D6B; --red:#C0453B; --green-bg:#E7F5EF; --amber-bg:#FBF1DC; --red-bg:#FBE9E7; --soft:#FAF8F4;
+    --s1:#4A63D0;      /* este mes (validado con dataviz/validate_palette.js) */
+    --ref:#9AA0B8;     /* mes anterior: referencia, a propósito apagada y discontinua */
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
+  .wrap{max-width:1200px;margin:0 auto;padding:24px 20px 80px}
+  h1{font-size:21px;font-weight:600;margin:0;letter-spacing:-.01em}
+  .tag{font-size:13px;color:var(--muted);margin-top:3px}
+  .controls{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin:18px 0;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .field select{padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);font:inherit;font-size:13px;outline:none;min-width:170px}
+  .seg{display:inline-flex;border:1.5px solid var(--border);border-radius:8px;overflow:hidden}
+  .seg button{border:0;background:var(--card);padding:9px 16px;font:inherit;font-size:13px;cursor:pointer;color:var(--muted)}
+  .seg button.on{background:var(--navy);color:#fff;font-weight:600}
+  .spacer{flex:1}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 22px;margin-bottom:16px}
+  .card h2{font-size:15px;font-weight:600;margin:0 0 2px}
+  .card .sub{font-size:12.5px;color:var(--muted);margin:0 0 14px}
+  .tiles{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
+  @media(max-width:1000px){.tiles{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:560px){.tiles{grid-template-columns:1fr 1fr}}
+  .tile{background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;text-align:left;font:inherit;color:inherit}
+  .tile:hover{border-color:#C9CEEA}
+  .tile.on{border-color:var(--navy);box-shadow:0 0 0 3px #F1F2FA}
+  .tile .l{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+  .tile .v{font-size:26px;font-weight:600;margin-top:4px;letter-spacing:-.01em}
+  .tile .d{font-size:12px;color:var(--muted);margin-top:3px}
+  .delta{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;border-radius:12px;padding:1px 8px;margin-top:6px}
+  .delta.ok{background:var(--green-bg);color:#0F6B47}.delta.bad{background:var(--red-bg);color:#8E2F27}.delta.eq{background:var(--soft);color:var(--muted);border:1px solid var(--border)}
+  .chart{position:relative}
+  .chart svg{display:block;width:100%;height:auto;overflow:visible}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:0 0 6px}
+  .legend i{display:inline-block;width:18px;height:0;border-top:3px solid var(--s1);margin-right:6px;vertical-align:middle}
+  .legend i.ref{border-top:3px dashed var(--ref)}
+  .tip{position:absolute;pointer-events:none;background:#141a34;color:#fff;font-size:12px;border-radius:8px;padding:8px 10px;white-space:nowrap;z-index:5;display:none;line-height:1.55}
+  .grid2{display:grid;grid-template-columns:1fr 1.3fr;gap:20px;align-items:start}
+  @media(max-width:860px){.grid2{grid-template-columns:1fr}}
+  .kv{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--border)}
+  .kv b{font-variant-numeric:tabular-nums}
+  .estado{margin-top:12px;font-size:13px;padding:10px 12px;border-radius:8px}
+  .estado.ok{background:var(--green-bg);color:#0F6B47}.estado.bad{background:var(--red-bg);color:#8E2F27}
+  .scroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
+  th{text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+  td{padding:8px 8px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  tr.tot td{font-weight:600;background:var(--soft)}
+  tr.ref td{color:var(--muted);background:var(--soft)}
+  tr.hoy td{color:var(--muted)}
+  tr.finde td:first-child{color:var(--muted)}
+  .chip{display:inline-block;font-size:11px;font-weight:600;border-radius:12px;padding:1px 8px;background:var(--soft);border:1px solid var(--border);color:var(--muted);margin-left:6px}
+  .dim{color:var(--muted)}
+  .note{font-size:12.5px;color:var(--muted);margin-top:10px}
+  .err{background:var(--red-bg);color:#8E2F27;border-radius:10px;padding:14px 16px}
+  a{color:var(--navy)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Diario de suscripciones</h1>
+  <div class="tag">Lo que le pasa a la base cada día, acumulado del 1 al 31, comparado con el mes pasado a la misma altura.</div>
+
+  <div class="controls">
+    <div class="field"><label for="mes">Mes</label><select id="mes"></select></div>
+    <div class="field"><label>Gráfico</label>
+      <div class="seg" id="segModo"><button data-m="acum" class="on">Acumulado</button><button data-m="dia">Día a día</button></div></div>
+    <div class="spacer"></div>
+    <div class="dim" id="fresco" style="font-size:12px;text-align:right"></div>
+  </div>
+
+  <div id="app"><div class="card dim">Cargando datos…</div></div>
+</div>
+
+<script>
+const API = 'https://domma-bajas.cristina-ed1.workers.dev';
+(function(){ const m = location.hash.match(/token=([^&]+)/); if(m){ try{ localStorage.setItem('domma_analytics_token', decodeURIComponent(m[1])); }catch(e){} history.replaceState(null,'',location.pathname+location.search); } })();
+let token = ''; try{ token = localStorage.getItem('domma_analytics_token') || ''; }catch(e){}
+let D = null, YM = '', MODO = 'acum', MET = 'bajas';
+const MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const DSEM = ['dom','lun','mar','mié','jue','vie','sáb'];
+// Miles con punto también en 4 cifras (es-ES no agrupa «2272» por defecto).
+const num = n => { const v = Math.round(n||0); return (v<0?'−':'')+String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g,'.'); };
+const eur = n => num(n)+' €';
+const nombreMes = ym => MES[+ym.slice(5,7)-1]+' '+ym.slice(0,4);
+const corto = ym => MES[+ym.slice(5,7)-1].slice(0,3);
+const diasDelMes = ym => new Date(Date.UTC(+ym.slice(0,4), +ym.slice(5,7), 0)).getUTCDate();
+const neto = o => (o.altas||0)+(o.reactivaciones||0)-(o.bajas||0);
+
+// Métricas: etiqueta, cómo se saca el valor de un día, si subir es bueno (1), malo (-1) o neutro (0), y formato.
+const METRICAS = {
+  altas:        { l:'Altas',            v:o=>o.altas||0,          s:1,  f:num, que:'Suscripciones nuevas.' },
+  renovaciones: { l:'Renovaciones',     v:o=>o.renovaciones||0,   s:1,  f:num, que:'Cobros de renovación hechos con éxito.' },
+  bajas:        { l:'Bajas',            v:o=>o.bajas||0,          s:-1, f:num, que:'Todas las bajas, por cualquier vía.' },
+  pausas:       { l:'Pausas',           v:o=>o.pausas||0,         s:-1, f:num, que:'Pausas hechas por la clienta en el formulario o por el equipo.' },
+  cambios_fecha:{ l:'Cambios de fecha', v:o=>o.cambios_fecha||0,  s:0,  f:num, que:'Mueven la fecha del siguiente cobro (incluye espaciar envíos).' },
+  neto:         { l:'Neto',             v:neto,                   s:1,  f:n=>(n>0?'+':'')+num(n), que:'Altas + reactivaciones − bajas.' },
+};
+function serie(lista, ym, k){ // valores por día 1..N (0 si no hubo nada)
+  const n = diasDelMes(ym), out = new Array(n).fill(0);
+  for(const x of lista){ out[+x.d.slice(8,10)-1] = METRICAS[k] ? METRICAS[k].v(x) : (x[k]||0); }
+  return out;
+}
+const acum = a => { let t = 0; return a.map(v => (t += v)); };
+const sumaHasta = (a, n) => a.slice(0, n).reduce((x,y)=>x+y, 0);
+
+function delta(act, ref, s, fmt){
+  if(ref == null) return '';
+  const x = act-ref; if(!x) return '<span class="delta eq">= igual</span>';
+  const bueno = s===0 ? null : (x>0)===(s>0);
+  const cls = bueno==null ? 'eq' : bueno ? 'ok' : 'bad';
+  const pct = ref ? ' · '+(x>0?'+':'−')+Math.abs(Math.round(x/Math.abs(ref)*100))+'%' : '';
+  return `<span class="delta ${cls}">${x>0?'▲':'▼'} ${(fmt||num)(Math.abs(x)).replace(/^[+−]/,'')}${pct}</span>`;
+}
+
+// ── Líneas: este mes frente al mes pasado, mismo eje ──
+function lineas(id, act, ref, nAct, {fmt=num, etiAct, etiRef, marca}={}){
+  const el = document.getElementById(id); if(!el) return;
+  const W = 760, H = 260, L = 40, R = 64, T = 22, B = 26, iw = W-L-R, ih = H-T-B, N = Math.max(act.length, ref.length, 28);
+  const todos = act.slice(0,nAct).concat(ref); let max = Math.max(4, ...todos), min = Math.min(0, ...todos);
+  const rango = max-min; const paso = rango<=8?2:rango<=20?5:rango<=50?10:rango<=120?25:rango<=300?50:rango<=600?100:rango<=1200?250:500;
+  max = Math.ceil(max/paso)*paso; min = Math.floor(min/paso)*paso;
+  const x = i => L+(i/(N-1))*iw, y = v => T+ih-((v-min)/(max-min))*ih;
+  let g = '';
+  for(let v=min; v<=max; v+=paso) g += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="${v===0&&min<0?'#9AA0B8':'#ECE8E0'}"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="10.5" fill="#6A6E85">${num(v)}</text>`;
+  for(let i=0;i<N;i++) if(i===0 || (i+1)%5===0) g += `<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="10.5" fill="#6A6E85">${i+1}</text>`;
+  if(marca){ g += `<line x1="${x(marca-1)}" x2="${x(marca-1)}" y1="${T-8}" y2="${T+ih}" stroke="#141a34" stroke-dasharray="3 3"/><text x="${x(marca-1)+5}" y="${T-10}" font-size="10.5" fill="#141a34" font-weight="600">día ${marca} · baja nueva</text>`; }
+  const camino = (a, n) => a.slice(0,n).map((v,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  if(ref.length) g += `<path d="${camino(ref, ref.length)}" fill="none" stroke="var(--ref)" stroke-width="2" stroke-dasharray="5 4"/>`;
+  if(nAct) g += `<path d="${camino(act, nAct)}" fill="none" stroke="var(--s1)" stroke-width="2.5" stroke-linejoin="round"/>`;
+  // Etiquetas directas al final de cada línea (si chocan, se separan)
+  let yA = nAct ? y(act[nAct-1]) : null, yR = ref.length ? y(ref[ref.length-1]) : null;
+  if(nAct){ g += `<circle cx="${x(nAct-1)}" cy="${yA}" r="4.5" fill="var(--s1)" stroke="#fff" stroke-width="2"/>`; }
+  if(ref.length){ g += `<circle cx="${x(ref.length-1)}" cy="${yR}" r="4" fill="var(--ref)" stroke="#fff" stroke-width="2"/>`; }
+  const xa = nAct ? x(nAct-1)+9 : 0, xr = ref.length ? x(ref.length-1)+9 : 0;
+  let tyA = yA, tyR = yR;
+  if(nAct && ref.length && Math.abs(xa-xr) < 60 && Math.abs(tyA-tyR) < 14){ if(tyA <= tyR){ tyA -= 7; tyR += 7; } else { tyA += 7; tyR -= 7; } }
+  if(nAct) g += `<text x="${xa}" y="${tyA+4}" font-size="11.5" font-weight="600" fill="#141a34">${fmt(act[nAct-1])}</text>`;
+  if(ref.length) g += `<text x="${xr}" y="${tyR+4}" font-size="11.5" fill="#6A6E85">${fmt(ref[ref.length-1])}</text>`;
+  g += `<line id="${id}x" x1="0" x2="0" y1="${T}" y2="${T+ih}" stroke="#141a34" stroke-width="1" opacity="0"/><rect id="${id}r" x="${L}" y="${T}" width="${iw}" height="${ih}" fill="transparent"/>`;
+  el.innerHTML = `<div class="legend"><span><i></i>${etiAct}</span><span><i class="ref"></i>${etiRef}</span></div><div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg><div class="tip"></div></div>`;
+  const svg = el.querySelector('svg'), tip = el.querySelector('.tip'), ch = el.querySelector('.chart'), cur = el.querySelector('#'+id+'x');
+  el.querySelector('#'+id+'r').addEventListener('mousemove', ev=>{
+    const b = svg.getBoundingClientRect(), px = (ev.clientX-b.left)/b.width*W;
+    const i = Math.max(0, Math.min(N-1, Math.round((px-L)/iw*(N-1))));
+    cur.setAttribute('x1', x(i)); cur.setAttribute('x2', x(i)); cur.setAttribute('opacity', .35);
+    tip.innerHTML = `<b>Día ${i+1}</b><br>${etiAct}: <b>${i<nAct ? fmt(act[i]) : '—'}</b><br>${etiRef}: <b>${i<ref.length ? fmt(ref[i]) : '—'}</b>`;
+    tip.style.display = 'block'; const cb = ch.getBoundingClientRect(); let tx = ev.clientX-cb.left+14; if(tx+tip.offsetWidth > cb.width) tx = ev.clientX-cb.left-tip.offsetWidth-14;
+    tip.style.left = tx+'px'; tip.style.top = Math.max(0, ev.clientY-cb.top-12)+'px'; });
+  el.querySelector('#'+id+'r').addEventListener('mouseleave', ()=>{ tip.style.display='none'; cur.setAttribute('opacity', 0); });
+}
+
+function pinta(){
+  const ym = D.ym, esActual = ym === D.hoy.slice(0,7), diaHoy = +D.hoy.slice(8,10);
+  // En el mes en curso se compara hasta AYER (día cerrado); hoy va aparte, «en curso».
+  const nCorte = esActual ? diaHoy-1 : diasDelMes(ym);
+  const nPinta = esActual ? diaHoy : diasDelMes(ym);
+  const hayRef = D.dias_prev.length > 0;
+  const hoyFila = D.dias.find(x => x.d === D.hoy) || {};
+  const corteTxt = esActual ? (nCorte ? `hasta ayer, día ${nCorte}` : 'el mes empieza hoy') : 'mes completo';
+
+  const tiles = Object.entries(METRICAS).map(([k,m])=>{
+    const a = serie(D.dias, ym, k), r = serie(D.dias_prev, D.prev, k);
+    const act = sumaHasta(a, nCorte), ref = hayRef ? sumaHasta(r, nCorte) : null;
+    const extra = k==='renovaciones' ? `<div class="d">${eur(sumaHasta(serie(D.dias, ym, 'renov_eur'), nCorte))} cobrados</div>` : '';
+    return `<button class="tile ${MET===k?'on':''}" data-k="${k}" title="${m.que}"><div class="l">${m.l}</div><div class="v">${m.f(act)}</div>${extra}
+      <div class="d">${hayRef ? corto(D.prev)+' a la misma altura: '+m.f(ref) : 'sin mes anterior'}</div>${delta(act, ref, m.s, m.f)}
+      ${esActual ? `<div class="d">hoy, en curso: ${m.f(m.v(hoyFila))}</div>` : ''}</button>`; }).join('');
+
+  const m = METRICAS[MET];
+  const f = D.fallos, wa = f && f.wa, problemas = wa ? (wa.sin_telefono||0)+(wa.errores||0)+(wa.errores_sync||0) : 0;
+  const rec = sumaHasta(serie(D.dias, ym, 'recuperadas'), nPinta), recEur = sumaHasta(serie(D.dias, ym, 'recuperadas_eur'), nPinta), ren = sumaHasta(serie(D.dias, ym, 'renovaciones'), nPinta);
+  const recP = sumaHasta(serie(D.dias_prev, D.prev, 'recuperadas'), diasDelMes(D.prev)), renP = sumaHasta(serie(D.dias_prev, D.prev, 'renovaciones'), diasDelMes(D.prev));
+
+  // Tabla diaria
+  const COLS = [['Altas','altas'],['Renov.','renovaciones'],['€ renov.','renov_eur'],['Bajas','bajas'],['· form.','bajas_form'],['Pausas','pausas'],['Fecha','cambios_fecha'],['Reactiv.','reactivaciones'],['10%','oferta10'],['Recup.','recuperadas']];
+  const tot = (lista, n) => { const t = {}; for(const x of lista){ if(+x.d.slice(8,10) > n) continue; for(const [,k] of COLS) t[k] = (t[k]||0)+(x[k]||0); } return t; };
+  const tAct = tot(D.dias, nPinta), tRef = tot(D.dias_prev, nPinta);
+  const celdas = o => COLS.map(([,k]) => `<td>${k==='renov_eur' ? num(o[k]) : num(o[k])}</td>`).join('')+`<td>${METRICAS.neto.f(neto(o))}</td>`;
+  const filas = [];
+  for(let i=nPinta; i>=1; i--){ const d = ym+'-'+String(i).padStart(2,'0'), o = D.dias.find(x=>x.d===d) || {}; const ds = new Date(d+'T12:00:00Z').getUTCDay();
+    filas.push(`<tr class="${d===D.hoy?'hoy':''} ${ds===0||ds===6?'finde':''}"><td>${DSEM[ds]} ${i}${d===D.hoy?'<span class="chip">hoy, en curso</span>':''}${d===D.cambio?'<span class="chip">baja nueva</span>':''}</td>${celdas(o)}</tr>`); }
+
+  document.getElementById('app').innerHTML = `
+  <div class="tiles">${tiles}</div>
+
+  <div class="card"><h2>${m.l}: ${nombreMes(ym)} frente a ${nombreMes(D.prev)}</h2>
+    <p class="sub">${m.que} ${MODO==='acum' ? 'Suma acumulada desde el día 1.' : 'Valor de cada día.'} Pulsa una tarjeta de arriba para cambiar de dato.</p>
+    <div id="g1"></div></div>
+
+  <div class="card"><h2>Fallos de pago</h2><p class="sub">Cuántos hay abiertos, cuántos se recuperan y cuánto dinero vuelve.</p>
+    <div class="grid2"><div>
+      ${f ? `<div class="kv"><span>Abiertos ahora</span><b>${num(f.abiertos)}</b></div>
+      <div class="kv"><span>Nuevos en el último repaso</span><b>${num(f.nuevos)}</b></div>
+      <div class="kv"><span>Pagos confirmados en el último repaso</span><b>${num(f.resueltos)}</b></div>` : '<div class="dim">Todavía no hay foto de fallos de pago.</div>'}
+      <div class="kv"><span>Cobros recuperados tras un fallo, en ${corto(ym)}</span><b>${num(rec)} · ${eur(recEur)}</b></div>
+      <div class="kv"><span>De cada 100 cobros, necesitaron reintento</span><b>${ren ? (rec/ren*100).toFixed(1).replace('.',',') : '—'}${renP ? ` <span class="dim" style="font-weight:400">(${corto(D.prev)}: ${(recP/renP*100).toFixed(1).replace('.',',')})</span>` : ''}</b></div>
+      ${wa ? `<div class="estado ${problemas?'bad':'ok'}">${problemas
+        ? `⚠ WhatsApp de fallo de pago: ${num(wa.sin_telefono)} sin teléfono, ${num(wa.errores)} errores al avisar, ${num(wa.errores_sync)} errores del repaso.`
+        : `✓ WhatsApp de fallo de pago: ${num(wa.avisados)} avisadas en el último repaso, sin errores. ${num(wa.pendientes_reaviso)} esperan su re-aviso de los 21 días.`}</div>` : ''}
+    </div><div><div style="font-size:13px;font-weight:600;margin-bottom:4px">Cobros recuperados tras un fallo</div><div id="g2"></div></div></div>
+    <div class="note">Un cobro «recuperado» es el que salió bien al segundo intento o más. Los fallos nuevos por día solo tienen histórico desde el ${D.fallos_desde ? (+D.fallos_desde.slice(8,10))+' de '+MES[+D.fallos_desde.slice(5,7)-1] : '—'}: antes no se guardaba la foto diaria.</div></div>
+
+  <div class="card"><h2>Día a día · ${nombreMes(ym)}</h2><p class="sub">Cada fila es un día. Arriba, el total del mes y el mes pasado a la misma altura.</p>
+    <div class="scroll"><table><tr><th>Día</th>${COLS.map(([l])=>`<th>${l}</th>`).join('')}<th>Neto</th></tr>
+    <tr class="tot"><td>Total ${corto(ym)}${esActual?' (hasta hoy)':''}</td>${celdas(tAct)}</tr>
+    ${hayRef ? `<tr class="ref"><td>${corto(D.prev)}, hasta el día ${nPinta}</td>${celdas(tRef)}</tr>` : ''}
+    ${filas.join('')}</table></div>
+    <div class="note">Base ahora: <b>${num(D.base.activas)}</b> activas y <b>${num(D.base.pausadas)}</b> pausadas. «· form.» son las bajas que la clienta hace ella sola en el formulario; ya están dentro de «Bajas». «Fecha» = cambios de fecha. «10%» = aceptan el 10 % y siguen. «Recup.» = cobros recuperados tras un fallo. Los días son días de Madrid.</div></div>`;
+
+  document.querySelectorAll('.tile').forEach(b => b.onclick = () => { MET = b.dataset.k; pinta(); });
+  const a = serie(D.dias, ym, MET), r = serie(D.dias_prev, D.prev, MET);
+  const marca = (D.cambio && D.cambio.slice(0,7)===ym) ? +D.cambio.slice(8,10) : 0;
+  lineas('g1', MODO==='acum' ? acum(a) : a, hayRef ? (MODO==='acum' ? acum(r) : r) : [], nPinta, { fmt:m.f, etiAct:nombreMes(ym)+(esActual?' (hasta hoy)':''), etiRef:nombreMes(D.prev), marca });
+  const ra = serie(D.dias, ym, 'recuperadas'), rr = serie(D.dias_prev, D.prev, 'recuperadas');
+  lineas('g2', acum(ra), hayRef ? acum(rr) : [], nPinta, { etiAct:nombreMes(ym), etiRef:nombreMes(D.prev) });
+  document.getElementById('fresco').innerHTML = 'Altas, bajas y cambios: Appstle, cada 6 h'+(D.ultimo_sync ? ' (último: '+(+D.ultimo_sync.slice(8,10))+' '+corto(D.ultimo_sync.slice(0,7))+' '+D.ultimo_sync.slice(11,16)+' UTC)' : '')+'<br>Fallos de pago: repaso diario de las 9:15';
+}
+
+async function cargar(ym){
+  const app = document.getElementById('app');
+  if(!token){ app.innerHTML = '<div class="err">No hay sesión. Entra desde el <a href="/">Data Hub</a>.</div>'; return; }
+  try{
+    const r = await fetch(API+'/api/dashboard/diario', {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(ym?{ym}:{})});
+    if(r.status===401){ app.innerHTML = '<div class="err">Tu sesión ha caducado o no tienes permiso. Vuelve a entrar desde el <a href="/">Data Hub</a>.</div>'; return; }
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    D = await r.json(); YM = D.ym;
+    const sel = document.getElementById('mes');
+    if(!sel.options.length){ // de agosto de 2026 (primer mes con datos) al mes en curso
+      let m = D.hoy.slice(0,7); const lista = [];
+      while(m >= '2026-08'){ lista.push(m); const [y,mm] = m.split('-').map(Number); m = mm===1 ? (y-1)+'-12' : y+'-'+String(mm-1).padStart(2,'0'); }
+      sel.innerHTML = lista.map(x=>`<option value="${x}">${nombreMes(x)}</option>`).join('');
+    }
+    sel.value = YM; pinta();
+  }catch(e){ app.innerHTML = '<div class="err">No se han podido cargar los datos ('+String(e.message).replace(/[<>&]/g,'')+'). Recarga la página.</div>'; }
+}
+document.getElementById('mes').onchange = e => cargar(e.target.value);
+document.querySelectorAll('#segModo button').forEach(b => b.onclick = () => { MODO = b.dataset.m; document.querySelectorAll('#segModo button').forEach(x => x.classList.toggle('on', x===b)); if(D) pinta(); });
+cargar();
+</script>
+</body>
+</html>
