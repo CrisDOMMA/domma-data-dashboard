@@ -435,6 +435,7 @@ document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='
           <button type="button" data-por="fuente" onclick="setFunnelPor('fuente')" style="padding:6px 14px;border-radius:16px;border:1px solid #101637;background:#101637;color:#fff;font-size:12px;cursor:pointer">Fuente</button>
           <button type="button" data-por="pais" onclick="setFunnelPor('pais')" style="padding:6px 14px;border-radius:16px;border:1px solid #101637;background:#fff;color:#101637;font-size:12px;cursor:pointer">País</button>
           <button type="button" data-por="dominio" onclick="setFunnelPor('dominio')" style="padding:6px 14px;border-radius:16px;border:1px solid #101637;background:#fff;color:#101637;font-size:12px;cursor:pointer">Dominio</button>
+          <button type="button" data-por="meta" onclick="setFunnelPor('meta')" style="padding:6px 14px;border-radius:16px;border:1px solid #101637;background:#fff;color:#101637;font-size:12px;cursor:pointer">Meta por placement</button>
         </div>
         <div id="funnelFuentesAviso" style="display:none;background:#fff8e6;border:1px solid #f3d97a;color:#7a5a16;padding:10px 14px;border-radius:8px;margin:12px 0 0 0;font-size:12px;line-height:1.5"></div>
         <div id="funnelFuentes" style="margin-top:14px;overflow-x:auto"></div>
@@ -620,6 +621,8 @@ async function downloadLunaCsv(){
 // Corte de la tarjeta "Funnel por fuente, país o dominio". País y dominio existen
 // sólo desde el 12/11/2026 (migración 009 del quiz): antes no se guardaban.
 let FUNNEL_POR = 'fuente';
+// 'meta' = sólo las fuentes de Meta pago, sin agrupar (fb, facebook, fb_*, ig_*…): el placement.
+function funnelPorQuery(por){ return por === 'meta' ? 'por=fuente&meta=detalle' : 'por=' + por; }
 async function setFunnelPor(por){
   FUNNEL_POR = por;
   document.querySelectorAll('#funnelPorBtns button').forEach(b => {
@@ -630,7 +633,7 @@ async function setFunnelPor(por){
   try{
     const desde = document.getElementById('lunaDesde')?.value || '2026-01-01';
     const hasta = document.getElementById('lunaHasta')?.value || '';
-    const r = await fetch(`${LUNA_FUENTES_ENDPOINT}?token=${LUNA_TOKEN}&desde=${desde}${hasta ? '&hasta='+hasta : ''}&por=${por}`);
+    const r = await fetch(`${LUNA_FUENTES_ENDPOINT}?token=${LUNA_TOKEN}&desde=${desde}${hasta ? '&hasta='+hasta : ''}&${funnelPorQuery(por)}`);
     const d = await r.json();
     if(d.ok) renderFunnelFuentes(d);
   }catch(e){ console.error('funnel por '+por+' failed', e); }
@@ -646,7 +649,7 @@ async function loadLuna(){
       fetch(`${LUNA_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}`),
       fetch(`${LUNA_FUNNEL_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}`),
       fetch(`${LUNA_COMPRAS_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}`),
-      fetch(`${LUNA_FUENTES_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}&por=${FUNNEL_POR}`)
+      fetch(`${LUNA_FUENTES_ENDPOINT}?token=${LUNA_TOKEN}&${dateParams}&${funnelPorQuery(FUNNEL_POR)}`)
     ]);
     if(!rExp.ok) throw new Error('http '+rExp.status);
     const data = await rExp.json();
@@ -854,14 +857,19 @@ function renderFunnelFuentes(data){
   // así que se enseñan también "Visitan" y "Empiezan" y no se exige un mínimo de tests
   // (un país nuevo empieza con pocos). Las sesiones anteriores al 12/11/2026 no lo traen.
   const por = data.por || 'fuente';
-  const esDim = por !== 'fuente';
+  const esMeta = data.meta === 'detalle';   // sólo fuentes de Meta pago, una fila por placement
+  const esDim = por !== 'fuente' || esMeta;
   const sinDato = esDim ? (data.fuentes || []).find(f => f.fuente === '(sin dato)') : null;
   const fuentes = esDim
     ? (data.fuentes || []).filter(f => f.fuente !== '(sin dato)').sort((a,b) => b.visitan - a.visitan).slice(0,15)
     : (data.fuentes || []).filter(f => f.completan >= 10);
   const descartadas = esDim ? [] : (data.fuentes || []).filter(f => f.completan < 10);
   const t = data.totales || {};
-  const cabecera = por === 'pais' ? 'País' : (por === 'dominio' ? 'Dominio' : 'Fuente');
+  const cabecera = esMeta ? 'Fuente de Meta' : (por === 'pais' ? 'País' : (por === 'dominio' ? 'Dominio' : 'Fuente'));
+  if(esMeta && fuentes.length === 0){
+    slot.innerHTML = `<p style="color:#666;font-size:13px;margin:8px 0">Sin tráfico de Meta pago en este periodo.</p>`;
+    aviso.style.display = 'none'; nota.innerHTML = ''; return;
+  }
   if(esDim && fuentes.length === 0){
     slot.innerHTML = `<p style="color:#666;font-size:13px;margin:8px 0">Aún no hay sesiones con ${por === 'pais' ? 'país' : 'dominio'} guardado en este periodo. Se guarda desde el 12/11/2026.</p>`;
     aviso.style.display = 'none'; nota.innerHTML = ''; return;
@@ -873,7 +881,10 @@ function renderFunnelFuentes(data){
 
   // Arriba del funnel sólo es fiable si la utm viajaba ya en los eventos
   const fiable = (data.utm_en_eventos_pct || 0) >= 50;
-  if(esDim){
+  if(esMeta){
+    aviso.style.display = 'block';
+    aviso.innerHTML = `📌 <strong>Sólo anuncios de Meta, una fila por fuente.</strong> <code>fb</code> = anuncios antiguos · <code>facebook</code> = anuncios del quiz · <code>fb_…</code> / <code>ig_…</code> = formato nuevo con el placement (desde el 11/11/2026). <code>ig</code> a secas es Instagram orgánico y no entra aquí.`;
+  } else if(esDim){
     aviso.style.display = 'block';
     aviso.innerHTML = `📌 <strong>${cabecera} se guarda desde el 12/11/2026.</strong> En este periodo lo tiene el ${data.dato_pct || 0}% de las sesiones${sinDato ? ` (${sinDato.visitan.toLocaleString('es-ES')} sesiones anteriores quedan fuera de la tabla)` : ''}. El TOTAL de abajo suma sólo las filas de la tabla.`;
   } else if(!fiable){
@@ -962,6 +973,10 @@ function renderFunnelFuentes(data){
       const c = f.compran === 1 ? '1 compra' : `${f.compran.toLocaleString('es-ES')} compras`;
       partes.push(`🔴 <strong>${f.fuente}</strong>: ${f.ven_plan.toLocaleString('es-ES')} mujeres ven su plan y solo ${f.pulsan_cta} pulsan comprar (<strong>${f.pct_plan_cta}%</strong> frente al ${mejor}% del mejor canal). ${c}, ${eur(f.revenue_eur)}. Cuando una fuente se desploma solo en el último paso y el resto del funnel va normal, es un fallo técnico del canal, no la audiencia.`);
     });
+  }
+  const filaMeta = (data.fuentes || []).find(f => f.fuente === 'Meta pago');
+  if(!esDim && filaMeta && filaMeta.incluye){
+    partes.push(`<span style="color:#666">«Meta pago» suma estas fuentes: ${filaMeta.incluye.join(', ')}. Para verlas por separado, pulsa «Meta por placement».</span>`);
   }
   if(descartadas.length){
     partes.push(`<span style="color:#888">${descartadas.length} fuente(s) con menos de 10 tests completados fuera de la tabla.</span>`);
