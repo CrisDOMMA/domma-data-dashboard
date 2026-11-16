@@ -85,3 +85,20 @@ Además, sin commit nuevo (ya existían de sesiones previas): endpoints `gestion
 - **Ringover**: `POST /v2/callback`, header `Authorization: <key>` (sin «Bearer»); `to_number` obligatorio; `device:"ALL"` para que suene en todos. La key necesita permisos Monitoring + Calls/Contacts/Numbers R/W. Requiere que el agente tenga su Ringover online.
 - **contract_id**: se guarda con sufijo float `".0"` en `baja_eventos`; `normId` lo limpia antes de comparar/join.
 - Cloudflare Pages sirve el índice en `/llamadas/` (con barra final). `/llamadas/index.html` directo devuelve vacío (trampa al verificar en vivo).
+
+---
+
+## 16/11/2026 — 👋 Bienvenidas (sin desplegar)
+
+Sección nueva: nuevas suscriptoras que recibieron su pedido hace 3-10 días, para la llamada de
+onboarding. Chip propio, fuera de «Todas». Ficha en la tarjeta (producto, pedidos, otras
+suscripciones, próximo cobro, LUNA, cita). Registro en un clic con etiqueta de «cómo estaba»;
+«no contesta» deja 2ª llamada con fecha (máx. 2 intentos). 1 de cada 4 clientas NO sale: es el
+grupo sin llamar para medir. Backend en `domma-bajas`: `/api/dashboard/bienvenidas` y
+`/bienvenidas-impacto` (necesita el secreto `SHOPIFY_ADMIN_TOKEN`). Medición en `impacto/`.
+Detalle en `flujo-bajas/CUPIDO_DOSSIER.md` §5. Tests: `node qa/cupido.test.mjs` (135).
+**Orden de despliegue: worker primero, luego el front.**
+
+**Navegación nueva (16/11, sin desplegar):** dos pestañas grandes («👋 Nuevas clientas», «💳 Fallos
+de pago») con cifras clave y barra del día propias. Lo de bajas queda en «📋 Bajas por cerrar»,
+que solo aparece mientras haya casos vivos. Tests: 143.

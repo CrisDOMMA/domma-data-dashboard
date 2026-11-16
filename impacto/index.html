@@ -80,6 +80,9 @@
   </div>
 
   <div id="app"><div class="card dim">Cargando datos…</div></div>
+  <!-- 👋 Bienvenidas (16/11/2026): llamada de onboarding frente al grupo sin llamar. Carga aparte:
+       si falla, el resto del panel no se entera. -->
+  <div id="bienvImpacto"></div>
 </div>
 
 <script>
@@ -262,6 +265,44 @@ document.querySelectorAll('#segG button').forEach(b => b.onclick = () => { G = b
 document.getElementById('rango').onchange = e => { RANGO = +e.target.value; if(D) pinta(); };
 document.getElementById('q').oninput = e => { Q = e.target.value.trim().toLowerCase(); if(D) pinta(); };
 cargar();
+
+// ── 👋 Bienvenidas: ¿sirve la llamada de onboarding? ──────────────────────────────────
+// Compara TODAS las asignadas a llamar con el grupo sin llamar (1 de cada 4). No compara
+// «las que cogieron el teléfono» con el resto: esas ya eran las más implicadas.
+async function cargarBienvenidas(){
+  const el = document.getElementById('bienvImpacto'); if(!el || !token) return;
+  try{
+    const r = await fetch(API+'/api/dashboard/bienvenidas-impacto', {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:'{}'});
+    if(!r.ok) return;
+    const B = await r.json(); if(!B || B.sin_datos || !B.grupos) return;
+    const g = B.grupos, pct = (a,b) => b ? Math.round(a/b*100)+' %' : '—';
+    const fila = (nombre, x, fuerte) => `<tr${fuerte?' style="font-weight:600"':''}><td style="padding:7px 10px 7px 0">${nombre}</td>
+      <td style="text-align:right;padding:7px 10px">${x.n}</td>
+      <td style="text-align:right;padding:7px 10px">${pct(x.d35.activas,x.d35.n)} <span class="dim">(${x.d35.n})</span></td>
+      <td style="text-align:right;padding:7px 0 7px 10px">${pct(x.d63.activas,x.d63.n)} <span class="dim">(${x.d63.n})</span></td></tr>`;
+    const loc = g.habladas.n + g.no_localizadas.n;
+    const ih = B.intentos_hasta_localizar || {};
+    const et = B.etiquetas || {};
+    const LBL = {bienvenida_bien:'Todo bien', bienvenida_dudas:'Dudas con la pauta', bienvenida_no_sabia:'No sabía que era suscripción', bienvenida_salvada:'Quería cancelar y se queda', cancelacion:'Canceló en la llamada'};
+    const pocas = g.control.d35.n < 30 || g.llamar.d35.n < 30;
+    el.innerHTML = `<div class="card"><h2>Llamada de bienvenida: ¿reduce las bajas?</h2>
+      <p class="sub">Nuevas suscriptoras desde el ${B.desde?new Date(B.desde+'T12:00:00Z').toLocaleDateString('es-ES',{day:'numeric',month:'short'}):'inicio'}. 1 de cada 4 se queda sin llamar para poder comparar. Entre paréntesis, cuántas han llegado ya a ese día.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:8px">
+        <tr class="dim" style="font-size:12px"><td></td><td style="text-align:right;padding:0 10px">Clientas</td><td style="text-align:right;padding:0 10px">Activas a 35 días</td><td style="text-align:right;padding-left:10px">Activas a 63 días</td></tr>
+        ${fila('Asignadas a llamar', g.llamar, true)}
+        ${fila('Grupo sin llamar', g.control, true)}
+        ${fila('· Hablamos con ella', g.habladas)}
+        ${fila('· No localizada', g.no_localizadas)}
+        ${fila('· Aún sin intentar', g.sin_intentar)}
+      </table>
+      ${pocas?'<p class="sub" style="margin-top:10px">Todavía hay menos de 30 clientas por grupo a 35 días: no saques conclusiones aún.</p>':''}
+      <p class="sub" style="margin-top:10px">Localizadas: <b>${pct(g.habladas.n, loc)}</b> de las ${loc} intentadas · al 1er intento ${ih[1]||0}, al 2º ${ih[2]||0}.</p>
+      <p class="sub">Cómo estaban: ${Object.keys(LBL).map(k => `${LBL[k]} <b>${et[k]||0}</b>`).join(' · ')}.</p>
+      <p class="sub">La comparación buena es «Asignadas a llamar» contra «Grupo sin llamar». «Hablamos con ella» sola engaña: las que cogen el teléfono ya eran las más implicadas.</p>
+    </div>`;
+  }catch(e){ /* sección secundaria: si falla, no se pinta */ }
+}
+cargarBienvenidas();
 </script>
 </body>
 </html>

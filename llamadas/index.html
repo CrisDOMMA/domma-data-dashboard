@@ -37,6 +37,17 @@
   .mstat b.pop{transform:scale(1.4)}
   .streak{font-size:12px;font-weight:400;opacity:.9;margin-left:auto}
   .fil{display:flex;gap:8px;flex-wrap:wrap}
+  /* Navegación en dos niveles (16/11): pestañas grandes = QUÉ trabajo; chips = en qué estado. */
+  .secs{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 12px}
+  .sec{flex:1 1 220px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;border:1.5px solid var(--line);border-radius:14px;background:var(--card);cursor:pointer;font-family:inherit;text-align:left;color:var(--ink)}
+  .sec .st{font-size:15px;font-weight:600} .sec .ss{display:block;font-size:12px;color:var(--muted);font-weight:400;margin-top:2px}
+  .sec .sn{font-size:24px;font-weight:600;color:var(--indigo);font-variant-numeric:tabular-nums}
+  .sec.on{border-color:var(--indigo);background:var(--indigo-bg)}
+  .sec.menor{flex:0 1 220px;padding:9px 14px;border-style:dashed} .sec.menor .st{font-size:13px} .sec.menor .sn{font-size:18px;color:var(--muted)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:0 0 14px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+  .kpi span{display:block;font-size:11.5px;color:var(--muted)} .kpi b{font-size:21px;font-weight:600;font-variant-numeric:tabular-nums}
+  .kpi.alerta b{color:var(--red)} .kpi.bien b{color:var(--green)}
   .filbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 2px 14px}
   .chipf{font-size:12px;padding:5px 12px;border:1.5px solid var(--line);border-radius:20px;background:var(--card);cursor:pointer;color:var(--muted);font-weight:500}
   .chipf.on{border-color:var(--indigo);color:var(--indigo);background:var(--indigo-bg)}
@@ -154,6 +165,10 @@
   .card[data-state="red"] .done{background:var(--red-bg);color:var(--red)}
   .card[data-state="amber"] .done{background:var(--amber-bg);color:var(--amber)}
 
+  .ficha{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0 4px}
+  .ftile{background:var(--soft);border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;gap:2px}
+  .ftile span{font-size:11.5px;color:var(--muted)} .ftile b{font-size:13.5px;font-weight:600}
+  .fbadges{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}
   .empty{padding:30px;text-align:center;color:var(--muted);font-weight:400}
   #confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
   .foot{text-align:center;font-size:12px;color:var(--muted);margin-top:24px}
@@ -199,8 +214,13 @@
     <div id="progreso"></div>
   </div>
 
+  <!-- Pestañas grandes: qué trabajo toca (nuevas clientas / fallos de pago). -->
+  <div class="secs" id="secciones"></div>
+  <!-- Cifras clave de la pestaña elegida. -->
+  <div class="kpis" id="kpis"></div>
+
   <!-- Motivador compacto (una tira) -->
-  <div class="moti">
+  <div class="moti" id="moti">
     <span class="moti-t">Hoy has conseguido</span>
     <span class="mstat">💚 <b id="n-reten">0</b> retenidas</span>
     <span class="mstat">🚀 <b id="n-cross">0</b> ventas cruzadas</span>
@@ -290,6 +310,18 @@ const CATALOGO={
   // Lo pone el CRON a los 5 días: comprobó en Appstle y NO hay cobro. Sin botón (nadie lo
   // marca a mano) y sin `espera`, así la clienta vuelve a la lista de llamadas.
   cobro_no_confirmado:    {l:'Cobro no confirmado',         b:'⚠️ Cobro no confirmado',         tone:'red',   term:1},
+  // 👋 Bienvenida (16/11): llamada de onboarding a un alta que recibió su pedido hace unos días.
+  // Códigos PROPIOS a propósito: `intento_1/2` arrastran el protocolo de fallo de pago (el 2º
+  // dispara el email de 72 h) y `retenida` contaría como retención. SIN `cierra`: ese flag manda
+  // sobre gestiones posteriores en «Contactadas» y taparía un caso de baja futuro de la misma
+  // clienta. Quién sale del cubo lo decide `bienvenidaCerrada()`.
+  // El resultado dice A LA VEZ que se habló con ella y cómo estaba (un clic, no dos): es lo
+  // que luego permite medir cuántas no sabían que tenían una suscripción y cuántas se salvan.
+  bienvenida_bien:        {l:'Bienvenida · todo bien',             b:'👍 Todo bien',                       tone:'green', term:1, win:'👋 Bienvenida hecha'},
+  bienvenida_dudas:       {l:'Bienvenida · dudas con la pauta',    b:'💊 Tenía dudas con la pauta',        tone:'green', term:1, win:'👋 Bienvenida hecha'},
+  bienvenida_no_sabia:    {l:'Bienvenida · no sabía que era suscripción', b:'❓ No sabía que era suscripción', tone:'amber', term:1},
+  bienvenida_salvada:     {l:'Bienvenida · quería cancelar y se queda',   b:'💚 Quería cancelar y se queda',  tone:'green', term:1, win:'💚 Se queda'},
+  bienvenida_no_contesta: {l:'Bienvenida · no contesta',    b:'📵 No contesta',                 tone:'amber', term:1},
   // legacy (historial de antes del catálogo único — sin botón):
   cancelar:               {l:'Cancelar',                    tone:'red',   term:1, legacy:1},
   cancelado:              {l:'Cancelado',                   tone:'red',   term:1, legacy:1},
@@ -315,10 +347,27 @@ let LISTA=[], REGISTRO=[], GEST={byC:{},byCust:{}}, GALL=[], filtro='todas', fec
 // 🔔 Señales de baja que LUNA detectó y que NO han acabado en nada: ni agendaron cita con
 // Marta, ni pasaron por el formulario. Viven aparte de LISTA a propósito (ver `cargar`).
 let SENALES=[];
+// 👋 Bienvenidas: altas que recibieron su primer pedido de suscripción hace 3-10 días.
+// Fuera de LISTA por lo mismo que las señales: es una llamada proactiva, no un caso pendiente.
+let BIENV=[];
+const BIENV_MAX_INTENTOS=2;   // «no contesta» dos veces → no se insiste (igual que el worker)
 // De quién es la lista que se está viendo: '__mias__' | '' (todas) | nombre | '__libre__'.
 // Arranca en «Mías» para que cada una entre directa a lo suyo (petición Cristina 24/09);
 // a partir de ahí se recuerda lo que elija.
 let verDe = localStorage.getItem('domma_verde') ?? '__mias__';
+// ── Secciones (16/11/2026, petición Cristina) ───────────────────────────────────────────
+// Desde la baja inteligente la estación es para DOS cosas: dar la bienvenida a las nuevas y
+// rescatar fallos de pago. Lo de bajas ya no es el trabajo del día, pero NO se borra: mientras
+// quede un caso vivo (una médica con el plan activo, una baja que falló en Appstle, el
+// recontacto de una pausa) sigue a un clic en «Bajas por cerrar», y esa pestaña desaparece
+// sola cuando llega a cero. Esconderlo del todo dejaría a esas clientas sin su llamada.
+const SECCIONES={
+  bienvenida:{def:'bienvenida', chips:[['bienvenida','Por llamar'],['bienv_hechas','Ya llamadas']]},
+  fallo:{def:'fallo', chips:[['fallo','Por llamar'],['agendadas','📅 Agendadas para hoy'],['wacurso','⏳ WhatsApp en curso'],['porregistrar','✅ Por registrar'],['porvalidar','Pagos por validar'],['gestionadas','Contactadas'],['nolocal','No localizadas']]},
+  otros:{def:'medicas', chips:[['medicas','🩺 Médicas'],['derivada','Derivadas'],['baja','Bajas'],['senal','🔔 Alerta de baja'],['agendadas','📅 Recontactos de hoy'],['gestionadas','Contactadas'],['nolocal','No localizadas'],['cancelada','Canceladas']]},
+};
+let seccion = localStorage.getItem('domma_seccion') || '';
+function setSeccion(k){ if(!SECCIONES[k]) return; seccion=k; filtro=SECCIONES[k].def; localStorage.setItem('domma_seccion',k); render(); }
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hoyISO=()=>new Date().toISOString().slice(0,10);
 const nid=v=>String(v==null?'':v).split('.')[0].trim();
@@ -368,7 +417,7 @@ function botonesAsignacion(c,i){
   // (petición Cristina 23/09 — las derivadas también se las reparten entre ellas).
   // Sólo se excluyen las tarjetas de sólo consulta del registro del formulario y las
   // que no tienen contrato con el que identificar el caso.
-  if(c.registro || !nid(c.contract_id)) return '';
+  if(c.registro || c.bienvenida || !nid(c.contract_id)) return '';   // bienvenidas: lista compartida, sin reparto
   const dueno=duenoDe(c);
   const opts=EQUIPO.filter(p=>p.nombre!==dueno).map(p=>`<option value="${esc(p.nombre)}">↪ Pasar a ${esc(p.nombre)}</option>`).join('');
   const coger=dueno?'':`<button class="b b-coger" onclick="asignar(${i},'${esc(agActual())}')" title="Este caso pasa a ser tuyo">🙋 Coger</button>`;
@@ -400,6 +449,10 @@ function arrancar(){
   const me=yo();
   document.getElementById('agName').textContent=me.nombre;
   document.getElementById('yoEmail').textContent=me.email;
+  // Cada una entra a lo suyo: Carme (ayuda@) a las bienvenidas, el resto a los fallos de pago.
+  // A partir de ahí se recuerda la última pestaña que eligió.
+  if(!SECCIONES[seccion]) seccion = me.email==='ayuda@wearedomma.com' ? 'bienvenida' : 'fallo';
+  filtro = SECCIONES[seccion].def;
   cargar();
 }
 
@@ -429,9 +482,9 @@ function porQue(s){ const CM={min_2_pedidos:'Baja · menos de 2 pedidos',min_per
 
 async function cargar(){
   const H={'Content-Type':'application/json','Authorization':'Bearer '+token};
-  let bajas={}, hoyFallos={}, gest={}, toq={}, sen={};
+  let bajas={}, hoyFallos={}, gest={}, toq={}, sen={}, bie={};
   try{
-    const [rb,rf,rg,rt,rs]=await Promise.all([
+    const [rb,rf,rg,rt,rs,rw]=await Promise.all([
       fetch(API_BAJAS+'/api/dashboard',{method:'POST',headers:H,body:JSON.stringify({incluir_test:false})}).then(r=>r.json()),
       fetch(API_TODAY).then(r=>r.json()).catch(()=>({})),   // fallos ACTIVOS reales de Appstle (sin el bug de fechas de /failures-since)
       fetch(API_BAJAS+'/api/dashboard/gestiones',{method:'POST',headers:H,body:JSON.stringify({limit:500})}).then(r=>r.json()),
@@ -439,8 +492,10 @@ async function cargar(){
       // 🔔 Señales de baja (22/10). `.catch` a propósito: es una sección NUEVA y secundaria —
       // si el endpoint falla, la estación tiene que seguir funcionando igual. Nunca al revés.
       fetch(API_BAJAS+'/api/dashboard/senales-baja',{method:'POST',headers:H,body:JSON.stringify({dias:30})}).then(r=>r.json()).catch(()=>({})),
+      // 👋 Bienvenidas (16/11). Mismo `.catch`: sección nueva y secundaria, nunca tumba la estación.
+      fetch(API_BAJAS+'/api/dashboard/bienvenidas',{method:'POST',headers:H,body:'{}'}).then(r=>r.json()).catch(()=>({})),
     ]);
-    bajas=rb||{}; hoyFallos=rf||{}; gest=rg||{}; toq=rt||{}; sen=rs||{};
+    bajas=rb||{}; hoyFallos=rf||{}; gest=rg||{}; toq=rt||{}; sen=rs||{}; bie=rw||{};
     pintaFrescura('frescura', bajas._frescura);
   }catch(e){ document.getElementById('list').innerHTML='<div class="empty">No se pudo cargar. Recarga la página.</div>'; return; }
   if(bajas.error==='no_autorizado'){ logout(); return; }
@@ -591,6 +646,26 @@ async function cargar(){
             +(s.proxima_renovacion?` · renueva el ${fechaCorta(s.proxima_renovacion)}`:''),
       }));
   }
+  // ── 👋 BIENVENIDAS (16/11/2026) ───────────────────────────────────────────────────────
+  // El worker ya quita a las que cancelaron o pausaron, a las ya llamadas y a las que no
+  // contestaron dos veces. Aquí solo se quita a quien YA está en la cola por otra vía (un
+  // fallo de pago, una baja): esa llamada manda y no se la llama dos veces por cosas distintas.
+  {
+    const yaEnCola=new Set(LISTA.flatMap(c=>[nid(c.contract_id), String(c.customer_id||''), (c.email||'').toLowerCase()]).filter(Boolean));
+    BIENV=((bie&&bie.casos)||[])
+      .filter(b=>!yaEnCola.has(nid(b.contract_id)) && !yaEnCola.has(String(b.customer_id||'')) && !yaEnCola.has((b.email||'').toLowerCase()))
+      .map(b=>({
+        tipo:'bienvenida', bienvenida:true,
+        nombre:b.nombre, email:b.email, phone:b.telefono,
+        customer_id:b.customer_id||'', contract_id:b.contract_id,
+        alta:b.alta, fecha:b.entregado, dias:b.dias_entregado, primer_pedido:!!b.primer_pedido,
+        n_pedidos:b.n_pedidos, productos:b.productos||[], proxima_renovacion:b.proxima_renovacion,
+        otras:b.otras_suscripciones||[], luna:b.hablo_con_luna||'', cita:b.cita_marta||'',
+        intentos:b.intentos||0, prox2:b.proxima_llamada||'',
+        why:`Recibió su pedido hace ${b.dias_entregado} día${b.dias_entregado===1?'':'s'} (${fechaCorta(b.entregado)})`
+            +(b.intentos?` · 📵 no contestó · 2ª llamada ${String(b.proxima_llamada||'')<=hoyISO()?'HOY':'el '+fechaCorta(b.proxima_llamada)}`:''),
+      }));
+  }
   motivador();
   render();
   enriquecerTelefonos();   // en segundo plano: rellena el móvil que falta (Appstle no lo trae) desde Shopify
@@ -693,6 +768,26 @@ function yaSalvada(caso){
   const h=histDe(caso).filter(g=>!g.es_test&&(!desde||String(g.created_at||'').slice(0,10)>=desde));
   return !!h.length && SALVA.has(h[0].resultado);   // GALL viene DESC → h[0] es la última
 }
+// 👋 Una bienvenida sale del cubo cuando alguien la ha llamado desde su alta: hablaron (o
+// canceló), hoy ya se intentó, o van dos «no contesta». Mira sólo gestiones desde el alta para
+// que una llamada de hace meses a la misma clienta (otra suscripción) no la esconda.
+function bienvenidaCerrada(c){
+  const desde=String(c.alta||c.fecha||'').slice(0,10);
+  const h=histDe(c).filter(g=>!g.es_test&&(!desde||String(g.created_at||'').slice(0,10)>=desde));
+  if(!h.length) return false;
+  if(h.some(g=>g.resultado!=='bienvenida_no_contesta')) return true;                       // ya se habló con ella
+  if(h.length>=BIENV_MAX_INTENTOS) return true;                                            // dos sin respuesta: no insistir
+  // Un intento sin respuesta: vuelve el día de la 2ª llamada (la fecha que se dejó; si no, mañana).
+  const g=h[0], dia=String(g.created_at||'').slice(0,10);
+  const prox=String(g.proxima_llamada||'').slice(0,10) || diaSiguienteHabil(dia);
+  return prox>hoyISO();
+}
+// Siguiente día laborable (lunes a viernes) a partir de un 'YYYY-MM-DD'. Para la 2ª llamada.
+function diaSiguienteHabil(iso){
+  const d=new Date((iso||hoyISO())+'T12:00:00Z');
+  do{ d.setUTCDate(d.getUTCDate()+1); }while([0,6].includes(d.getUTCDay()));
+  return d.toISOString().slice(0,10);
+}
 const fechaCorta=s=>{ if(!s)return''; const d=new Date(String(s).replace(' ','T')+'Z'); return isNaN(d)?esc(s):d.toLocaleDateString('es-ES',{day:'2-digit',month:'short'}); };
 function histInner(caso, i){
   const h=histDe(caso); if(!h.length) return '';
@@ -744,7 +839,7 @@ function gestionadasCards(soloContacto){
     const prox=g.proxima_llamada?(String(g.proxima_llamada).slice(0,10)<hoyISO()
       ? ` · ⚠️ venció el ${fechaCorta(g.proxima_llamada)}`
       : ` · 📅 próx. ${fechaCorta(g.proxima_llamada)}`):'';
-    out.push({tipo:t, gestionada:true, noLoc, esPagado:g.resultado==='pagado', esCobroHecho:COBRO_HECHO.has(g.resultado), esPausa:g.resultado==='pausa', esSegunda:g.resultado==='segunda_llamada', esCancelada:CANCELAR.has(g.resultado), prox:g.proxima_llamada||'', gestId:g.id, nombre:g.nombre, email:g.email, phone:g.phone,
+    out.push({tipo:t, gestionada:true, noLoc, esPagado:g.resultado==='pagado', esCobroHecho:COBRO_HECHO.has(g.resultado), esPausa:g.resultado==='pausa', esSegunda:g.resultado==='segunda_llamada', esCancelada:CANCELAR.has(g.resultado), esBienvenida:g.tipo_caso==='bienvenida', prox:g.proxima_llamada||'', gestId:g.id, nombre:g.nombre, email:g.email, phone:g.phone,
       customer_id:g.customer_id, contract_id:g.contract_id, fecha:(g.created_at||'').slice(0,10),
       why:`${noLoc?'No localizada':'Localizada'}${res?' · '+res:''}${g.agente?' · '+g.agente:''} · ${fechaCorta(g.created_at)}${prox}`});
   }
@@ -769,7 +864,7 @@ function render(){
   const contactadas = vd(dfil(gestionadasCards('localizada')).filter(c=>!esSeguim(c)));   // las de seguimiento van a Derivadas
   const nolocal     = vd(dfil(gestionadasCards('no_localizada')).filter(c=>!esSeguim(c)));
   const porValidar  = vd(dfil(gestionadasCards()).filter(c=>c.esCobroHecho));   // cobros hechos pendientes de validar
-  const pausas      = vd(dfil(gestionadasCards()).filter(esSeguim));            // recontactos (fin de pausa / 2ª llamada) → Derivadas
+  const pausas      = vd(dfil(gestionadasCards()).filter(c=>esSeguim(c)&&!c.esBienvenida));            // recontactos (fin de pausa / 2ª llamada) → Derivadas
   vivas = vd(vivas); waCurso = vd(waCurso); porRegistrar = vd(porRegistrar);
   // ── AGENDADAS: alguien dejó fecha de próxima llamada y ya toca ──────────────────────
   // Antes sólo asomaban dentro de «Derivadas», mezcladas con ~94 casos: una llamada que te
@@ -778,7 +873,9 @@ function render(){
   const claveDe = c=>nid(c.contract_id)||String(c.customer_id||'')||(c.email||'').toLowerCase();
   const yaEnVivas = new Set(vivas.map(claveDe));
   const agendadas = vd(dfil(gestionadasCards()))
-      .filter(c=>c.prox && String(c.prox).slice(0,10)<=hoyISO() && !yaEnVivas.has(claveDe(c)) && !gestionadaHoy(c));
+      // Las 2ªs llamadas de bienvenida NO entran aquí: «Agendadas» va por dueña y la bienvenida
+      // es una lista compartida — vuelven a su propio cubo en su fecha (ver bienvenidaCerrada).
+      .filter(c=>c.prox && !c.esBienvenida && String(c.prox).slice(0,10)<=hoyISO() && !yaEnVivas.has(claveDe(c)) && !gestionadaHoy(c));
   const vencidas  = agendadas.filter(c=>String(c.prox).slice(0,10)<hoyISO()).length;
   // Un seguimiento está en «Agendadas» (ya toca) O en «Derivadas» (toca más adelante), nunca
   // en los dos: si no, el mismo caso se cuenta dos veces y no sabes cuál es tu trabajo de hoy.
@@ -799,17 +896,70 @@ function render(){
   // sale del cubo. Si no, un caso atendido se queda ahí dando la lata para siempre.
   const senales = dfil(SENALES).filter(c=>!histDe(c).some(g=>String(g.created_at||'').slice(0,10)>=String(c.fecha||'')));
   const senAtascadas = senales.filter(c=>c.motivo==='no_puede_darse_de_baja').length;
-  const counts={todas:vivas.length+agendadas.length, medicas:medicas.length, agendadas:agendadas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausasFuturas.length, fallo:vivas.filter(x=>x.tipo==='fallo').length, senal:senales.length, wacurso:waCurso.length, porregistrar:porRegistrar.length, gestionadas:contactadas.length, nolocal:nolocal.length, porvalidar:porValidar.length, cancelada:cancel.length};
-  const defs=[['todas','Todas'],['agendadas','📅 Agendadas para hoy'],['medicas','🩺 Médicas'],['baja','Bajas'],['derivada','Derivadas'],['fallo','Fallos de pago'],['senal','🔔 Alerta de baja'],['wacurso','⏳ WhatsApp en curso'],['porregistrar','✅ Por registrar'],['cancelada','Canceladas'],['gestionadas','Contactadas'],['nolocal','No localizadas'],['porvalidar','Pagos por validar']];
+  // 👋 Bienvenidas: también SIN `vd()` (lista compartida, sin asignación) y fuera de «Todas»
+  // y de la barra del día: son ~12 nuevas al día y no deben tapar las llamadas con plazo.
+  const bienv = dfil(BIENV).filter(c=>!bienvenidaCerrada(c));
+  // ── Cada pestaña ve SU parte de los cubos mixtos (agendadas, contactadas, no localizadas) ──
+  const esFalloC = c=>c.tipo==='fallo';
+  const deSec = l => seccion==='fallo' ? l.filter(esFalloC) : l.filter(c=>!esFalloC(c)&&!c.esBienvenida);
+  const agS=deSec(agendadas), contS=deSec(contactadas), nolS=deSec(nolocal);
+  const bienvHechas = dfil(gestionadasCards()).filter(c=>c.esBienvenida);
+  const vivasFallo = vivas.filter(esFalloC);
+  const agFallo = agendadas.filter(esFalloC), agOtros = agendadas.filter(c=>!esFalloC(c)&&!c.esBienvenida);
+  const nSec = {
+    bienvenida: bienv.length,
+    fallo: vivasFallo.length + agFallo.length + porRegistrar.length,
+    // Lo que de verdad sigue pidiendo una llamada. Los recontactos FUTUROS de una pausa no
+    // suman: no hay nada que hacer con ellos hoy (aparecen aquí el día que tocan).
+    otros: medicas.length + vivas.filter(x=>x.tipo==='baja').length + derivPend.filter(x=>!x.medico).length + senales.length + agOtros.length,
+  };
+  // Si alguien está en «Bajas por cerrar» y se vacía, vuelve sola a su trabajo.
+  if(seccion==='otros' && !nSec.otros && !busca){ seccion='fallo'; filtro='fallo'; return render(); }
+  const counts={todas:vivas.length+agendadas.length, medicas:medicas.length, agendadas:agendadas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausasFuturas.length, fallo:vivasFallo.length, senal:senales.length, bienvenida:bienv.length, bienv_hechas:bienvHechas.length, wacurso:waCurso.length, porregistrar:porRegistrar.length, gestionadas:contS.length, nolocal:nolS.length, porvalidar:porValidar.length, cancelada:cancel.length};
+  counts.agendadas = agS.length;
+  const defs=SECCIONES[seccion].chips;   // (las de «otros» incluyen ['medicas','🩺 Médicas'], con su reloj de 72 h)
+  // Pestañas grandes. «Bajas por cerrar» sólo existe mientras quede algún caso vivo.
+  const SEC_TXT={bienvenida:['👋 Nuevas clientas','Llamada de bienvenida'], fallo:['💳 Fallos de pago','Rescatar el cobro'], otros:['📋 Bajas por cerrar','Casos antiguos que siguen vivos']};
+  document.getElementById('secciones').innerHTML=['bienvenida','fallo','otros']
+    .filter(k=>k!=='otros'||nSec.otros||seccion==='otros')
+    .map(k=>`<button class="sec${k==='otros'?' menor':''}${seccion===k?' on':''}" onclick="setSeccion('${k}')"><span><span class="st">${SEC_TXT[k][0]}</span><span class="ss">${SEC_TXT[k][1]}</span></span><span class="sn">${nSec[k]}</span></button>`).join('');
+  // Cifras clave de la pestaña (lo primero que se mira: cuánto queda y qué urge).
+  const hoyG = GALL.filter(g=>!g.es_test && String(g.created_at||'').slice(0,10)===hoyISO());
+  const eur = n=>n.toLocaleString('es-ES',{maximumFractionDigits:0})+' €';
+  const K = seccion==='bienvenida' ? [
+      ['Por llamar hoy', bienv.length, ''],
+      ['En 2ª llamada', bienv.filter(c=>c.intentos).length, ''],
+      ['Habladas hoy', hoyG.filter(g=>g.tipo_caso==='bienvenida'&&g.resultado!=='bienvenida_no_contesta').length, 'bien'],
+      ['No contestan hoy', hoyG.filter(g=>g.resultado==='bienvenida_no_contesta').length, ''],
+    ] : seccion==='fallo' ? [
+      ['Por llamar', vivasFallo.length, ''],
+      ['En juego', eur(vivasFallo.reduce((t,c)=>t+(Number(c.importe)||0),0)), ''],
+      ['Agendadas hoy', agFallo.length, agFallo.some(c=>String(c.prox).slice(0,10)<hoyISO())?'alerta':''],
+      ['Por registrar', porRegistrar.length, ''],
+      ['Pagos por validar', porValidar.length, ''],
+    ] : [
+      ['Médicas', medicas.length, medVencidas?'alerta':''],
+      ['Derivadas', derivPend.filter(x=>!x.medico).length, ''],
+      ['Alertas de baja', senales.length, senAtascadas?'alerta':''],
+      ['Recontactos de hoy', agOtros.length, ''],
+    ];
+  document.getElementById('kpis').innerHTML=K.map(([l,v,c])=>`<div class="kpi ${c}"><span>${l}</span><b>${v}</b></div>`).join('');
+  // El motivador (retenidas, ventas cruzadas…) es de retención: en bienvenidas no dice nada.
+  document.getElementById('moti').style.display = seccion==='bienvenida' ? 'none' : '';
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
   pintarVerDe();
   // Barra de progreso del día → da sensación de "hay un final".
   // «Quedan» = trabajo pendiente REAL de quien mira: llamadas nuevas + agendadas que ya tocan
   // + las que ya pagaron y sólo falta registrar. Se desglosa cuando hay de varios tipos, si no
   // «3 por llamar» y «quedan 5» parecerían contradecirse.
-  const pendientes=vivas.length+agendadas.length+porRegistrar.length;
-  const partes=[`${vivas.length} nuevas`, agendadas.length?`${agendadas.length} agendadas`:'',
-                porRegistrar.length?`${porRegistrar.length} por registrar`:''].filter(Boolean);
+  // …y ahora es la de la PESTAÑA: si no, «quedan 40» encima de una lista de 8 no cuadra.
+  const vivasSec = seccion==='fallo' ? vivasFallo : seccion==='otros' ? vivas.filter(c=>!esFalloC(c)) : [];
+  const porRegSec = seccion==='fallo' ? porRegistrar : [];
+  const pendientes = seccion==='bienvenida' ? bienv.length : vivasSec.length+agS.length+porRegSec.length;
+  const partes = seccion==='bienvenida'
+    ? [`${bienv.filter(c=>!c.intentos).length} nuevas`, bienv.some(c=>c.intentos)?`${bienv.filter(c=>c.intentos).length} en 2ª llamada`:''].filter(Boolean)
+    : [`${vivasSec.length} nuevas`, agS.length?`${agS.length} agendadas`:'',
+       porRegSec.length?`${porRegSec.length} por registrar`:''].filter(Boolean);
   const desglose=partes.length>1?` <span class="prog-det">(${partes.join(' · ')})</span>`:'';
   // 🩺 El reloj de las médicas va en la barra del día: es lo único de la estación con un
   // plazo que le hemos PROMETIDO a la clienta por escrito («te llamamos en menos de 72h»),
@@ -817,9 +967,11 @@ function render(){
   const avisoMedicas = medVencidas
     ? ` · <b style="color:var(--red)">🚨 ${medVencidas} médica${medVencidas===1?'':'s'} pasa${medVencidas===1?'':'n'} de 72 h</b>`
     : (medAviso ? ` · <b style="color:var(--amber)">🩺 ${medAviso} médica${medAviso===1?'':'s'} pasa${medAviso===1?'':'n'} de 48 h</b>` : '');
-  const totalDia=gestHoy+pendientes, pct=totalDia?Math.round(gestHoy/totalDia*100):0;
+  const gestHoySec = seccion==='bienvenida' ? new Set(hoyG.filter(g=>g.tipo_caso==='bienvenida').map(g=>nid(g.contract_id)||String(g.customer_id||''))).size
+    : LISTA.filter(c=>gestionadaHoy(c) && (seccion==='fallo'?esFalloC(c):!esFalloC(c))).length;
+  const totalDia=gestHoySec+pendientes, pct=totalDia?Math.round(gestHoySec/totalDia*100):0;
   document.getElementById('progreso').innerHTML = totalDia
-    ? `<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt"><b>${gestHoy}</b> gestionada${gestHoy===1?'':'s'} hoy · quedan <b>${pendientes}</b>${desglose}${avisoMedicas}</div></div>` : '';
+    ? `<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt"><b>${gestHoySec}</b> gestionada${gestHoySec===1?'':'s'} hoy · quedan <b>${pendientes}</b>${desglose}${seccion==='otros'?avisoMedicas:''}</div></div>` : '';
   document.getElementById('dateClear').style.display=fechaFil?'inline-block':'none';
   // Búsqueda: encuentra a CUALQUIERA — pendientes de llamar + contactadas + no contactadas
   // (aunque su caso ya no esté en la lista). Sin búsqueda: respeta el chip.
@@ -849,9 +1001,11 @@ function render(){
   else if(filtro==='porregistrar'){ VIS=porRegistrar; }
   else if(filtro==='medicas'){ VIS=medicas; }
   else if(filtro==='senal'){ VIS=senales; }
-  else if(filtro==='agendadas'){ VIS=agendadas; }
-  else if(filtro==='gestionadas'){ VIS=contactadas; }
-  else if(filtro==='nolocal'){ VIS=nolocal; }
+  else if(filtro==='bienvenida'){ VIS=bienv; }
+  else if(filtro==='bienv_hechas'){ VIS=bienvHechas; }
+  else if(filtro==='agendadas'){ VIS=agS; }
+  else if(filtro==='gestionadas'){ VIS=contS; }
+  else if(filtro==='nolocal'){ VIS=nolS; }
   else if(filtro==='porvalidar'){ VIS=porValidar; }
   else if(filtro==='cancelada'){ VIS=cancel; }   // bajas médicas ya ejecutadas (solo consulta)
   else if(filtro==='derivada'){ VIS=[...derivPend, ...pausasFuturas]; }   // derivadas + seguimientos que aún no tocan
@@ -863,6 +1017,8 @@ function render(){
   // baja es un fallo nuestro y lleva días esperando una respuesta que no llega. El botón de
   // orden sigue funcionando, pero dentro de cada motivo.
   if(filtro==='senal') VIS = VIS.slice().sort((a,b)=>ORDEN_SENAL.indexOf(a.motivo)-ORDEN_SENAL.indexOf(b.motivo));
+  // 👋 Una 2ª llamada con fecha es un compromiso: va delante de las que aún no se han intentado.
+  if(filtro==='bienvenida') VIS = [...VIS.filter(c=>c.intentos), ...VIS.filter(c=>!c.intentos)];
   // …pero un compromiso con fecha va SIEMPRE delante: te comprometiste a llamarla hoy.
   if(!busca && (filtro==='todas'||filtro==='agendadas'))
     VIS = [...VIS.filter(c=>c.prox), ...VIS.filter(c=>!c.prox)];
@@ -875,6 +1031,10 @@ function render(){
     : filtro==='senal' ? (VIS.length
         ? `${VIS.length} para llamar${senAtascadas?` — ${senAtascadas} no ${senAtascadas===1?'consiguió':'consiguieron'} darse de baja`:''}`
         : 'ninguna señal sin atender 👌')
+    : filtro==='bienv_hechas' ? `${VIS.length} bienvenida${VIS.length===1?'':'s'} ya llamada${VIS.length===1?'':'s'}`
+    : filtro==='bienvenida' ? (VIS.length
+        ? `${VIS.length} bienvenida${VIS.length===1?'':'s'} por llamar${VIS.filter(c=>c.intentos).length?` · ${VIS.filter(c=>c.intentos).length} en 2ª llamada`:''}`
+        : 'ninguna bienvenida pendiente 👌')
     : filtro==='porregistrar' ? (()=>{ const n=s=>VIS.filter(c=>c.salida===s).length;
         const det=[n('pagada')?`${n('pagada')} pagaron`:'', n('cancelada')?`${n('cancelada')} cancelaron`:'',
                    n('sin_pago')?`${n('sin_pago')} sin cobro`:''].filter(Boolean).join(' · ');
@@ -893,9 +1053,10 @@ function render(){
         : (fechaFil?'nada ese día 👌':(verDe==='__mias__'?'no tienes nada pendiente 🎉':'¡todo llamado! 🎉')));
   // El rótulo dice de quién es la lista: entrar y ver «lo mío» sin pensarlo.
   const rotulo=document.querySelector('.hero-lbl');
-  if(rotulo) rotulo.textContent = verDe==='__mias__' ? `Tu lista — ${agActual()}`
+  if(rotulo) rotulo.textContent = seccion==='bienvenida' ? 'Nuevas clientas — lista de todo el equipo'
+    : verDe==='__mias__' ? `Tu lista — ${agActual()}`
     : verDe==='__libre__' ? 'Casos sin dueño' : verDe ? `La lista de ${verDe}` : 'A quién llamar hoy (todo el equipo)';
-  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin localizar 👌':filtro==='cancelada'?'Ninguna baja registrada por el formulario todavía.':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':filtro==='wacurso'?'Ninguna con la secuencia de WhatsApp en curso.':filtro==='agendadas'?'Ninguna llamada agendada para hoy 👌':filtro==='senal'?'Ninguna señal de baja sin atender 👌 LUNA avisa aquí de las que necesitan una llamada.':verDe==='__mias__'?'No tienes casos asignados. Mira «Sin dueño» en el desplegable de arriba y coge los que vayas a trabajar.':'Nada por llamar aquí. 👌';
+  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin localizar 👌':filtro==='cancelada'?'Ninguna baja registrada por el formulario todavía.':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':filtro==='wacurso'?'Ninguna con la secuencia de WhatsApp en curso.':filtro==='agendadas'?'Ninguna llamada agendada para hoy 👌':filtro==='senal'?'Ninguna señal de baja sin atender 👌 LUNA avisa aquí de las que necesitan una llamada.':filtro==='bienv_hechas'?'Todavía no se ha llamado a ninguna nueva clienta.':filtro==='bienvenida'?'Ninguna bienvenida pendiente 👌 Aquí salen las nuevas suscriptoras a los 3 días de recibir su pedido.':verDe==='__mias__'?'No tienes casos asignados. Mira «Sin dueño» en el desplegable de arriba y coge los que vayas a trabajar.':'Nada por llamar aquí. 👌';
   document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${vacio}</div>`;
 }
 function setBusca(v){ busca=(v||'').toLowerCase().trim(); render(); }
@@ -934,9 +1095,23 @@ function contactosDe(c){
 }
 function puntosContactos(c){
   if(c.registro) return '';   // solo consulta: el caso ya está cerrado, no aplica la pauta
+  if(c.bienvenida) return ''; // la pauta de 4 llamadas es de retención; aquí son 2 intentos y fuera
   const n=contactosDe(c), tope=n>=4;
   const dots=[0,1,2,3].map(k=>`<span class="dot${k<Math.min(n,4)?' on':''}"></span>`).join('');
   return `<span class="dots${tope?' max':''}" title="${n} llamada${n===1?'':'s'} registrada${n===1?'':'s'} con esta clienta${tope?' — pauta cumplida: decidir cierre':' — la pauta son 4'}">${dots}<b>${Math.min(n,4)} de 4</b></span>`;
+}
+// 👋 Ficha de la suscripción: lo que Carme necesita ver ANTES de marcar, sin abrir nada.
+function fichaBienvenida(c){
+  const dias=c.proxima_renovacion?Math.ceil((Date.parse(String(c.proxima_renovacion).slice(0,10)+'T12:00:00Z')-Date.now())/864e5):null;
+  const otras=(c.otras||[]).map(o=>(o.productos||[]).join(' + ')).filter(Boolean);
+  const tile=(l,v)=>`<div class="ftile"><span>${l}</span><b>${v}</b></div>`;
+  return `<div class="ficha">
+      ${tile('Producto suscrito', esc((c.productos||[]).join(' + ')||'—'))}
+      ${tile('Pedidos en DOMMA', c.n_pedidos?(c.primer_pedido?'1 · es el primero':esc(String(c.n_pedidos))+' · ya había comprado'):'—')}
+      ${tile('Otras suscripciones', otras.length?esc(otras.join(' · ')):'Ninguna')}
+      ${tile('Próximo cobro', c.proxima_renovacion?`${fechaCorta(c.proxima_renovacion)}${dias!=null&&dias>=0?` · en ${dias} día${dias===1?'':'s'}`:''}`:'—')}
+    </div>
+    ${(c.luna||c.cita)?`<div class="fbadges">${c.luna?`<span class="chip amber">💬 Escribió a LUNA el ${fechaCorta(c.luna)}</span>`:''}${c.cita?`<span class="chip green">📅 Tiene cita con Marta el ${fechaCorta(c.cita)}</span>`:''}</div>`:''}`;
 }
 function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
@@ -954,6 +1129,7 @@ function tarjeta(c,i){
     : c.waCurso?'<span class="chip amber">⏳ WhatsApp en curso</span>'
     // 🔔 La atascada va en rojo: no es «riesgo de baja», es una mujer a la que no dejamos irse.
     : c.tipo==='senal'?`<span class="chip ${c.motivo==='no_puede_darse_de_baja'?'red':'amber'}">🔔 Alerta de baja</span>`
+    : c.tipo==='bienvenida'?'<span class="chip green">👋 Bienvenida</span>'
     : c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
   const nHist=histDe(c).length;
@@ -961,14 +1137,16 @@ function tarjeta(c,i){
   return `<div class="card" data-state="${(c.medico&&c.horas>=MEDICO_LIMITE_H)?'red':(c.medico&&c.horas>=MEDICO_AVISO_H)?'amber':(c.esCancelada||c.salida==='cancelada')?'red':(c.resuelto&&c.salida!=='pagada')?'amber':((c.registro&&(c.directa||c.estado==='pausa'))||c.resuelto||c.esPagado||(c.gestionada&&!c.noLoc&&!c.esCobroHecho))?'green':'amber'}" id="c${i}">
     <div class="stripe"></div>
     <div class="body">
-      <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${esc(relojMedico(c))}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div><div class="ctr">${puntosContactos(c)}${chip}</div></div>
+      <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${esc(relojMedico(c))}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro&&!c.bienvenida)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div><div class="ctr">${puntosContactos(c)}${chip}</div></div>
       ${c.lectura?`<div class="lectura">💬 ${esc(c.lectura)}</div>`:''}
+      ${c.bienvenida?fichaBienvenida(c):''}
       <div class="cmeta-row"><span class="cmeta">${meta}</span>${insigniaDueno(c)}${nHist?`<a class="histlink" href="#" data-n="${nHist}" onclick="toggleHist(${i},this);return false">Ver historial · ${nHist}</a>`:''}</div>
       <div class="hist" id="hist${i}" hidden>${histInner(c,i)}</div>
       <div class="actions">
         ${tel?`<button class="b b-call" onclick="llamar('${esc(c.phone)}',this)">📞 Llamar</button>`:`<span class="b b-call dis" title="No tenemos su teléfono">📞 Llamar</span>`}
         ${tel?`<a class="b b-wa" href="#" onclick="wati('${esc(c.phone)}');return false">💬 WhatsApp</a>`:`<span class="b b-wa dis" title="No tenemos su teléfono">💬 WhatsApp</span>`}
         ${c.email?`<a class="b b-email" href="mailto:${esc(c.email)}">✉️ Email</a>`:`<span class="b b-email dis" title="No tenemos su email">✉️ Email</span>`}
+        ${(c.bienvenida&&nid(c.contract_id))?`<button class="b b-email" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}')" title="Abre su suscripción en Appstle">🔎 Ver suscripción</button>`:''}
         ${(c.esCobroHecho&&c.gestId)?`<button class="b b-validar" onclick="marcarPagado(${i},'${esc(String(c.gestId))}',this)" title="Validar que el cobro se ha realizado">✓ Marcar pagado</button>`:''}
         ${botonesAsignacion(c,i)}
         ${ultGestId?`<button class="b b-undo" onclick="borrarGestion('${esc(String(ultGestId))}',this)" title="Deshacer la última gestión de esta clienta: vuelve a quedar como antes. No afecta a su suscripción.">🗑 Deshacer</button>`:''}
@@ -1006,7 +1184,14 @@ function paso2(i,contacto,btn,pre){
   // No localizada es IGUAL en todos los flujos: Intento 1/2 (negativo) + Pausa/Cancelación
   // siempre disponibles (los intentos solo se registran para el conteo, no gatean nada).
   let codigos;
-  if(contacto==='no_localizada'){
+  if(caso.tipo==='bienvenida'){
+    // Menos es más: hablaste con ella (y si en la llamada pide irse, se cancela aquí mismo) o no contestó.
+    codigos = contacto==='no_localizada' ? ['bienvenida_no_contesta']
+      : ['bienvenida_bien','bienvenida_dudas','bienvenida_no_sabia','bienvenida_salvada','cancelacion'];
+    // No contesta → se propone la 2ª llamada para el siguiente día laborable (se puede cambiar).
+    // En el 2º intento ya no hay 3ª: no se propone fecha.
+    if(contacto==='no_localizada' && !editId && !caso.intentos) pre={...(pre||{}), prox:diaSiguienteHabil(hoyISO())};
+  } else if(contacto==='no_localizada'){
     codigos = caso.tipo==='fallo'
       ? ['intento_1','intento_2','cobro_manual','pausa','cancelacion']
       : ['intento_1','intento_2','pausa','cancelacion'];
@@ -1020,7 +1205,7 @@ function paso2(i,contacto,btn,pre){
   if(pre&&pre.resultado&&!codigos.includes(pre.resultado)&&CATALOGO[pre.resultado]) botones.unshift([pre.resultado, CATALOGO[pre.resultado].b||CATALOGO[pre.resultado].l, '']);
   document.getElementById('res'+i).innerHTML=
     `<div class="dgrid">${botones.map(([r,l,cls])=>`<button class="d ${cls}${pre&&pre.resultado===r?' sel':''}" onclick="seleccionar(${i},'${contacto}','${r}',this)">${l}</button>`).join('')}</div>
-     <div class="prox-row"><label class="prox-lbl">📅 Próxima llamada <span>(opcional)</span></label><input type="date" id="prox${i}" class="proxin" value="${pre&&pre.prox?esc(String(pre.prox).slice(0,10)):''}"></div>
+     <div class="prox-row"><label class="prox-lbl">${(caso.tipo==='bienvenida'&&contacto==='no_localizada')?'📅 2ª llamada':'📅 Próxima llamada <span>(opcional)</span>'}</label><input type="date" id="prox${i}" class="proxin" value="${pre&&pre.prox?esc(String(pre.prox).slice(0,10)):''}"></div>
      <textarea class="nota" id="nota${i}" rows="2" placeholder="Nota (opcional): qué dijo, próximo paso…">${pre&&pre.nota?esc(pre.nota):''}</textarea>
      <div class="dispo-foot">
        <button class="dfbtn dguardar" id="gbtn${i}" onclick="guardar(${i})" ${pre&&pre.resultado?'':'disabled'}>✓ Guardar</button>
@@ -1131,7 +1316,7 @@ async function guardar(i){
       return;
     }
     // ── REGISTRAR una gestión nueva ──
-    const body={tipo_caso:caso.tipo==='fallo'?'fallo_pago':'baja', customer_id:caso.customer_id||'', contract_id:caso.contract_id||'', nombre:caso.nombre||'', email:caso.email||'', phone:caso.phone||'', contacto, resultado, agente:agActual(), nota, proxima_llamada:prox, solo_registro:soloRegistro};
+    const body={tipo_caso:caso.tipo==='fallo'?'fallo_pago':(caso.tipo==='bienvenida'?'bienvenida':'baja'), customer_id:caso.customer_id||'', contract_id:caso.contract_id||'', nombre:caso.nombre||'', email:caso.email||'', phone:caso.phone||'', contacto, resultado, agente:agActual(), nota, proxima_llamada:prox, solo_registro:soloRegistro};
     const r=await fetch(API_BAJAS+'/api/dashboard/gestion',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
     const d=await r.json().catch(()=>null);
     if(sesionCaducada(r,d)){ avisarSesion(msg, gb); return; }

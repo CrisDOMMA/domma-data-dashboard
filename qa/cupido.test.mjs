@@ -66,6 +66,7 @@ const PIEZAS = [
   extraer('function casoCerrado'), extraer('function enEspera'),
   extraer('function yaRegistrada'), linea('const SALVA='), extraer('function yaSalvada'),
   extraer('function gestionadasCards'),
+  linea('const BIENV_MAX_INTENTOS='), extraer('function diaSiguienteHabil'), extraer('function bienvenidaCerrada'),
   linea('const soloDig='), linea('const sinPre ='), extraer('const matchB='),
 ].filter(Boolean);
 
@@ -79,7 +80,7 @@ const cargar = new Function('estado', `
   let busca = '';
   ${PIEZAS.join('\n')}
   return { CATALOGO, TERMINAL, CIERRA, ESPERA, COBRO_HECHO, EQUIPO,
-           gestionadaHoy, casoCerrado, enEspera, yaRegistrada, yaSalvada, gestionadasCards,
+           gestionadaHoy, casoCerrado, enEspera, yaRegistrada, yaSalvada, gestionadasCards, bienvenidaCerrada, diaSiguienteHabil,
            botonesAsignacion, duenoDe, sinDueno, esMio, agActual, filtrarPorDueno,
            verDePorDefecto: () => verDe,
            conVerDe(v){ verDe = v; },
@@ -411,6 +412,110 @@ t('las más viejas salen primero',
   /medicas\s*=\s*vd\(vivas\.filter\(x=>x\.medico\)\)\.sort\(\(a,b\)=>\(b\.horas\|\|0\)-\(a\.horas\|\|0\)\)/.test(SRC));
 t('la barra del día canta las vencidas',
   /medVencidas[\s\S]{0,160}pasa\$\{medVencidas===1\?'':'n'\} de 72 h/.test(SRC));
+
+
+// ── 👋 Bienvenidas: llamada de onboarding a las altas (16/11/2026) ────
+bloque('BIENVENIDAS — quién sale del cubo y qué NO puede romper');
+{
+  const B = { tipo: 'bienvenida', bienvenida: true, contract_id: '1', alta: d(8), fecha: d(4) };
+  const NC = { tipo_caso: 'bienvenida', resultado: 'bienvenida_no_contesta', contacto: 'no_localizada' };
+  conGestiones([]);
+  t('sin gestiones → hay que llamarla', !API.bienvenidaCerrada(B));
+  conGestiones([{ tipo_caso: 'bienvenida', resultado: 'bienvenida_bien', created_at: d(1) + ' 10:00' }]);
+  t('se habló con ella → sale', API.bienvenidaCerrada(B));
+  conGestiones([{ ...NC, created_at: d(3) + ' 10:00', proxima_llamada: d(0) }]);
+  t('no contestó y la 2ª llamada es HOY → vuelve', !API.bienvenidaCerrada(B));
+  conGestiones([{ ...NC, created_at: d(3) + ' 10:00', proxima_llamada: d(1) }]);
+  t('2ª llamada vencida (era ayer) → sigue saliendo, no se pierde', !API.bienvenidaCerrada(B));
+  conGestiones([{ ...NC, created_at: d(0) + ' 10:00', proxima_llamada: d(-2) }]);
+  t('2ª llamada para pasado mañana → no sale todavía', API.bienvenidaCerrada(B));
+  conGestiones([{ ...NC, created_at: d(0) + ' 10:00' }]);
+  t('no contestó hoy y sin fecha → fuera del día', API.bienvenidaCerrada(B));
+  conGestiones([{ ...NC, created_at: d(2) + ' 10:00' }, { ...NC, created_at: d(1) + ' 10:00' }]);
+  t('dos sin respuesta → no se insiste más', API.bienvenidaCerrada(B));
+  conGestiones([{ tipo_caso: 'baja', resultado: 'retenida', created_at: d(40) + ' 10:00' }]);
+  t('una llamada ANTERIOR al alta (otra suscripción) no la esconde', !API.bienvenidaCerrada(B));
+  conGestiones([{ tipo_caso: 'bienvenida', resultado: 'cancelacion', created_at: d(1) + ' 10:00' }]);
+  t('si canceló en la llamada → sale', API.bienvenidaCerrada(B));
+
+  t('la 2ª llamada se propone en día laborable: viernes → lunes',
+    API.diaSiguienteHabil('2026-11-20') === '2026-11-23' && API.diaSiguienteHabil('2026-11-16') === '2026-11-17');
+
+  const COD = ['bienvenida_bien', 'bienvenida_dudas', 'bienvenida_no_sabia', 'bienvenida_salvada', 'bienvenida_no_contesta'];
+  t('los códigos de bienvenida existen y son del día (`term`)',
+    COD.every(k => API.CATALOGO[k] && API.TERMINAL.has(k)));
+  t('NO cierran ni esperan: un cierre taparía una baja futura de la misma clienta',
+    COD.every(k => !API.CIERRA.has(k) && !API.ESPERA.has(k)));
+  t('caben en la columna `resultado` (el worker corta a 40)', COD.every(k => k.length <= 40));
+  t('la bienvenida no ofrece `intento_2` (dispararía el protocolo de 72 h) ni `retenida`',
+    (() => { const i = SRC.indexOf("if(caso.tipo==='bienvenida'){"), j = SRC.indexOf("} else if(contacto==='no_localizada'){", i);
+             const b = SRC.slice(i, j); return i > 0 && j > i && !/'intento_[12]'|'retenida'/.test(b) && /'bienvenida_no_contesta'/.test(b) && /'cancelacion'/.test(b); })());
+  t('se registra con su propio tipo de caso',
+    /caso\.tipo==='bienvenida'\?'bienvenida':'baja'/.test(SRC));
+  t('la sección se carga con `.catch`: si falla, la estación sigue en pie',
+    /\/api\/dashboard\/bienvenidas'[^\n]*\.catch\(\(\)=>\(\{\}\)\)/.test(SRC));
+  t('las bienvenidas no entran en LISTA (no hinchan «Todas» ni la barra del día)',
+    (() => { const a = SRC.indexOf('LISTA=[\n'), b = SRC.indexOf('\n  ];', a);
+             return a > 0 && b > a && !/bienvenida|BIENV/i.test(SRC.slice(a, b)); })()
+    && /const bienv = dfil\(BIENV\)/.test(SRC) && !/todas:[^\n]*bienv\.length[^\n]*medicas:/.test(SRC));
+  t('sin botones de reparto: es una lista compartida',
+    API.botonesAsignacion({ bienvenida: true, contract_id: '1' }, 0) === '');
+  conGestiones([{ ...NC, created_at: d(1) + ' 10:00', proxima_llamada: d(0) }]);
+  t('su 2ª llamada NO se cuela en «Agendadas» (va por dueña): la tarjeta va marcada',
+    API.gestionadasCards().every(c => c.esBienvenida) && /c\.prox && !c\.esBienvenida/.test(SRC));
+
+  const W = fs.readFileSync(path.join(RAIZ, '..', 'flujo-bajas', 'worker', 'src', 'index.js'), 'utf8');
+  t('worker: `bienvenida` es un tipo de caso propio (ni baja ni fallo de pago)',
+    /b\.tipo_caso === "bienvenida" \? "bienvenida" : "baja"/.test(W));
+  t('worker: el email de 72 h sigue atado SOLO a fallo_pago',
+    /tipo === "fallo_pago" && resultado === "intento_2"/.test(W));
+  t('worker: la entrega sale de `deliveredAt`, no de «enviado»',
+    /f\.deliveredAt/.test(W) && !/entregado_at[^\n]*displayStatus === "FULFILLED"/.test(W));
+  t('worker: la ruta exige credenciales y el refresco a mano es solo de admin',
+    /pathname === "\/api\/dashboard\/bienvenidas"[\s\S]{0,300}?verView\(me\)[\s\S]{0,300}?me\.role !== "admin"\) delete b\.refrescar/.test(W));
+  t('worker: el grupo sin llamar NO llega a la lista de Carme',
+    /r\.grupo !== "control"/.test(W));
+  t('worker y front usan las mismas etiquetas',
+    ['bienvenida_bien', 'bienvenida_dudas', 'bienvenida_no_sabia', 'bienvenida_salvada'].every(k => W.includes('"' + k + '"')));
+  // Funciones puras del worker, ejecutadas de verdad.
+  const trozo = (desde, hasta) => W.slice(W.indexOf(desde), W.indexOf(hasta));
+  const pedidoDelAlta = new Function(trozo('function pedidoDelAlta', 'async function refrescarBienvenidas') + '; return pedidoDelAlta;')();
+  const alta = '2026-11-10T10:00:00Z';
+  t('casa el pedido creado con el alta',
+    pedidoDelAlta([{ name: '#2', createdAt: '2026-11-10T10:00:05Z' }, { name: '#1', createdAt: '2026-09-01T10:00:00Z' }], alta).name === '#2');
+  t('un pedido de hace meses NO vale como «el del alta»',
+    pedidoDelAlta([{ name: '#1', createdAt: '2026-09-01T10:00:00Z' }], alta) === null);
+  t('un pedido cancelado no cuenta',
+    pedidoDelAlta([{ name: '#2', createdAt: '2026-11-10T10:00:05Z', cancelledAt: '2026-11-10T12:00:00Z' }], alta) === null);
+  const grupo = new Function(trozo('const BIENVENIDA_CONTROL_DE_CADA', '/** Desde qué día de ENTREGA') + '; return grupoBienvenida;')();
+  const ids = Array.from({ length: 4000 }, (_, i) => String(23000000000000 + i * 7919));
+  const nCtl = ids.filter(x => grupo(x) === 'control').length;
+  t(`el grupo sin llamar es ~1 de cada 4 (${nCtl} de 4000)`, nCtl > 880 && nCtl < 1120);
+  t('y es estable: la misma clienta cae siempre en el mismo grupo', ids.slice(0, 50).every(x => grupo(x) === grupo(x)));
+}
+
+// ── Navegación en dos pestañas (16/11/2026) ───────────────────────────
+bloque('PESTAÑAS — nuevas clientas y fallos de pago; las bajas no se pierden');
+{
+  const S = (SRC.match(/const SECCIONES=\{[\s\S]*?\n\};/) || [''])[0];
+  t('hay tres secciones: bienvenida, fallo y otros', /bienvenida:\{/.test(S) && /fallo:\{/.test(S) && /otros:\{/.test(S));
+  t('las cancelaciones NO están en las dos pestañas de trabajo',
+    (() => { const f = (S.match(/fallo:\{[^\n]*/) || [''])[0], w = (S.match(/bienvenida:\{[^\n]*/) || [''])[0];
+             return !/'baja'|'derivada'|'cancelada'|'senal'|'medicas'/.test(f + w); })());
+  t('…pero siguen a un clic: médicas, derivadas, bajas y alertas viven en «otros»',
+    (() => { const o = (S.match(/otros:\{[^\n]*/) || [''])[0];
+             return ["'medicas'", "'derivada'", "'baja'", "'senal'", "'cancelada'"].every(k => o.includes(k)); })());
+  t('«Bajas por cerrar» sólo se pinta si queda algún caso vivo',
+    /filter\(k=>k!=='otros'\|\|nSec\.otros\|\|seccion==='otros'\)/.test(SRC));
+  t('las médicas cuentan para que la pestaña no desaparezca con una dentro',
+    /otros: medicas\.length \+/.test(SRC));
+  t('Carme entra a bienvenidas y el resto a fallos de pago',
+    /me\.email==='ayuda@wearedomma\.com' \? 'bienvenida' : 'fallo'/.test(SRC));
+  t('la barra del día es la de la pestaña, no la de toda la estación',
+    /const pendientes = seccion==='bienvenida' \? bienv\.length : vivasSec\.length\+agS\.length\+porRegSec\.length/.test(SRC));
+  t('el buscador sigue mirando TODO (no hereda la pestaña)',
+    /for\(const c of \[\.\.\.LISTA, \.\.\.gestionadasCards\(\), \.\.\.REGISTRO\]\)/.test(SRC));
+}
 
 // ── 8. Humo contra producción (opcional) ──────────────────────────────
 if (PROD) {
