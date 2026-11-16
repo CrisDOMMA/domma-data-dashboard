@@ -88,7 +88,7 @@ Además, sin commit nuevo (ya existían de sesiones previas): endpoints `gestion
 
 ---
 
-## 16/11/2026 — 👋 Bienvenidas (sin desplegar)
+## 16/11/2026 — 👋 Bienvenidas (desplegado el 16/11, front `df5dd24`)
 
 Sección nueva: nuevas suscriptoras que recibieron su pedido hace 3-10 días, para la llamada de
 onboarding. Chip propio, fuera de «Todas». Ficha en la tarjeta (producto, pedidos, otras
@@ -99,6 +99,6 @@ grupo sin llamar para medir. Backend en `domma-bajas`: `/api/dashboard/bienvenid
 Detalle en `flujo-bajas/CUPIDO_DOSSIER.md` §5. Tests: `node qa/cupido.test.mjs` (135).
 **Orden de despliegue: worker primero, luego el front.**
 
-**Navegación nueva (16/11, sin desplegar):** dos pestañas grandes («👋 Nuevas clientas», «💳 Fallos
+**Navegación nueva (16/11, desplegada):** dos pestañas grandes («👋 Nuevas clientas», «💳 Fallos
 de pago») con cifras clave y barra del día propias. Lo de bajas queda en «📋 Bajas por cerrar»,
 que solo aparece mientras haya casos vivos. Tests: 143.
