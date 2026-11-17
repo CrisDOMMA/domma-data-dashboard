@@ -94,7 +94,7 @@ let D = null, G = 'semana', RANGO = 84, Q = '';
 const TIPOS = { baja_form:'Se dio de baja en el formulario', solicitud_baja:'Pidió la baja (la tramitaba el equipo)', oferta10:'Aceptó el 10% y sigue',
   pausa:'Pausó', espaciar:'Espació envíos', cita_revision:'Reservó revisión con Marta', cita_regalo:'Reservó la sesión de regalo', derivada_llamada:'Derivada a llamada (antes del cambio)' };
 const MOTIVOS = { resultados:'No nota resultados', precio:'Precio', acumulo:'Se le acumula', puntual:'Prefiere comprar suelto', resuelto:'Ya está mejor',
-  salud:'Le sienta mal', incompatible:'Incompatible con medicación', otro:'Otro', gate_2pedidos:'Menos de 2 pedidos', min_2_pedidos:'Menos de 2 pedidos', min_permanencia:'Permanencia' };
+  salud:'Le sienta mal', incompatible:'Incompatible con medicación', otro:'Otro', no_sabia:'No sabía que era suscripción', descanso:'Quiere descansar', servicio:'Problema con envío o cobro', gate_2pedidos:'Menos de 2 pedidos', min_2_pedidos:'Menos de 2 pedidos', min_permanencia:'Permanencia' };
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dia = s => new Date(s+'T12:00:00Z');
 const iso = d => d.toISOString().slice(0,10);
