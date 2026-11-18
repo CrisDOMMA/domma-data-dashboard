@@ -182,6 +182,11 @@ t('en un episodio NUEVO la tarjeta no puede decir «Pagado»',
 conGestiones([{ resultado: 'cobro_manual', created_at: d(2) + ' 10:00', email: 'a@t.com' }]);
 t('un cobro sin validar sigue contando en «Pagos por validar»',
   API.gestionadasCards()[0].esCobroHecho);
+conGestiones([{ tipo_caso: 'bienvenida', resultado: 'bienvenida_no_contesta', contacto: 'no_localizada', created_at: d(1) + ' 10:00', email: 'a@t.com' }]);
+t('una bienvenida ya llamada sigue siendo bienvenida al re-registrar  [bug Carme 18/11]',
+  API.gestionadasCards()[0].tipo === 'bienvenida' && API.gestionadasCards()[0].esBienvenida);
+conGestiones([{ tipo_caso: 'derivada', resultado: 'retenida', created_at: d(1) + ' 10:00', email: 'a@t.com' }]);
+t('una derivada ya gestionada sigue siendo derivada', API.gestionadasCards()[0].tipo === 'derivada');
 
 // ── 6. Reparto de casos entre el equipo ──────────────────────────────
 bloque('ASIGNACIÓN — se reparten fallos, bajas Y derivadas');

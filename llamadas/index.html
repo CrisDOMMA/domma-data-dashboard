@@ -832,7 +832,9 @@ function gestionadasCards(soloContacto){
     const noLoc=g.contacto==='no_localizada';
     if(soloContacto==='no_localizada' && !noLoc) continue;
     if(soloContacto==='localizada' && noLoc) continue;
-    const t=g.tipo_caso==='fallo_pago'?'fallo':(g.tipo_caso==='baja'?'baja':'derivada');
+    // 'bienvenida' conserva su tipo: si no, al registrar desde «Ya llamadas» (o desde el buscador)
+    // salían los resultados de retención y la gestión se guardaba como 'baja' (bug 18/11/2026).
+    const t=g.tipo_caso==='fallo_pago'?'fallo':(g.tipo_caso==='baja'?'baja':(g.tipo_caso==='bienvenida'?'bienvenida':'derivada'));
     const res=RES_LABEL[g.resultado]||g.resultado||'';
     // Si la fecha ya pasó no se dice «próx.»: se dice que venció. El texto de la tarjeta va
     // escapado (no admite HTML), así que el aviso tiene que estar en la palabra.
@@ -1190,7 +1192,7 @@ function paso2(i,contacto,btn,pre){
       : ['bienvenida_bien','bienvenida_dudas','bienvenida_no_sabia','bienvenida_salvada','cancelacion'];
     // No contesta → se propone la 2ª llamada para el siguiente día laborable (se puede cambiar).
     // En el 2º intento ya no hay 3ª: no se propone fecha.
-    if(contacto==='no_localizada' && !editId && !caso.intentos) pre={...(pre||{}), prox:diaSiguienteHabil(hoyISO())};
+    if(contacto==='no_localizada' && !editId && !caso.intentos && !caso.gestionada) pre={...(pre||{}), prox:diaSiguienteHabil(hoyISO())};
   } else if(contacto==='no_localizada'){
     codigos = caso.tipo==='fallo'
       ? ['intento_1','intento_2','cobro_manual','pausa','cancelacion']
