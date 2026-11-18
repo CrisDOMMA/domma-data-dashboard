@@ -96,16 +96,18 @@ const eur = n => num(n)+' €';
 const nombreMes = ym => MES[+ym.slice(5,7)-1]+' '+ym.slice(0,4);
 const corto = ym => MES[+ym.slice(5,7)-1].slice(0,3);
 const diasDelMes = ym => new Date(Date.UTC(+ym.slice(0,4), +ym.slice(5,7), 0)).getUTCDate();
-const neto = o => (o.altas||0)+(o.reactivaciones||0)-(o.bajas||0);
+// Desde el 18/11/2026 Altas, Bajas y Neto cuentan CLIENTAS, no contratos: una mujer cuenta una vez,
+// tenga las suscripciones que tenga, y solo es baja si se queda sin ninguna. Lo calcula el worker.
+const neto = o => (o.altas_clientas||0)+(o.reactiv_clientas||0)-(o.bajas_clientas||0);
 
 // Métricas: etiqueta, cómo se saca el valor de un día, si subir es bueno (1), malo (-1) o neutro (0), y formato.
 const METRICAS = {
-  altas:        { l:'Altas',            v:o=>o.altas||0,          s:1,  f:num, que:'Suscripciones nuevas.' },
+  altas:        { l:'Altas',            v:o=>o.altas_clientas||0, s:1,  f:num, que:'Clientas que empiezan a tener suscripción. Una mujer cuenta una vez.' },
   renovaciones: { l:'Renovaciones',     v:o=>o.renovaciones||0,   s:1,  f:num, que:'Cobros de renovación hechos con éxito.' },
-  bajas:        { l:'Bajas',            v:o=>o.bajas||0,          s:-1, f:num, que:'Todas las bajas, por cualquier vía.' },
+  bajas:        { l:'Bajas',            v:o=>o.bajas_clientas||0, s:-1, f:num, que:'Clientas que se quedan sin ninguna suscripción, por cualquier vía.' },
   pausas:       { l:'Pausas',           v:o=>o.pausas||0,         s:-1, f:num, que:'Pausas hechas por la clienta en el formulario o por el equipo.' },
   cambios_fecha:{ l:'Cambios de fecha', v:o=>o.cambios_fecha||0,  s:0,  f:num, que:'Mueven la fecha del siguiente cobro (incluye espaciar envíos).' },
-  neto:         { l:'Neto',             v:neto,                   s:1,  f:n=>(n>0?'+':'')+num(n), que:'Altas + reactivaciones − bajas.' },
+  neto:         { l:'Neto',             v:neto,                   s:1,  f:n=>(n>0?'+':'')+num(n), que:'Clientas que entran + las que vuelven − las que se van.' },
 };
 function serie(lista, ym, k){ // valores por día 1..N (0 si no hubo nada)
   const n = diasDelMes(ym), out = new Array(n).fill(0);
@@ -184,7 +186,7 @@ function pinta(){
   const recP = sumaHasta(serie(D.dias_prev, D.prev, 'recuperadas'), diasDelMes(D.prev)), renP = sumaHasta(serie(D.dias_prev, D.prev, 'renovaciones'), diasDelMes(D.prev));
 
   // Tabla diaria
-  const COLS = [['Altas','altas'],['Renov.','renovaciones'],['€ renov.','renov_eur'],['Bajas','bajas'],['· form.','bajas_form'],['Pausas','pausas'],['Fecha','cambios_fecha'],['Reactiv.','reactivaciones'],['10%','oferta10'],['Recup.','recuperadas']];
+  const COLS = [['Altas','altas_clientas'],['· contr.','altas'],['Renov.','renovaciones'],['€ renov.','renov_eur'],['Bajas','bajas_clientas'],['· contr.','bajas'],['· form.','bajas_form'],['Pausas','pausas'],['Fecha','cambios_fecha'],['Vuelven','reactiv_clientas'],['10%','oferta10'],['Recup.','recuperadas']];
   const tot = (lista, n) => { const t = {}; for(const x of lista){ if(+x.d.slice(8,10) > n) continue; for(const [,k] of COLS) t[k] = (t[k]||0)+(x[k]||0); } return t; };
   const tAct = tot(D.dias, nPinta), tRef = tot(D.dias_prev, nPinta);
   const celdas = o => COLS.map(([,k]) => `<td>${k==='renov_eur' ? num(o[k]) : num(o[k])}</td>`).join('')+`<td>${METRICAS.neto.f(neto(o))}</td>`;
@@ -217,7 +219,7 @@ function pinta(){
     <tr class="tot"><td>Total ${corto(ym)}${esActual?' (hasta hoy)':''}</td>${celdas(tAct)}</tr>
     ${hayRef ? `<tr class="ref"><td>${corto(D.prev)}, hasta el día ${nPinta}</td>${celdas(tRef)}</tr>` : ''}
     ${filas.join('')}</table></div>
-    <div class="note">Base ahora: <b>${num(D.base.activas)}</b> activas y <b>${num(D.base.pausadas)}</b> pausadas. «· form.» son las bajas que la clienta hace ella sola en el formulario; ya están dentro de «Bajas». «Fecha» = cambios de fecha. «10%» = aceptan el 10 % y siguen. «Recup.» = cobros recuperados tras un fallo. Los días son días de Madrid.</div></div>`;
+    <div class="note">Base ahora: <b>${num(D.base.activas)}</b> activas y <b>${num(D.base.pausadas)}</b> pausadas. «Altas» y «Bajas» cuentan clientas: una mujer cuenta una vez y solo es baja si se queda sin ninguna suscripción. «· contr.» son los contratos nuevos o cancelados (el número de antes). «· form.» son las bajas que la clienta hace ella sola en el formulario. «Vuelven» = reactivan una suscripción cancelada. «Fecha» = cambios de fecha. «10%» = aceptan el 10 % y siguen. «Recup.» = cobros recuperados tras un fallo. Los días son días de Madrid.</div></div>`;
 
   document.querySelectorAll('.tile').forEach(b => b.onclick = () => { MET = b.dataset.k; pinta(); });
   const a = serie(D.dias, ym, MET), r = serie(D.dias_prev, D.prev, MET);
