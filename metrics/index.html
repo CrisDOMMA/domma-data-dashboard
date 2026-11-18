@@ -497,6 +497,47 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
     </table>
   </div>
 
+  <!-- MIX DE PLANES: mensual vs trimestral (18-nov-2026) · datos: /api/admin/subs/plan-mix -->
+  <div id="planMix" style="display:none;margin-bottom:24px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+      <div class="section-title" style="margin:0">Mix de planes · mensual vs trimestral</div>
+      <span id="pmHasta" style="font-size:12px;color:var(--text-light)"></span>
+      <div style="flex:1"></div>
+      <select class="filter-select" id="pmModo" onchange="renderPlanMix()" title="Nueva = sin ninguna suscripción anterior">
+        <option value="todas">Todas las altas</option>
+        <option value="nuevas">Solo clientas nuevas</option>
+      </select>
+    </div>
+    <div id="pmAviso" style="display:none;background:#fff8e6;border:1px solid #f2d48a;color:#7a5a00;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px"></div>
+    <div id="pmPeriodos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:16px"></div>
+    <div class="chart-card" style="margin-bottom:16px">
+      <h3>Altas por semana y plan</h3>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text-light);margin:6px 0 4px">
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#3498db;margin-right:4px"></span>Trimestral</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#9aa3b8;margin-right:4px"></span>Bimensual</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#d5d8e0;margin-right:4px"></span>Mensual</span>
+        <span>El % de arriba = peso del trimestral esa semana</span>
+      </div>
+      <div id="pmChart"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+      <div class="chart-card">
+        <h3>Activas hoy por plan</h3>
+        <div id="pmActivas" style="margin-top:10px"></div>
+      </div>
+      <div class="chart-card">
+        <h3>¿Aguanta más el trimestral? · por mes de alta</h3>
+        <div style="font-size:12px;color:var(--text-light);margin:4px 0 8px">Meses de producto pagados por cada alta. Es la cifra que decide.</div>
+        <div style="overflow-x:auto"><table id="pmCohortes" style="width:100%;border-collapse:collapse;font-size:13px"></table></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text-light);margin-top:10px;line-height:1.6">
+      Alta = contrato nuevo en Appstle, en hora de Madrid, sin cuentas de prueba. · Plan = el que tiene el contrato hoy. ·
+      Trimestral = cada 3 meses (antiguo, −20 %) o cada 12 semanas (nuevo, −25 %). ·
+      Los meses en gris son recientes: el trimestral paga 3 meses de golpe y aún no ha tenido que renovar.
+    </div>
+  </div>
+
   <!-- KPIs Row 2: Historial y migración -->
   <div class="section-title">Historial y migración WooCommerce → Shopify</div>
   <div class="kpis">
@@ -534,6 +575,12 @@ tr.migration-row td:first-child::after{content:" ⚡";font-size:11px}
       <option value="all">Todas las fuentes</option>
       <option value="metorik">Solo WooCommerce (Metorik)</option>
       <option value="appstle">Solo Shopify (Appstle)</option>
+    </select>
+    <select class="filter-select" id="planFilter" onchange="loadCohorts(currentType)" title="Plan que el contrato tiene hoy">
+      <option value="all">Todos los planes</option>
+      <option value="mensual">Solo mensual</option>
+      <option value="bimensual">Solo bimensual</option>
+      <option value="trimestral">Solo trimestral</option>
     </select>
     <select class="filter-select" id="monthsFilter" onchange="loadCohorts(currentType)">
       <option value="12">12 meses</option>
@@ -910,7 +957,108 @@ document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='
 
 async function loadAll(){
   await loadStats();
+  loadPlanMix();
   await loadCohorts('retention');
+}
+
+// --- MIX DE PLANES (mensual vs trimestral) ---
+let planMixData=null;
+const PM_MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function pmDia(ymd){return parseInt(ymd.slice(8,10),10)+' '+PM_MES[parseInt(ymd.slice(5,7),10)-1];}
+function pmPct(a,b){return b>0?(a/b*100).toLocaleString('es-ES',{minimumFractionDigits:1,maximumFractionDigits:1})+'%':'—';}
+function pmNum(n,d){return n.toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d});}
+function pmTot(o){return o.mensual+o.bimensual+o.trimestral+o.otro;}
+async function loadPlanMix(){
+  try{
+    const r=await fetch(API+'/api/admin/subs/plan-mix',{headers:authHeaders()});
+    const d=await r.json();
+    if(d.error||!d.periodos)return;
+    planMixData=d;
+    document.getElementById('planMix').style.display='block';
+    renderPlanMix();
+  }catch(e){}
+}
+function renderPlanMix(){
+  const d=planMixData;if(!d)return;
+  const modo=document.getElementById('pmModo').value;
+  document.getElementById('pmHasta').textContent='Datos hasta el '+pmDia(d.datos_hasta);
+
+  // Aviso si el sync va con retraso (faltan días por entrar)
+  const ayer=new Date(d.hoy+'T00:00:00Z');ayer.setUTCDate(ayer.getUTCDate()-1);
+  const aviso=document.getElementById('pmAviso');
+  if(d.datos_hasta<ayer.toISOString().slice(0,10)){
+    aviso.textContent='⚠️ El sync con Appstle va con retraso: la última alta que ha entrado es del '+pmDia(d.datos_hasta)+'. Los días siguientes faltan.';
+    aviso.style.display='block';
+  }else aviso.style.display='none';
+
+  // Tarjetas por periodo
+  document.getElementById('pmPeriodos').innerHTML=d.periodos.map(p=>{
+    const o=p[modo],tot=pmTot(o);
+    return '<div class="kpi" style="text-align:left">'+
+      '<div class="label" style="text-transform:none;letter-spacing:0;font-size:13px;font-weight:600;color:var(--navy)">'+p.label+'</div>'+
+      '<div class="sub" style="margin-top:2px">'+pmDia(p.desde)+' – '+pmDia(p.hasta)+' · '+p.dias+' días'+(p.en_curso?' · en curso':'')+'</div>'+
+      '<div class="value" style="color:var(--blue)">'+pmPct(o.trimestral,tot)+'</div>'+
+      '<div style="font-size:13px"><b>'+fmt(o.trimestral)+'</b> trimestrales de '+fmt(tot)+' altas</div>'+
+      '<div class="sub">'+pmNum(o.trimestral/p.dias,1)+' trimestrales al día · '+pmNum(o.mensual/p.dias,1)+' mensuales al día</div>'+
+    '</div>';
+  }).join('');
+
+  // Gráfico semanal (barras apiladas + marcas de los hitos)
+  const W=900,H=250,L=36,R=10,T=44,B=28,ws=d.semanas,n=ws.length;
+  if(n){
+    const step=(W-L-R)/n,bw=Math.min(40,step*0.62);
+    const max=Math.max(1,...ws.map(w=>pmTot(w[modo])));
+    const y=v=>T+(H-T-B)*(1-v/max);
+    let s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block" role="img" aria-label="Altas por semana y plan">';
+    for(let g=0;g<=2;g++){const v=Math.round(max*g/2);s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="#eee"/><text x="'+(L-6)+'" y="'+(y(v)+4)+'" font-size="11" fill="#999" text-anchor="end">'+v+'</text>';}
+    ws.forEach((w,i)=>{
+      const o=w[modo],tot=pmTot(o),x=L+i*step+(step-bw)/2,op=w.parcial?' opacity="0.45"':'';
+      let acc=0;
+      [['mensual','#d5d8e0'],['bimensual','#9aa3b8'],['trimestral','#3498db']].forEach(([k,c])=>{
+        const v=o[k]+(k==='mensual'?o.otro:0);if(!v)return;
+        const y1=y(acc+v),h=y(acc)-y1;acc+=v;
+        s+='<rect x="'+x.toFixed(1)+'" y="'+y1.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(0,h-1).toFixed(1)+'" fill="'+c+'"'+op+'><title>Semana del '+pmDia(w.lunes)+(w.parcial?' (a medias)':'')+' · '+k+': '+v+' de '+tot+'</title></rect>';
+      });
+      s+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(y(tot)-5).toFixed(1)+'" font-size="11" font-weight="600" fill="#2b6ea6" text-anchor="middle"'+op+'>'+pmPct(o.trimestral,tot)+'</text>';
+      if(n<=14||i%2===0)s+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(H-9)+'" font-size="11" fill="#999" text-anchor="middle">'+pmDia(w.lunes)+'</text>';
+    });
+    (d.hitos||[]).forEach((h,j)=>{
+      const dias=Math.round((Date.parse(h.d+'T00:00:00Z')-Date.parse(ws[0].lunes+'T00:00:00Z'))/86400000);
+      if(dias<0||dias>=n*7)return;
+      const x=L+(dias/7)*step,ty=12+(j%2)*13;
+      s+='<line x1="'+x.toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+(ty+4)+'" y2="'+(H-B)+'" stroke="#e67e22" stroke-dasharray="4 3"/>'+
+         '<text x="'+(x-5).toFixed(1)+'" y="'+ty+'" font-size="11" fill="#b9611a" text-anchor="end">'+pmDia(h.d)+' · '+h.l+'</text>';
+    });
+    document.getElementById('pmChart').innerHTML=s+'</svg>';
+  }
+
+  // Activas hoy
+  const NOM={mensual:'Mensual',bimensual:'Bimensual',trimestral:'Trimestral',otro:'Otros ciclos'};
+  const ta=d.trimestral_activas||{};
+  document.getElementById('pmActivas').innerHTML=d.activas.map(a=>
+    '<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:13px">'+
+      '<span style="font-weight:600">'+NOM[a.plan]+'</span><span><b>'+fmt(a.n)+'</b> · '+pmNum(a.pct,1)+'%</span></div>'+
+      '<div style="height:8px;background:#eee;border-radius:4px;overflow:hidden;margin-top:4px"><div style="width:'+a.pct+'%;height:100%;background:'+(a.plan==='trimestral'?'#3498db':'#9aa3b8')+'"></div></div>'+
+      (a.plan==='trimestral'?'<div style="font-size:11px;color:var(--text-light);margin-top:3px">'+fmt(ta.antiguo_3meses||0)+' antiguas (−20 %) + '+fmt(ta.nuevo_12sem||0)+' nuevas (−25 %) · '+pmNum(a.pct_mrr,1)+'% del MRR</div>':'')+
+    '</div>').join('')+
+    '<div style="font-size:12px;color:var(--text-light);border-top:1px solid var(--border);padding-top:8px">Total: <b>'+fmt(d.total_activas)+'</b> contratos activos</div>';
+
+  // Por mes de alta: meses de producto pagados, mensual vs trimestral
+  const lim=new Date(d.hoy+'T00:00:00Z');lim.setUTCMonth(lim.getUTCMonth()-5);
+  const limYM=lim.toISOString().slice(0,7);
+  const td='padding:6px 8px;text-align:right',th='padding:6px 8px;text-align:right;background:none;font-size:11px';
+  document.getElementById('pmCohortes').innerHTML=
+    '<thead><tr style="border-bottom:2px solid var(--border)"><th style="'+th+';text-align:left">Alta</th>'+
+    '<th style="'+th+'">Mensual</th><th style="'+th+'">Trimestral</th><th style="'+th+'">Trim. vivas</th></tr></thead><tbody>'+
+    d.cohortes.map(c=>{
+      const m=c.planes.mensual,t=c.planes.trimestral,joven=c.mes>limYM;
+      const celda=(x,col)=>x?'<b'+(col&&!joven?' style="color:var(--blue)"':'')+'>'+pmNum(x.meses_pagados,1)+'</b> <span style="font-size:11px;color:#aaa">· '+fmt(x.n)+' altas</span>':'—';
+      return '<tr style="border-bottom:1px solid var(--border)'+(joven?';color:#aaa':'')+'">'+
+        '<td style="padding:6px 8px;font-weight:600;white-space:nowrap">'+PM_MES[parseInt(c.mes.slice(5,7),10)-1]+' '+c.mes.slice(0,4)+'</td>'+
+        '<td style="'+td+';white-space:nowrap">'+celda(m,false)+'</td>'+
+        '<td style="'+td+';white-space:nowrap">'+celda(t,true)+'</td>'+
+        '<td style="'+td+'">'+(t?pmNum(t.pct_vivas,0)+'%':'—')+'</td></tr>';
+    }).join('')+'</tbody>';
 }
 
 // --- STATS ---
@@ -1038,10 +1186,14 @@ async function loadCohorts(type,btn){
   const months=document.getElementById('monthsFilter').value;
   const seg=document.getElementById('segFilter').value||'0';
   document.getElementById('segFilter').style.display=REAL[type]?'':'none';
+  // Filtro de plan: solo en las cohortes de estado (las de pagos reales vienen precalculadas).
+  const plan=document.getElementById('planFilter').value||'all';
+  document.getElementById('planFilter').style.display=REAL[type]?'none':'';
+  if(!REAL[type]&&plan!=='all')document.getElementById('cohortTitle').textContent+=' · solo '+plan;
 
   try{
     const ep=REAL[type]?'/api/admin/subs/cohorts-real?type='+type+'&months='+months+'&seg='+seg
-                       :'/api/admin/subs/cohorts?type='+type+'&source='+source+'&months='+months;
+                       :'/api/admin/subs/cohorts?type='+type+'&source='+source+'&months='+months+(plan!=='all'?'&plan='+plan:'');
     const r=await fetch(API+ep,{headers:authHeaders()});
     const d=await r.json();
     if(d.error){document.getElementById('cohortEmpty').style.display='block';return;}
