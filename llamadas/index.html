@@ -417,7 +417,7 @@ function botonesAsignacion(c,i){
   // (petición Cristina 23/09 — las derivadas también se las reparten entre ellas).
   // Sólo se excluyen las tarjetas de sólo consulta del registro del formulario y las
   // que no tienen contrato con el que identificar el caso.
-  if(c.registro || c.bienvenida || !nid(c.contract_id)) return '';   // bienvenidas: lista compartida, sin reparto
+  if(c.registro || c.bienvenida || c.esBienvenida || !nid(c.contract_id)) return '';   // bienvenidas: lista compartida, sin reparto
   const dueno=duenoDe(c);
   const opts=EQUIPO.filter(p=>p.nombre!==dueno).map(p=>`<option value="${esc(p.nombre)}">↪ Pasar a ${esc(p.nombre)}</option>`).join('');
   const coger=dueno?'':`<button class="b b-coger" onclick="asignar(${i},'${esc(agActual())}')" title="Este caso pasa a ser tuyo">🙋 Coger</button>`;
@@ -1097,7 +1097,7 @@ function contactosDe(c){
 }
 function puntosContactos(c){
   if(c.registro) return '';   // solo consulta: el caso ya está cerrado, no aplica la pauta
-  if(c.bienvenida) return ''; // la pauta de 4 llamadas es de retención; aquí son 2 intentos y fuera
+  if(c.bienvenida || c.esBienvenida) return ''; // la pauta de 4 llamadas es de retención; aquí son 2 intentos y fuera
   const n=contactosDe(c), tope=n>=4;
   const dots=[0,1,2,3].map(k=>`<span class="dot${k<Math.min(n,4)?' on':''}"></span>`).join('');
   return `<span class="dots${tope?' max':''}" title="${n} llamada${n===1?'':'s'} registrada${n===1?'':'s'} con esta clienta${tope?' — pauta cumplida: decidir cierre':' — la pauta son 4'}">${dots}<b>${Math.min(n,4)} de 4</b></span>`;
