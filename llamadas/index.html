@@ -49,6 +49,7 @@
   .kpi span{display:block;font-size:11.5px;color:var(--muted)} .kpi b{font-size:21px;font-weight:600;font-variant-numeric:tabular-nums}
   .kpi.alerta b{color:var(--red)} .kpi.bien b{color:var(--green)}
   .filbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 2px 14px}
+  .subchips{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;padding-left:12px;border-left:2px solid var(--line)}   /* historial: botones secundarios */
   .chipf{font-size:12px;padding:5px 12px;border:1.5px solid var(--line);border-radius:20px;background:var(--card);cursor:pointer;color:var(--muted);font-weight:500}
   .chipf.on{border-color:var(--indigo);color:var(--indigo);background:var(--indigo-bg)}
   /* Barra de progreso del día */
@@ -377,9 +378,22 @@ let verDe = localStorage.getItem('domma_verde') ?? '__mias__';
 const SECCIONES={
   bienvenida:{def:'bienvenida', chips:[['bienvenida','Por llamar'],['bienv_hechas','Ya llamadas']]},
   fallo:{def:'fallo', chips:[['fallo','Por llamar'],['agendadas','📅 Agendadas para hoy'],['wacurso','⏳ WhatsApp en curso'],['porregistrar','✅ Por registrar'],['porvalidar','Pagos por validar'],['gestionadas','Contactadas'],['nolocal','No localizadas']]},
-  otros:{def:'medicas', chips:[['medicas','🩺 Médicas'],['calidad','🔎 Calidad'],['derivada','Derivadas'],['baja','Bajas'],['senal','🔔 Alerta de baja'],['agendadas','📅 Recontactos de hoy'],['gestionadas','Contactadas'],['nolocal','No localizadas'],['cancelada','Canceladas']]},
+  // 19/11/2026 (Cristina): de 9 botones a 3 de TRABAJO + historial. «Quieren irse» junta médicas
+  // (siempre primero, con su reloj), alertas de LUNA, derivadas y bajas pendientes; cada tarjeta
+  // dice su motivo. Lo que no es trabajo del día va a «🗂 Historial» (con sus propios botones).
+  otros:{def:'irse', chips:[['irse','🚪 Quieren irse'],['calidad','🔎 Ya se fueron (calidad)'],['agendadas','📅 Recontactos de hoy'],['gestionadas','🗂 Historial']]},
 };
 let seccion = localStorage.getItem('domma_seccion') || '';
+// Botones del historial de «Bajas por cerrar»: solo se ven al entrar en él.
+const HISTORIAL=[['gestionadas','Contactadas'],['nolocal','No localizadas'],['pausasfut','Pausas con fecha'],['cancelada','Canceladas']];
+const esHistorial=f=>HISTORIAL.some(([k])=>k===f);
+// Orden de «Quieren irse»: 0 médicas (plazo prometido) · 1 no consigue darse de baja (fallo
+// nuestro) · 2 perfil ⭐ · 3 resto · 4 casi imposibles (ya mejor / no nota nada / salud).
+function nivelIrse(c){
+  if(c.medico) return 0;
+  if(c.tipo==='senal') return c.motivo==='no_puede_darse_de_baja' ? 1 : 3;
+  return c.rescate===0 ? 2 : c.rescate===2 ? 4 : 3;
+}
 function setSeccion(k){ if(!SECCIONES[k]) return; seccion=k; filtro=SECCIONES[k].def; localStorage.setItem('domma_seccion',k); render(); }
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hoyISO=()=>new Date().toISOString().slice(0,10);
@@ -965,6 +979,9 @@ function render(){
   // y de la barra del día: son ~12 nuevas al día y no deben tapar las llamadas con plazo.
   const bienv = dfil(BIENV).filter(c=>!bienvenidaCerrada(c));
   const calid = dfil(CALID).filter(c=>!calidadCerrada(c));   // 🔎 sin vd(): lista compartida
+  // 🚪 Quieren irse = todo lo de «Bajas por cerrar» que sigue ACTIVO y pide una llamada hoy.
+  // (`derivPend` ya incluye a las médicas: van una sola vez.)
+  const irse = [...vivas.filter(x=>x.tipo==='baja'||x.tipo==='derivada'), ...senales];
   // ── Cada pestaña ve SU parte de los cubos mixtos (agendadas, contactadas, no localizadas) ──
   const esFalloC = c=>c.tipo==='fallo';
   const deSec = l => seccion==='fallo' ? l.filter(esFalloC) : l.filter(c=>!esFalloC(c)&&!c.esBienvenida);
@@ -981,7 +998,7 @@ function render(){
   };
   // Si alguien está en «Bajas por cerrar» y se vacía, vuelve sola a su trabajo.
   if(seccion==='otros' && !nSec.otros && !busca){ seccion='fallo'; filtro='fallo'; return render(); }
-  const counts={todas:vivas.length+agendadas.length, medicas:medicas.length, agendadas:agendadas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausasFuturas.length, fallo:vivasFallo.length, senal:senales.length, calidad:calid.length, bienvenida:bienv.length, bienv_hechas:bienvHechas.length, wacurso:waCurso.length, porregistrar:porRegistrar.length, gestionadas:contS.length, nolocal:nolS.length, porvalidar:porValidar.length, cancelada:cancel.length};
+  const counts={todas:vivas.length+agendadas.length, medicas:medicas.length, agendadas:agendadas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausasFuturas.length, fallo:vivasFallo.length, senal:senales.length, calidad:calid.length, irse:irse.length, pausasfut:pausasFuturas.length, bienvenida:bienv.length, bienv_hechas:bienvHechas.length, wacurso:waCurso.length, porregistrar:porRegistrar.length, gestionadas:contS.length, nolocal:nolS.length, porvalidar:porValidar.length, cancelada:cancel.length};
   counts.agendadas = agS.length;
   const defs=SECCIONES[seccion].chips;   // (las de «otros» incluyen ['medicas','🩺 Médicas'], con su reloj de 72 h)
   // Pestañas grandes. «Bajas por cerrar» sólo existe mientras quede algún caso vivo.
@@ -1004,16 +1021,20 @@ function render(){
       ['Por registrar', porRegistrar.length, ''],
       ['Pagos por validar', porValidar.length, ''],
     ] : [
-      ['Médicas', medicas.length, medVencidas?'alerta':''],
-      ['Derivadas', derivPend.filter(x=>!x.medico).length, ''],
-      ['Alertas de baja', senales.length, senAtascadas?'alerta':''],
-      ['Calidad', calid.length, ''],
+      ['Quieren irse', irse.length, ''],
+      ['de ellas, médicas', medicas.length, medVencidas?'alerta':''],
+      ['Ya se fueron (calidad)', calid.length, ''],
       ['Recontactos de hoy', agOtros.length, ''],
     ];
   document.getElementById('kpis').innerHTML=K.map(([l,v,c])=>`<div class="kpi ${c}"><span>${l}</span><b>${v}</b></div>`).join('');
   // El motivador (retenidas, ventas cruzadas…) es de retención: en bienvenidas no dice nada.
   document.getElementById('moti').style.display = seccion==='bienvenida' ? 'none' : '';
-  document.getElementById('filtros').innerHTML=defs.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('');
+  const enHist = seccion==='otros' && esHistorial(filtro);
+  document.getElementById('filtros').innerHTML=defs.map(([k,l])=>{
+      const on = filtro===k || (k==='gestionadas' && enHist);
+      const num = (seccion==='otros' && k==='gestionadas') ? '' : ` <b>${counts[k]||0}</b>`;   // el historial no es «pendiente»: sin número
+      return `<span class="chipf ${on?'on':''}" onclick="setFiltro('${k}')">${l}${num}</span>`; }).join('')
+    + (enHist ? `<div class="subchips">${HISTORIAL.map(([k,l])=>`<span class="chipf ${filtro===k?'on':''}" onclick="setFiltro('${k}')">${l} <b>${counts[k]||0}</b></span>`).join('')}</div>` : '');
   pintarVerDe();
   // Barra de progreso del día → da sensación de "hay un final".
   // «Quedan» = trabajo pendiente REAL de quien mira: llamadas nuevas + agendadas que ya tocan
@@ -1069,6 +1090,8 @@ function render(){
   else if(filtro==='medicas'){ VIS=medicas; }
   else if(filtro==='senal'){ VIS=senales; }
   else if(filtro==='calidad'){ VIS=calid; }
+  else if(filtro==='irse'){ VIS=irse; }
+  else if(filtro==='pausasfut'){ VIS=pausasFuturas; }
   else if(filtro==='bienvenida'){ VIS=bienv; }
   else if(filtro==='bienv_hechas'){ VIS=bienvHechas; }
   else if(filtro==='agendadas'){ VIS=agS; }
@@ -1089,6 +1112,10 @@ function render(){
   // ⭐ Bajas y derivadas: primero el perfil que más se rescata. Dentro de cada nivel manda el
   // orden de antigüedad de arriba. Las médicas NO se tocan: tienen su chip y su reloj de 72 h.
   if(!busca && (filtro==='baja'||filtro==='derivada')) VIS = [0,1,2,undefined].flatMap(n=>VIS.filter(c=>c.rescate===n));
+  if(!busca && filtro==='irse'){
+    const med = VIS.filter(c=>c.medico).sort((a,b)=>(b.horas||0)-(a.horas||0));   // la más urgente, arriba
+    VIS = [...med, ...[1,2,3,4].flatMap(n=>VIS.filter(c=>!c.medico && nivelIrse(c)===n))];
+  }
   if(filtro==='calidad') VIS = [...VIS.filter(c=>c.por!=='perfil'), ...VIS.filter(c=>c.por==='perfil')];   // el fallo nuestro, antes
   if(filtro==='bienvenida'||filtro==='calidad') VIS = [...VIS.filter(c=>c.intentos), ...VIS.filter(c=>!c.intentos)];
   // …pero un compromiso con fecha va SIEMPRE delante: te comprometiste a llamarla hoy.
@@ -1103,6 +1130,8 @@ function render(){
     : filtro==='senal' ? (VIS.length
         ? `${VIS.length} para llamar${senAtascadas?` — ${senAtascadas} no ${senAtascadas===1?'consiguió':'consiguieron'} darse de baja`:''}`
         : 'ninguna señal sin atender 👌')
+    : filtro==='irse' ? (VIS.length ? `${VIS.length} quieren irse y siguen activas${medicas.length?` — primero ${medicas.length} médica${medicas.length===1?'':'s'} (plazo de 72 h)`:''}` : 'nadie pendiente 👌')
+    : filtro==='pausasfut' ? `${VIS.length} pausa${VIS.length===1?'':'s'} con fecha más adelante — salen en «Recontactos de hoy» el día que toquen`
     : filtro==='calidad' ? (VIS.length ? `${VIS.length} llamada${VIS.length===1?'':'s'} de calidad — bajas ya hechas: pregunta qué pasó${VIS.some(c=>c.por==='perfil')?` · ${VIS.filter(c=>c.por==='perfil').length} con ⭐ (podrían volver)`:''}` : 'ninguna llamada de calidad pendiente 👌')
     : filtro==='bienv_hechas' ? `${VIS.length} bienvenida${VIS.length===1?'':'s'} ya llamada${VIS.length===1?'':'s'}`
     : filtro==='bienvenida' ? (VIS.length
@@ -1129,7 +1158,7 @@ function render(){
   if(rotulo) rotulo.textContent = seccion==='bienvenida' ? 'Nuevas clientas — lista de todo el equipo'
     : verDe==='__mias__' ? `Tu lista — ${agActual()}`
     : verDe==='__libre__' ? 'Casos sin dueño' : verDe ? `La lista de ${verDe}` : 'A quién llamar hoy (todo el equipo)';
-  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin localizar 👌':filtro==='cancelada'?'Ninguna baja registrada por el formulario todavía.':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':filtro==='wacurso'?'Ninguna con la secuencia de WhatsApp en curso.':filtro==='agendadas'?'Ninguna llamada agendada para hoy 👌':filtro==='senal'?'Ninguna señal de baja sin atender 👌 LUNA avisa aquí de las que necesitan una llamada.':filtro==='calidad'?'Ninguna llamada de calidad pendiente 👌 Aquí salen las bajas por un fallo nuestro y las que podrían volver (⭐).':filtro==='bienv_hechas'?'Todavía no se ha llamado a ninguna nueva clienta.':filtro==='bienvenida'?'Ninguna bienvenida pendiente 👌 Aquí salen las nuevas suscriptoras a los 3 días de recibir su pedido.':verDe==='__mias__'?'No tienes casos asignados. Mira «Sin dueño» en el desplegable de arriba y coge los que vayas a trabajar.':'Nada por llamar aquí. 👌';
+  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin localizar 👌':filtro==='cancelada'?'Ninguna baja registrada por el formulario todavía.':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':filtro==='wacurso'?'Ninguna con la secuencia de WhatsApp en curso.':filtro==='agendadas'?'Ninguna llamada agendada para hoy 👌':filtro==='senal'?'Ninguna señal de baja sin atender 👌 LUNA avisa aquí de las que necesitan una llamada.':filtro==='irse'?'Nadie que quiera irse pendiente de llamar 👌':filtro==='pausasfut'?'Ninguna pausa con fecha futura.':filtro==='calidad'?'Ninguna llamada de calidad pendiente 👌 Aquí salen las bajas por un fallo nuestro y las que podrían volver (⭐).':filtro==='bienv_hechas'?'Todavía no se ha llamado a ninguna nueva clienta.':filtro==='bienvenida'?'Ninguna bienvenida pendiente 👌 Aquí salen las nuevas suscriptoras a los 3 días de recibir su pedido.':verDe==='__mias__'?'No tienes casos asignados. Mira «Sin dueño» en el desplegable de arriba y coge los que vayas a trabajar.':'Nada por llamar aquí. 👌';
   document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${vacio}</div>`;
 }
 function setBusca(v){ busca=(v||'').toLowerCase().trim(); render(); }

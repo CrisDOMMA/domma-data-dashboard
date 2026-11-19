@@ -540,9 +540,13 @@ bloque('PESTAÑAS — nuevas clientas y fallos de pago; las bajas no se pierden'
   t('las cancelaciones NO están en las dos pestañas de trabajo',
     (() => { const f = (S.match(/fallo:\{[^\n]*/) || [''])[0], w = (S.match(/bienvenida:\{[^\n]*/) || [''])[0];
              return !/'baja'|'derivada'|'cancelada'|'senal'|'medicas'/.test(f + w); })());
-  t('…pero siguen a un clic: médicas, derivadas, bajas y alertas viven en «otros»',
+  t('…pero siguen a un clic: médicas, derivadas, bajas y alertas viven en «Quieren irse»; canceladas, en el historial',
     (() => { const o = (S.match(/otros:\{[^\n]*/) || [''])[0];
-             return ["'medicas'", "'derivada'", "'baja'", "'senal'", "'cancelada'"].every(k => o.includes(k)); })());
+             return o.includes("'irse'") && o.includes("'calidad'") && o.includes("'agendadas'")
+               && /const irse = \[\.\.\.vivas\.filter\(x=>x\.tipo==='baja'\|\|x\.tipo==='derivada'\), \.\.\.senales\]/.test(SRC)
+               && /const HISTORIAL=\[[^\n]*'cancelada'[^\n]*'pausasfut'|const HISTORIAL=\[[^\n]*'pausasfut'[^\n]*'cancelada'/.test(SRC); })());
+  t('en «Quieren irse» las médicas van SIEMPRE primero (plazo de 72 h)',
+    /const med = VIS\.filter\(c=>c\.medico\)[^\n]*\n\s*VIS = \[\.\.\.med, \.\.\.\[1,2,3,4\]/.test(SRC));
   t('«Bajas por cerrar» sólo se pinta si queda algún caso vivo',
     /filter\(k=>k!=='otros'\|\|nSec\.otros\|\|seccion==='otros'\)/.test(SRC));
   t('las médicas cuentan para que la pestaña no desaparezca con una dentro',
