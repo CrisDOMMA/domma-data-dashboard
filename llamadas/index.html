@@ -706,11 +706,12 @@ async function cargar(){
       nombre:q.nombre, email:q.email, phone:q.telefono,
       customer_id:q.customer_id||'', contract_id:q.contract_id, contratos:q.contratos||[],
       fecha:String(q.fecha_baja||'').slice(0,10), alta:String(q.fecha_baja||'').slice(0,10),
-      motivo:q.motivo, motivoTxt:MOT[q.motivo]||(q.por==='varias_suscripciones'?'Canceló varias suscripciones a la vez':''),
+      motivo:q.motivo, motivoTxt:MOT[q.motivo]||(q.por==='varias_suscripciones'?'Canceló varias suscripciones a la vez':labelMotivo(q.motivo)),
       submotivo:q.submotivo||'', comentario:q.comentario||'', productos:q.productos||[], pedidos:q.pedidos||0, por:q.por,
       intentos:q.intentos||0, prox2:q.proxima_llamada||'',
       why:`Se dio de baja el ${fechaCorta(q.fecha_baja)}`
           +((q.contratos||[]).length>1?` · ${(q.contratos||[]).length} suscripciones`:'')
+          +(q.por==='perfil'?marcaRescate({motivo:q.motivo, antiguedad:q.antiguedad, pedidos:q.pedidos, n_productos:(q.productos||[]).length}):' · fallo nuestro')
           +(q.intentos?' · 📵 no contestó':''),
     }));
   }
@@ -1086,6 +1087,7 @@ function render(){
   // ⭐ Bajas y derivadas: primero el perfil que más se rescata. Dentro de cada nivel manda el
   // orden de antigüedad de arriba. Las médicas NO se tocan: tienen su chip y su reloj de 72 h.
   if(!busca && (filtro==='baja'||filtro==='derivada')) VIS = [0,1,2,undefined].flatMap(n=>VIS.filter(c=>c.rescate===n));
+  if(filtro==='calidad') VIS = [...VIS.filter(c=>c.por!=='perfil'), ...VIS.filter(c=>c.por==='perfil')];   // el fallo nuestro, antes
   if(filtro==='bienvenida'||filtro==='calidad') VIS = [...VIS.filter(c=>c.intentos), ...VIS.filter(c=>!c.intentos)];
   // …pero un compromiso con fecha va SIEMPRE delante: te comprometiste a llamarla hoy.
   if(!busca && (filtro==='todas'||filtro==='agendadas'))
@@ -1099,7 +1101,7 @@ function render(){
     : filtro==='senal' ? (VIS.length
         ? `${VIS.length} para llamar${senAtascadas?` — ${senAtascadas} no ${senAtascadas===1?'consiguió':'consiguieron'} darse de baja`:''}`
         : 'ninguna señal sin atender 👌')
-    : filtro==='calidad' ? (VIS.length ? `${VIS.length} llamada${VIS.length===1?'':'s'} de calidad — ya están de baja: pregunta qué pasó` : 'ninguna llamada de calidad pendiente 👌')
+    : filtro==='calidad' ? (VIS.length ? `${VIS.length} llamada${VIS.length===1?'':'s'} de calidad — bajas ya hechas: pregunta qué pasó${VIS.some(c=>c.por==='perfil')?` · ${VIS.filter(c=>c.por==='perfil').length} con ⭐ (podrían volver)`:''}` : 'ninguna llamada de calidad pendiente 👌')
     : filtro==='bienv_hechas' ? `${VIS.length} bienvenida${VIS.length===1?'':'s'} ya llamada${VIS.length===1?'':'s'}`
     : filtro==='bienvenida' ? (VIS.length
         ? `${VIS.length} bienvenida${VIS.length===1?'':'s'} por llamar${VIS.filter(c=>c.intentos).length?` · ${VIS.filter(c=>c.intentos).length} en 2ª llamada`:''}`
@@ -1125,7 +1127,7 @@ function render(){
   if(rotulo) rotulo.textContent = seccion==='bienvenida' ? 'Nuevas clientas — lista de todo el equipo'
     : verDe==='__mias__' ? `Tu lista — ${agActual()}`
     : verDe==='__libre__' ? 'Casos sin dueño' : verDe ? `La lista de ${verDe}` : 'A quién llamar hoy (todo el equipo)';
-  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin localizar 👌':filtro==='cancelada'?'Ninguna baja registrada por el formulario todavía.':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':filtro==='wacurso'?'Ninguna con la secuencia de WhatsApp en curso.':filtro==='agendadas'?'Ninguna llamada agendada para hoy 👌':filtro==='senal'?'Ninguna señal de baja sin atender 👌 LUNA avisa aquí de las que necesitan una llamada.':filtro==='calidad'?'Ninguna llamada de calidad pendiente 👌 Aquí salen las que se dan de baja por un fallo nuestro.':filtro==='bienv_hechas'?'Todavía no se ha llamado a ninguna nueva clienta.':filtro==='bienvenida'?'Ninguna bienvenida pendiente 👌 Aquí salen las nuevas suscriptoras a los 3 días de recibir su pedido.':verDe==='__mias__'?'No tienes casos asignados. Mira «Sin dueño» en el desplegable de arriba y coge los que vayas a trabajar.':'Nada por llamar aquí. 👌';
+  const vacio = busca?'Ninguna clienta coincide con «'+esc(busca)+'».':filtro==='gestionadas'?'Aún no hay clientas contactadas.':filtro==='nolocal'?'Ninguna sin localizar 👌':filtro==='cancelada'?'Ninguna baja registrada por el formulario todavía.':filtro==='porvalidar'?'Ningún cobro pendiente de validar 👌':filtro==='wacurso'?'Ninguna con la secuencia de WhatsApp en curso.':filtro==='agendadas'?'Ninguna llamada agendada para hoy 👌':filtro==='senal'?'Ninguna señal de baja sin atender 👌 LUNA avisa aquí de las que necesitan una llamada.':filtro==='calidad'?'Ninguna llamada de calidad pendiente 👌 Aquí salen las bajas por un fallo nuestro y las que podrían volver (⭐).':filtro==='bienv_hechas'?'Todavía no se ha llamado a ninguna nueva clienta.':filtro==='bienvenida'?'Ninguna bienvenida pendiente 👌 Aquí salen las nuevas suscriptoras a los 3 días de recibir su pedido.':verDe==='__mias__'?'No tienes casos asignados. Mira «Sin dueño» en el desplegable de arriba y coge los que vayas a trabajar.':'Nada por llamar aquí. 👌';
   document.getElementById('list').innerHTML = VIS.length ? VIS.map((c,i)=>tarjeta(c,i)).join('') : `<div class="empty">${vacio}</div>`;
 }
 function setBusca(v){ busca=(v||'').toLowerCase().trim(); render(); }
@@ -1192,7 +1194,9 @@ function fichaCalidad(c){
       ${tile('Lo que canceló', esc((c.productos||[]).join(' + ')||'—')+(n>1?` · ${n} suscripciones`:''))}
       ${tile('Pedidos en DOMMA', c.pedidos?esc(String(c.pedidos)):'—')}
     </div>
-    <div class="fbadges"><span class="chip amber">🔎 Ya está de baja. Llamas de calidad: no le ofrezcas nada. Pregunta qué pasó y apúntalo con sus palabras. Si ella quiere volver, reactívala desde su suscripción.</span></div>`;
+    <div class="fbadges"><span class="chip amber">${c.por==='perfil'
+      ? '🔎 Baja ya hecha. Llamas del departamento de calidad: pregunta qué pasó y apúntalo con sus palabras. El sistema ve que podría volver (⭐). Si ves la puerta abierta, ofrécele volver o una pausa. Si quiere volver, reactívala desde su suscripción.'
+      : '🔎 Baja ya hecha por un fallo nuestro. Llamas del departamento de calidad: pide disculpas y no le ofrezcas nada. Pregunta qué pasó y apúntalo con sus palabras. Si ella quiere volver, reactívala desde su suscripción.'}</span></div>`;
 }
 function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
