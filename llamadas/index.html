@@ -491,6 +491,23 @@ function relojMedico(c){
 }
 function porQue(s){ const CM={min_2_pedidos:'Baja · menos de 2 pedidos',min_permanencia:'Baja · aún sin permanencia',fallo_pago:'Tiene un fallo de pago',motivo_medico:'🩺 Baja médica · sigue ACTIVA hasta que la llames'}; const c=(s.comentario||'').trim(); return CM[c]||(c&&c.length<=60?c:'')||labelMotivo(s.motivo)||'Derivada a Carme'; }
 
+// ⭐ Perfil rescatable (19/11/2026, Cristina). Con 616 llamadas de baja (ago-nov) se rescata
+// más a la clienta NUEVA (≤2 meses: 36 % y 26 %, frente al 15 % desde el 3.er mes), a la que tiene
+// 2 o más productos (30 % frente al 20 %) y casi nunca a la que se va por salud, porque ya está
+// mejor o porque no nota nada (7 %). 0 = llamar primero · 1 = normal · 2 = al final.
+// El muro (`gate_2pedidos`) son clientas con menos de 2 pedidos: nuevas por definición.
+const MOTIVO_DIFICIL=['salud','incompatible','resuelto','resultados'];
+function nivelRescate(s){
+  if(MOTIVO_DIFICIL.includes(s.motivo)) return 2;
+  const nueva = ['<1m','1-2m'].includes(s.antiguedad) || s.motivo==='gate_2pedidos' || (s.pedidos!=null && s.pedidos<=2);
+  return (nueva || Number(s.n_productos)>=2) ? 0 : 1;
+}
+function marcaRescate(s){
+  if(nivelRescate(s)!==0) return '';
+  const p=[]; if(['<1m','1-2m'].includes(s.antiguedad) || s.motivo==='gate_2pedidos' || (s.pedidos!=null && s.pedidos<=2)) p.push('nueva');
+  if(Number(s.n_productos)>=2) p.push(s.n_productos+' productos');
+  return ' · ⭐ más fácil de rescatar ('+p.join(', ')+')';
+}
 async function cargar(){
   const H={'Content-Type':'application/json','Authorization':'Bearer '+token};
   let bajas={}, hoyFallos={}, gest={}, toq={}, sen={}, bie={}, cal={};
@@ -596,11 +613,11 @@ async function cargar(){
   fa.forEach(f=>{ if(!f.resuelto && !pasaGate(f)){ f.waCurso=true; f.why=(f.why||'Fallo de pago')+' · ⏳ deja terminar al WhatsApp'; } });
 
   LISTA=[
-    ...sol.map(s=>({tipo:'baja', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:labelMotivo(s.motivo), dias:s.dias, alerta:s.fuera_de_plazo, fecha:(s.fecha||'').slice(0,10)})),
+    ...sol.map(s=>({tipo:'baja', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:labelMotivo(s.motivo)+marcaRescate(s), dias:s.dias, alerta:s.fuera_de_plazo, fecha:(s.fecha||'').slice(0,10), rescate:nivelRescate(s)})),
     // 💳 `fallo_pago:1` lo pone el worker cruzando con la worklist de fallos (card Valentina
     // 27/10): la derivada nace de un fallo de pago vivo → el worker ya la asignó a Martina o
     // Valentina y aquí solo se dice en la tarjeta. Si la clienta ya pagó, ni siquiera llega.
-    ...der.map(s=>({tipo:'derivada', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:porQue(s)+(s.fallo_pago?' · 💳 fallo de pago vivo':''), dias:s.dias, fecha:(s.fecha||'').slice(0,10),
+    ...der.map(s=>({tipo:'derivada', nombre:s.nombre, email:s.email, phone:s.phone, customer_id:s.customer_id, contract_id:s.contrato, why:porQue(s)+(s.fallo_pago?' · 💳 fallo de pago vivo':'')+marcaRescate(s), dias:s.dias, fecha:(s.fecha||'').slice(0,10), rescate:nivelRescate(s),
       // 🩺 Caso médico. Desde el 22/10 una baja por salud o por incompatibilidad con su
       // medicación YA NO se cancela sola: la clienta sigue ACTIVA hasta que la llamemos. Si nos
       // pasamos, se le cobra y se le envía otra vez un producto que acaba de decir que le sienta
@@ -1066,6 +1083,9 @@ function render(){
   // orden sigue funcionando, pero dentro de cada motivo.
   if(filtro==='senal') VIS = VIS.slice().sort((a,b)=>ORDEN_SENAL.indexOf(a.motivo)-ORDEN_SENAL.indexOf(b.motivo));
   // 👋 Una 2ª llamada con fecha es un compromiso: va delante de las que aún no se han intentado.
+  // ⭐ Bajas y derivadas: primero el perfil que más se rescata. Dentro de cada nivel manda el
+  // orden de antigüedad de arriba. Las médicas NO se tocan: tienen su chip y su reloj de 72 h.
+  if(!busca && (filtro==='baja'||filtro==='derivada')) VIS = [0,1,2,undefined].flatMap(n=>VIS.filter(c=>c.rescate===n));
   if(filtro==='bienvenida'||filtro==='calidad') VIS = [...VIS.filter(c=>c.intentos), ...VIS.filter(c=>!c.intentos)];
   // …pero un compromiso con fecha va SIEMPRE delante: te comprometiste a llamarla hoy.
   if(!busca && (filtro==='todas'||filtro==='agendadas'))

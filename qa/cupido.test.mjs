@@ -66,7 +66,7 @@ const PIEZAS = [
   extraer('function casoCerrado'), extraer('function enEspera'),
   extraer('function yaRegistrada'), linea('const SALVA='), extraer('function yaSalvada'),
   extraer('function gestionadasCards'),
-  linea('const BIENV_MAX_INTENTOS='), extraer('function diaSiguienteHabil'), extraer('function bienvenidaCerrada'), extraer('function calidadCerrada'),
+  linea('const BIENV_MAX_INTENTOS='), extraer('function diaSiguienteHabil'), extraer('function bienvenidaCerrada'), extraer('function calidadCerrada'), linea('const MOTIVO_DIFICIL='), extraer('function nivelRescate'), extraer('function marcaRescate'),
   linea('const soloDig='), linea('const sinPre ='), extraer('const matchB='),
 ].filter(Boolean);
 
@@ -80,7 +80,7 @@ const cargar = new Function('estado', `
   let busca = '';
   ${PIEZAS.join('\n')}
   return { CATALOGO, TERMINAL, CIERRA, ESPERA, COBRO_HECHO, EQUIPO,
-           gestionadaHoy, casoCerrado, enEspera, yaRegistrada, yaSalvada, gestionadasCards, bienvenidaCerrada, calidadCerrada, diaSiguienteHabil,
+           gestionadaHoy, casoCerrado, enEspera, yaRegistrada, yaSalvada, gestionadasCards, bienvenidaCerrada, calidadCerrada, nivelRescate, marcaRescate, diaSiguienteHabil,
            botonesAsignacion, duenoDe, sinDueno, esMio, agActual, filtrarPorDueno,
            verDePorDefecto: () => verDe,
            conVerDe(v){ verDe = v; },
@@ -465,6 +465,15 @@ bloque('BIENVENIDAS — quién sale del cubo y qué NO puede romper');
     && /const bienv = dfil\(BIENV\)/.test(SRC) && !/todas:[^\n]*bienv\.length[^\n]*medicas:/.test(SRC));
   t('sin botones de reparto: es una lista compartida',
     API.botonesAsignacion({ bienvenida: true, contract_id: '1' }, 0) === '');
+  // ── ⭐ Perfil rescatable (19/11/2026) ──
+  t('rescate: clienta nueva primero', API.nivelRescate({ motivo: 'precio', antiguedad: '<1m' }) === 0);
+  t('rescate: muro (menos de 2 pedidos) = nueva', API.nivelRescate({ motivo: 'gate_2pedidos' }) === 0);
+  t('rescate: 2 productos primero aunque sea antigua', API.nivelRescate({ motivo: 'acumulo', antiguedad: '>6m', pedidos: 9, n_productos: 2 }) === 0);
+  t('rescate: antigua con 1 producto = normal', API.nivelRescate({ motivo: 'puntual', antiguedad: '5-6m', pedidos: 6, n_productos: 1 }) === 1);
+  t('rescate: salud, ya mejor o no noto nada → al final, aunque sea nueva',
+    ['salud', 'incompatible', 'resuelto', 'resultados'].every(m => API.nivelRescate({ motivo: m, antiguedad: '<1m', n_productos: 3 }) === 2));
+  t('rescate: la marca dice por qué', API.marcaRescate({ motivo: 'precio', antiguedad: '1-2m', n_productos: 2 }).includes('nueva, 2 productos') && API.marcaRescate({ motivo: 'salud' }) === '');
+  t('rescate: el orden no toca las médicas ni la búsqueda', /if\(!busca && \(filtro==='baja'\|\|filtro==='derivada'\)\) VIS = \[0,1,2,undefined\]/.test(SRC));
   // ── 🔎 Calidad (19/11/2026) ──
   {
     const Q = { tipo: 'calidad', calidad: true, contract_id: '1', fecha: d(2) };
