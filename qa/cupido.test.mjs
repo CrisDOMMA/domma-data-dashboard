@@ -66,7 +66,7 @@ const PIEZAS = [
   extraer('function casoCerrado'), extraer('function enEspera'),
   extraer('function yaRegistrada'), linea('const SALVA='), extraer('function yaSalvada'),
   extraer('function gestionadasCards'),
-  linea('const BIENV_MAX_INTENTOS='), extraer('function diaSiguienteHabil'), extraer('function bienvenidaCerrada'),
+  linea('const BIENV_MAX_INTENTOS='), extraer('function diaSiguienteHabil'), extraer('function bienvenidaCerrada'), extraer('function calidadCerrada'),
   linea('const soloDig='), linea('const sinPre ='), extraer('const matchB='),
 ].filter(Boolean);
 
@@ -80,7 +80,7 @@ const cargar = new Function('estado', `
   let busca = '';
   ${PIEZAS.join('\n')}
   return { CATALOGO, TERMINAL, CIERRA, ESPERA, COBRO_HECHO, EQUIPO,
-           gestionadaHoy, casoCerrado, enEspera, yaRegistrada, yaSalvada, gestionadasCards, bienvenidaCerrada, diaSiguienteHabil,
+           gestionadaHoy, casoCerrado, enEspera, yaRegistrada, yaSalvada, gestionadasCards, bienvenidaCerrada, calidadCerrada, diaSiguienteHabil,
            botonesAsignacion, duenoDe, sinDueno, esMio, agActual, filtrarPorDueno,
            verDePorDefecto: () => verDe,
            conVerDe(v){ verDe = v; },
@@ -456,7 +456,7 @@ bloque('BIENVENIDAS — quién sale del cubo y qué NO puede romper');
     (() => { const i = SRC.indexOf("if(caso.tipo==='bienvenida'){"), j = SRC.indexOf("} else if(contacto==='no_localizada'){", i);
              const b = SRC.slice(i, j); return i > 0 && j > i && !/'intento_[12]'|'retenida'/.test(b) && /'bienvenida_no_contesta'/.test(b) && /'cancelacion'/.test(b); })());
   t('se registra con su propio tipo de caso',
-    /caso\.tipo==='bienvenida'\?'bienvenida':'baja'/.test(SRC));
+    /caso\.tipo==='bienvenida'\?'bienvenida':\(caso\.tipo==='calidad'\?'calidad':'baja'\)/.test(SRC));
   t('la sección se carga con `.catch`: si falla, la estación sigue en pie',
     /\/api\/dashboard\/bienvenidas'[^\n]*\.catch\(\(\)=>\(\{\}\)\)/.test(SRC));
   t('las bienvenidas no entran en LISTA (no hinchan «Todas» ni la barra del día)',
@@ -465,13 +465,37 @@ bloque('BIENVENIDAS — quién sale del cubo y qué NO puede romper');
     && /const bienv = dfil\(BIENV\)/.test(SRC) && !/todas:[^\n]*bienv\.length[^\n]*medicas:/.test(SRC));
   t('sin botones de reparto: es una lista compartida',
     API.botonesAsignacion({ bienvenida: true, contract_id: '1' }, 0) === '');
+  // ── 🔎 Calidad (19/11/2026) ──
+  {
+    const Q = { tipo: 'calidad', calidad: true, contract_id: '1', fecha: d(2) };
+    conGestiones([]);
+    t('calidad: sin llamar → sale en la lista', !API.calidadCerrada(Q));
+    conGestiones([{ tipo_caso: 'calidad', resultado: 'calidad_envio', created_at: d(1) + ' 10:00', contract_id: '1' }]);
+    t('calidad: hablaron → sale del cubo', API.calidadCerrada(Q));
+    conGestiones([{ tipo_caso: 'calidad', resultado: 'calidad_no_contesta', created_at: d(1) + ' 10:00', contract_id: '1', proxima_llamada: d(0) }]);
+    t('calidad: no contestó y la 2ª es hoy → vuelve', !API.calidadCerrada(Q));
+    conGestiones([1, 2].map(k => ({ tipo_caso: 'calidad', resultado: 'calidad_no_contesta', created_at: d(k) + ' 10:00', contract_id: '1' })));
+    t('calidad: dos sin respuesta → no se insiste', API.calidadCerrada(Q));
+    conGestiones([{ tipo_caso: 'baja', resultado: 'retenida', created_at: d(1) + ' 10:00', contract_id: '1' }]);
+    t('calidad: una gestión de OTRO tipo no la cierra', !API.calidadCerrada(Q));
+    const CQ = Object.keys(API.CATALOGO).filter(k => k.startsWith('calidad_'));
+    t('calidad: 7 códigos, ninguno cancela, cierra ni espera', CQ.length === 7 && CQ.every(k => !API.CATALOGO[k].cancela && !API.CIERRA.has(k) && !API.ESPERA.has(k) && API.TERMINAL.has(k) && k.length <= 40));
+    t('calidad: el registro no ofrece Cancelación ni Pausa (ya está de baja)',
+      (() => { const i = SRC.indexOf("} else if(caso.tipo==='calidad'){"), j = SRC.indexOf("} else if(contacto==='no_localizada'){", i);
+               const b = SRC.slice(i, j); return i > 0 && j > i && !/'cancelacion'|'pausa'|'compra_unica/.test(b) && /'calidad_no_contesta'/.test(b); })());
+    t('calidad: la nota es obligatoria si hablaron', /caso\.tipo==='calidad' && contacto==='localizada' && resultado!=='calidad_no_quiere' && nota\.length<5/.test(SRC));
+    conGestiones([{ tipo_caso: 'calidad', resultado: 'calidad_no_contesta', created_at: d(1) + ' 10:00', email: 'a@t.com', contract_id: '1' }]);
+    t('calidad: ya llamada sigue siendo de calidad al re-registrar', API.gestionadasCards()[0].tipo === 'calidad');
+    t('calidad: sin botones de reparto', API.botonesAsignacion({ calidad: true, contract_id: '1' }, 0) === '');
+    t('calidad: se carga con `.catch`', /\/api\/dashboard\/calidad'[^\n]*\.catch\(\(\)=>\(\{\}\)\)/.test(SRC));
+  }
   conGestiones([{ ...NC, created_at: d(1) + ' 10:00', proxima_llamada: d(0) }]);
   t('su 2ª llamada NO se cuela en «Agendadas» (va por dueña): la tarjeta va marcada',
     API.gestionadasCards().every(c => c.esBienvenida) && /c\.prox && !c\.esBienvenida/.test(SRC));
 
   const W = fs.readFileSync(path.join(RAIZ, '..', 'flujo-bajas', 'worker', 'src', 'index.js'), 'utf8');
   t('worker: `bienvenida` es un tipo de caso propio (ni baja ni fallo de pago)',
-    /b\.tipo_caso === "bienvenida" \? "bienvenida" : "baja"/.test(W));
+    /b\.tipo_caso === "bienvenida" \? "bienvenida" : \(b\.tipo_caso === "calidad" \? "calidad" : "baja"\)/.test(W));
   t('worker: el email de 72 h sigue atado SOLO a fallo_pago',
     /tipo === "fallo_pago" && resultado === "intento_2"/.test(W));
   t('worker: la entrega sale de `deliveredAt`, no de «enviado»',
