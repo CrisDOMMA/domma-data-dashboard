@@ -545,6 +545,8 @@ bloque('PESTAÑAS — nuevas clientas y fallos de pago; las bajas no se pierden'
              return o.includes("'irse'") && o.includes("'calidad'") && o.includes("'agendadas'")
                && /const irse = \[\.\.\.vivas\.filter\(x=>x\.tipo==='baja'\|\|x\.tipo==='derivada'\), \.\.\.senales\]/.test(SRC)
                && /const HISTORIAL=\[[^\n]*'cancelada'[^\n]*'pausasfut'|const HISTORIAL=\[[^\n]*'pausasfut'[^\n]*'cancelada'/.test(SRC); })());
+  t('la prioridad se ve en la tarjeta (etiqueta grande), no solo en el texto pequeño',
+    /<div class="ctr">\$\{prioridad\(c\)\}/.test(SRC) && /function prioridad\(c\)\{[\s\S]{0,400}c\.medico\) return p\('red'/.test(SRC));
   t('en «Quieren irse» las médicas van SIEMPRE primero (plazo de 72 h)',
     /const med = VIS\.filter\(c=>c\.medico\)[^\n]*\n\s*VIS = \[\.\.\.med, \.\.\.\[1,2,3,4\]/.test(SRC));
   t('«Bajas por cerrar» sólo se pinta si queda algún caso vivo',

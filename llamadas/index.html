@@ -105,6 +105,7 @@
   .dot.on{background:var(--indigo-2);border-color:var(--indigo-2)}
   .dots.max{color:var(--red)}
   .dots.max .dot.on{background:var(--red);border-color:var(--red)}
+  .chip.prio{font-size:12.5px;font-weight:700;padding:6px 12px;margin-right:6px} .chip.gray{background:var(--line);color:var(--muted)}
   .chip.amber{background:var(--amber-bg);color:var(--amber)} .chip.green{background:var(--green-bg);color:var(--green)} .chip.red{background:var(--red-bg);color:var(--red)}
 
   .hist{margin-top:11px;padding:10px 12px;background:var(--soft);border:1px solid var(--line);border-radius:11px}
@@ -1229,6 +1230,20 @@ function fichaCalidad(c){
       ? '🔎 Baja ya hecha. Llamas del departamento de calidad: pregunta qué pasó y apúntalo con sus palabras. El sistema ve que podría volver (⭐). Si ves la puerta abierta, ofrécele volver o una pausa. Si quiere volver, reactívala desde su suscripción.'
       : '🔎 Baja ya hecha por un fallo nuestro. Llamas del departamento de calidad: pide disculpas y no le ofrezcas nada. Pregunta qué pasó y apúntalo con sus palabras. Si ella quiere volver, reactívala desde su suscripción.'}</span></div>`;
 }
+// 🏷 Prioridad a la vista (19/11/2026, Cristina: «no veo las estrellas, no sé qué es más urgente»).
+// Una etiqueta grande y de color en la esquina de la tarjeta, en las listas de bajas y calidad.
+// Mismo criterio que el orden de «Quieren irse» (`nivelIrse`) y que la ⭐ (`nivelRescate`).
+function prioridad(c){
+  if(c.gestionada||c.registro||c.bienvenida||c.esBienvenida||c.tipo==='fallo') return '';
+  const p=(cls,txt,tit)=>`<span class="chip prio ${cls}" title="${tit}">${txt}</span>`;
+  if(c.medico) return p('red','🔴 Urgente · médica','Le prometimos llamarla en menos de 72 h y su plan sigue activo');
+  if(c.tipo==='senal' && c.motivo==='no_puede_darse_de_baja') return p('red','🔴 Urgente · no puede darse de baja','Fallo nuestro: lleva días intentando irse');
+  if(c.tipo==='calidad') return c.por==='perfil' ? p('green','⭐ Puede volver','Clienta nueva o con varios productos: es el perfil que más se rescata')
+                                                  : p('amber','🟠 Fallo nuestro · disculpa','Se fue por un error nuestro: pide disculpas, no ofrezcas nada');
+  if(c.rescate===0) return p('green','⭐ Fácil de rescatar','Clienta nueva o con varios productos: es el perfil que más se rescata');
+  if(c.rescate===2) return p('gray','Difícil de rescatar','Se va por salud, porque ya está mejor o porque no nota nada');
+  return '';
+}
 function tarjeta(c,i){
   const tel=(c.phone||'').replace(/\D/g,''); const telH=tel?('tel:+'+(tel.length===9?'34'+tel:tel)):'';
   // Última gestión de esta clienta (para el botón fijo «Deshacer»). No aplica a las de solo consulta (registro).
@@ -1254,7 +1269,7 @@ function tarjeta(c,i){
   return `<div class="card" data-state="${(c.medico&&c.horas>=MEDICO_LIMITE_H)?'red':(c.medico&&c.horas>=MEDICO_AVISO_H)?'amber':(c.esCancelada||c.salida==='cancelada')?'red':(c.resuelto&&c.salida!=='pagada')?'amber':((c.registro&&(c.directa||c.estado==='pausa'))||c.resuelto||c.esPagado||(c.gestionada&&!c.noLoc&&!c.esCobroHecho))?'green':'amber'}" id="c${i}">
     <div class="stripe"></div>
     <div class="body">
-      <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${esc(relojMedico(c))}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro&&!c.bienvenida)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div><div class="ctr">${puntosContactos(c)}${chip}</div></div>
+      <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${esc(relojMedico(c))}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro&&!c.bienvenida)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div><div class="ctr">${prioridad(c)}${puntosContactos(c)}${chip}</div></div>
       ${c.lectura?`<div class="lectura">💬 ${esc(c.lectura)}</div>`:''}
       ${c.bienvenida?fichaBienvenida(c):''}
       ${c.calidad?fichaCalidad(c):''}
