@@ -1002,7 +1002,7 @@ function render(){
   counts.agendadas = agS.length;
   const defs=SECCIONES[seccion].chips;   // (las de «otros» incluyen ['medicas','🩺 Médicas'], con su reloj de 72 h)
   // Pestañas grandes. «Bajas por cerrar» sólo existe mientras quede algún caso vivo.
-  const SEC_TXT={bienvenida:['👋 Nuevas clientas','Llamada de bienvenida'], fallo:['💳 Fallos de pago','Rescatar el cobro'], otros:['📋 Bajas por cerrar','Casos antiguos que siguen vivos']};
+  const SEC_TXT={bienvenida:['👋 Nuevas clientas','Llamada de bienvenida'], fallo:['💳 Fallos de pago','Rescatar el cobro'], otros:['📋 Bajas por cerrar','Pendientes de llamar (calidad y bajas)']};
   document.getElementById('secciones').innerHTML=['bienvenida','fallo','otros']
     .filter(k=>k!=='otros'||nSec.otros||seccion==='otros')
     .map(k=>`<button class="sec${k==='otros'?' menor':''}${seccion===k?' on':''}" onclick="setSeccion('${k}')"><span><span class="st">${SEC_TXT[k][0]}</span><span class="ss">${SEC_TXT[k][1]}</span></span><span class="sn">${nSec[k]}</span></button>`).join('');
