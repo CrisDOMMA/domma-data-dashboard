@@ -1055,7 +1055,7 @@ function render(){
   const vivasFallo = vivas.filter(esFalloC);
   const agFallo = agendadas.filter(esFalloC), agOtros = agendadas.filter(c=>!esFalloC(c)&&!c.esBienvenida&&!c.esCompra);
   const nSec = {
-    coach: COACH.filter(c=>!coachCerrada(c)).length,
+    coach: COACH.filter(c=>!coachCerrada(c) && diaCoach(c.inicio)<=diaCoach(new Date().toISOString())).length,   // hoy + pasadas sin registrar; las futuras no cuentan
     bienvenida: bienv.length,
     compra: compras.length,
     fallo: vivasFallo.length + agFallo.length + porRegistrar.length,
