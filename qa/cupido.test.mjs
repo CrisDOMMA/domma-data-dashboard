@@ -557,12 +557,12 @@ bloque('PESTAÑAS — nuevas clientas y fallos de pago; las bajas no se pierden'
   t('Carme entra a bienvenidas y el resto a fallos de pago',
     /me\.email==='ayuda@wearedomma\.com' \? 'bienvenida' : 'fallo'/.test(SRC));
   t('la barra del día es la de la pestaña, no la de toda la estación',
-    /const pendientes = seccion==='compra' \? compras\.length : seccion==='bienvenida' \? bienv\.length : vivasSec\.length\+agS\.length\+porRegSec\.length/.test(SRC));
+    /const pendientes = seccion==='coach' \? nSec\.coach : seccion==='compra' \? compras\.length : seccion==='bienvenida' \? bienv\.length : vivasSec\.length\+agS\.length\+porRegSec\.length/.test(SRC));
   t('el buscador sigue mirando TODO (no hereda la pestaña)',
-    /const vivasB=\[\.\.\.LISTA, \.\.\.BIENV\.filter\(c=>!bienvenidaCerrada\(c\)\), \.\.\.CALID, \.\.\.COMPRA\]/.test(SRC)
+    /const vivasB=\[\.\.\.LISTA, \.\.\.BIENV\.filter\(c=>!bienvenidaCerrada\(c\)\), \.\.\.CALID, \.\.\.COMPRA, \.\.\.COACH\.filter\(c=>!coachCerrada\(c\)\)\]/.test(SRC)
     && /for\(const c of \[\.\.\.vivasB, \.\.\.gestionadasCards\(\), \.\.\.REGISTRO\]\)/.test(SRC));
   // 24/11/2026 · caso Olga: buscando a una clienta nueva salía solo su historial de fallo.
-  t('el buscador incluye bienvenidas y calidad', /\.\.\.BIENV\.filter/.test(SRC) && /\.\.\.CALID, \.\.\.COMPRA\]/.test(SRC));
+  t('el buscador incluye bienvenidas y calidad', /\.\.\.BIENV\.filter/.test(SRC) && /\.\.\.CALID, \.\.\.COMPRA, \.\.\.COACH\.filter\(c=>!coachCerrada\(c\)\)\]/.test(SRC));
   t('si la clienta tiene tarjeta viva, su historial no sale en la búsqueda', /if\(c\.gestionada && quien\(c\)\.some\(x=>conViva\.has\(x\)\)\) continue;/.test(SRC));
 }
 
@@ -581,7 +581,7 @@ bloque('LUNA, CALIDAD Y COMPRA ÚNICA');
     && API.prioridad({tipo:'senal'}).includes('La clienta le dijo a LUNA que se quiere ir. Es la llamada que más se rescata'));
   t('LUNA: conserva el chip de no poder darse de baja', API.prioridad({tipo:'senal',motivo:'no_puede_darse_de_baja'}).includes('🔴 Urgente · no puede darse de baja'));
   t('calidad: chip y subtítulo dicen fallo nuestro', SRC.includes('🔎 Fallo nuestro (calidad)') && SRC.includes('Bajas y calidad por fallo nuestro'));
-  t('compra: sección entre fallos y bajas, con sus dos listas', SRC.includes("['bienvenida','fallo','compra','otros']")
+  t('compra: sección entre fallos y bajas, con sus dos listas', SRC.includes("['bienvenida','fallo','compra','otros','coach']")
     && SRC.includes("compra:{def:'compra', chips:[['compra','Por llamar'],['compra_hechas','Ya llamadas']]}")
     && SRC.includes("compra:['🛒 Compra única','Pasar a suscripción']"));
   const codes=['compra_unica_suscrita','compra_unica_interesada','compra_unica_no_quiere'];
@@ -710,6 +710,14 @@ if (PROD) {
   t('cancelada sin activa: aviso explica solo registro',avisoContrato({...caso,contrato_activo:null}).includes('solo se apunta la llamada, no se toca Appstle'));
 }
 
+// Agenda COACH: usa los componentes reales y conserva identidad por cita.
+{
+  t('coach: pestaña y tres grupos con próximos plegados', SRC.includes("coach:{def:'coach'") && SRC.includes("bloque('Hoy'") && SRC.includes("bloque('Pendientes de registrar'") && SRC.includes('<details><summary>Próximos 7 días'));
+  t('coach: hora explícita Madrid', SRC.includes("timeZone:'Europe/Madrid'") && SRC.includes('horaCoach(c.inicio)'));
+  t('coach: cinco resultados y cancelación real', ['coach_realizada','coach_no_localizada','coach_cancela','coach_reactiva','coach_seguimiento'].every(k=>SRC.includes(k)) && /coach_cancela:\{[^}]*cancela:1/.test(SRC));
+  t('coach: registro envía UID y tipo propios', SRC.includes("coach_uid:caso.coach_uid, tipo_caso:caso.tipo==='coach'?'coach'"));
+  t('coach: historial por cita, sin mezclar retención', SRC.includes("g.coach_uid===caso.coach_uid") && SRC.includes("if(g0.es_test || g0.tipo_caso==='coach') continue"));
+}
 // ── Resultado ─────────────────────────────────────────────────────────
 console.log(`\n${ok} OK · ${ko} KO${PROD ? '' : '   (añade --prod para el humo contra producción)'}`);
 process.exit(ko ? 1 : 0);
