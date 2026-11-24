@@ -644,6 +644,33 @@ if (PROD) {
     !html.includes('domma_agente'));
 }
 
+// 24/11/2026 — Render real de tarjetas LUNA; solo se aíslan los adornos ajenos al caso.
+{
+  const tarjeta = new Function('prioridad', `
+    ${linea('const esc=')}
+    const histDe=()=>[], avisoContrato=()=>'', relojMedico=()=>'', diasEspera=()=>0;
+    const puntosContactos=()=>'', insigniaDueno=()=>'', histInner=()=>'', botonesAsignacion=()=>'';
+    ${extraer('function tarjeta(')}
+    return tarjeta;
+  `)(API.prioridad);
+  const potencial = {tipo:'senal', sin_compra:true, nombre_whatsapp:'☂️ Hanna'};
+  const html = tarjeta(potencial,0);
+  t('LUNA potencial: chip y nombre WhatsApp sin alerta de baja ni nombre vacío',
+    html.includes('🌱 Potencial · sin compra') && html.includes('☂️ Hanna')
+    && html.includes('(nombre de WhatsApp)') && !html.includes('Alerta de baja') && !html.includes('Sin nombre'));
+  t('LUNA potencial: prioridad explica que no ha comprado',
+    html.includes('🌱 Potencial · no ha comprado')
+    && html.includes('Escribió a LUNA pero no tiene compra ni cuenta en Shopify con este teléfono')
+    && !html.includes('La clienta le dijo a LUNA que se quiere ir'));
+  t('LUNA potencial: escapa el nombre de WhatsApp',
+    tarjeta({...potencial,nombre_whatsapp:'<b>Hanna</b>'},0).includes('&lt;b&gt;Hanna&lt;/b&gt;'));
+  t('LUNA normal: conserva Alerta de baja', tarjeta({tipo:'senal',nombre:'Clienta'},0).includes('🔔 Alerta de baja'));
+  t('LUNA potencial atascada: conserva prioridad urgente',
+    API.prioridad({...potencial,motivo:'no_puede_darse_de_baja'}).includes('🔴 Urgente · no puede darse de baja'));
+  t('LUNA: el mapeo conserva los campos de potencial',
+    SRC.includes('sin_compra:s.sin_compra, nombre_whatsapp:s.nombre_whatsapp'));
+}
+
 // 24/11/2026 · caso Olga: se evalúan los helpers y el guardado reales, sin red.
 {
   const {destinoGestion, avisoContrato}=new Function(`${linea('const esc=')}\n${extraer('function destinoGestion(')}\n${extraer('function avisoContrato(')}\nreturn {destinoGestion,avisoContrato};`)();

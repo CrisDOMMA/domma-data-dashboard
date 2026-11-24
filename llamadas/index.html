@@ -690,6 +690,7 @@ async function cargar(){
       .map(s=>({
         tipo:'senal', senal:true, motivo:s.motivo,
         nombre:s.nombre, email:s.email, phone:s.telefono,
+        sin_compra:s.sin_compra, nombre_whatsapp:s.nombre_whatsapp,
         customer_id:s.customer_id||'', contract_id:s.contract_id,
         ultima_senal:s.ultima_senal, fecha:String(s.ultima_senal||'').slice(0,10),
         dias:diasDe(String(s.ultima_senal||'').slice(0,10)),
@@ -1318,6 +1319,8 @@ function prioridad(c){
   const p=(cls,txt,tit)=>`<span class="chip prio ${cls}" title="${tit}">${txt}</span>`;
   if(c.medico) return p('red','🔴 Urgente · médica','Le prometimos llamarla en menos de 72 h y su plan sigue activo');
   if(c.tipo==='senal' && c.motivo==='no_puede_darse_de_baja') return p('red','🔴 Urgente · no puede darse de baja','Fallo nuestro: lleva días intentando irse');
+  // 24/11/2026 — Los contactos sin compra llevan su propio texto, sin cambiar las atascadas.
+  if(c.tipo==='senal' && c.sin_compra) return p('amber','🌱 Potencial · no ha comprado','Escribió a LUNA pero no tiene compra ni cuenta en Shopify con este teléfono');
   if(c.tipo==='senal') return p('red','🔴 Alerta de LUNA · llamar hoy','La clienta le dijo a LUNA que se quiere ir. Es la llamada que más se rescata');
   if(c.tipo==='calidad') return c.por==='perfil' ? p('green','⭐ Puede volver','Clienta nueva o con varios productos: es el perfil que más se rescata')
                                                   : p('amber','🟠 Fallo nuestro · disculpa','Se fue por un error nuestro: pide disculpas, no ofrezcas nada');
@@ -1340,12 +1343,12 @@ function tarjeta(c,i){
     : c.gestionada?(c.esPagado?'<span class="chip green">Pagado ✓</span>':c.esCobroHecho?'<span class="chip amber">Cobro hecho · validar</span>':c.esPausa?'<span class="chip green">Retenida · pausa</span>':c.esSegunda?'<span class="chip amber">2ª llamada</span>':c.esCancelada?'<span class="chip red">Cancelada</span>':c.noLoc?'<span class="chip amber">No localizada</span>':'<span class="chip green">Contactada</span>')
     : c.waCurso?'<span class="chip amber">⏳ WhatsApp en curso</span>'
     // 🔔 La atascada va en rojo: no es «riesgo de baja», es una mujer a la que no dejamos irse.
-    : c.tipo==='senal'?`<span class="chip ${c.motivo==='no_puede_darse_de_baja'?'red':'amber'}">🔔 Alerta de baja</span>`
+    : c.tipo==='senal'?`<span class="chip ${c.motivo==='no_puede_darse_de_baja'?'red':'amber'}">${c.sin_compra?'🌱 Potencial · sin compra':'🔔 Alerta de baja'}</span>`
     : c.tipo==='bienvenida'?'<span class="chip green">👋 Bienvenida</span>'
     : c.tipo==='compra'?'<span class="chip amber">🛒 Compra única</span>'
     : c.tipo==='calidad'?'<span class="chip amber">🔎 Calidad</span>'
     : c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
-  const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
+  const nombre = c.sin_compra && c.nombre_whatsapp? `${esc(c.nombre_whatsapp)} <small>(nombre de WhatsApp)</small>` : c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
   const nHist=histDe(c).length;
   const meta=(c.email?`✉️ <b>${esc(c.email)}</b>`:'')+(c.email&&c.phone?' · ':'')+(c.phone?`📱 <b>${esc(c.phone)}</b>`:'')+((!c.email&&!c.phone)?'<span style="color:var(--amber)">sin contacto — abre su ficha</span>':'');
   return `<div class="card" data-state="${(c.medico&&c.horas>=MEDICO_LIMITE_H)?'red':(c.medico&&c.horas>=MEDICO_AVISO_H)?'amber':(c.esCancelada||c.salida==='cancelada')?'red':(c.resuelto&&c.salida!=='pagada')?'amber':((c.registro&&(c.directa||c.estado==='pausa'))||c.resuelto||c.esPagado||(c.gestionada&&!c.noLoc&&!c.esCobroHecho))?'green':'amber'}" id="c${i}">
