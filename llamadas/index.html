@@ -321,6 +321,11 @@ const CATALOGO={
   // clienta. Quién sale del cubo lo decide `bienvenidaCerrada()`.
   // El resultado dice A LA VEZ que se habló con ella y cómo estaba (un clic, no dos): es lo
   // que luego permite medir cuántas no sabían que tenían una suscripción y cuántas se salvan.
+  // 24/11/2026 · Cristina tras el feedback de Carme: seguimiento sin insistir si no interesa.
+  compra_unica_suscrita: {l:'Se suscribe', b:'Se suscribe', tone:'green', term:1, win:'🛒 Suscrita'},
+  compra_unica_interesada: {l:'Le interesa: enviar enlace', b:'Le interesa: enviar enlace', tone:'amber', term:1},
+  compra_unica_no_quiere: {l:'No quiere suscripción', b:'No quiere suscripción', tone:'gray', term:1},
+  compra_unica_no_contesta: {l:'No contesta', b:'No contesta', tone:'amber'},
   bienvenida_bien:        {l:'Bienvenida · todo bien',             b:'👍 Todo bien',                       tone:'green', term:1, win:'👋 Bienvenida hecha'},
   bienvenida_dudas:       {l:'Bienvenida · dudas con la pauta',    b:'💊 Tenía dudas con la pauta',        tone:'green', term:1, win:'👋 Bienvenida hecha'},
   bienvenida_no_sabia:    {l:'Bienvenida · no sabía que era suscripción', b:'❓ No sabía que era suscripción', tone:'amber', term:1},
@@ -364,6 +369,7 @@ let SENALES=[];
 // 👋 Bienvenidas: altas que recibieron su primer pedido de suscripción hace 3-10 días.
 // Fuera de LISTA por lo mismo que las señales: es una llamada proactiva, no un caso pendiente.
 let BIENV=[];
+let COMPRA=[]; // 24/11/2026 · Cristina tras el feedback de Carme: compra suelta, lista compartida.
 let CALID=[];   // 🔎 llamadas de calidad (19/11/2026)
 const BIENV_MAX_INTENTOS=2;   // «no contesta» dos veces → no se insiste (igual que el worker)
 // De quién es la lista que se está viendo: '__mias__' | '' (todas) | nombre | '__libre__'.
@@ -371,29 +377,32 @@ const BIENV_MAX_INTENTOS=2;   // «no contesta» dos veces → no se insiste (ig
 // a partir de ahí se recuerda lo que elija.
 let verDe = localStorage.getItem('domma_verde') ?? '__mias__';
 // ── Secciones (16/11/2026, petición Cristina) ───────────────────────────────────────────
-// Desde la baja inteligente la estación es para DOS cosas: dar la bienvenida a las nuevas y
-// rescatar fallos de pago. Lo de bajas ya no es el trabajo del día, pero NO se borra: mientras
-// quede un caso vivo (una médica con el plan activo, una baja que falló en Appstle, el
-// recontacto de una pausa) sigue a un clic en «Bajas por cerrar», y esa pestaña desaparece
-// sola cuando llega a cero. Esconderlo del todo dejaría a esas clientas sin su llamada.
+// 24/11/2026 · Cristina tras el feedback de Carme: bienvenida, fallos y compra suelta
+// tienen su lista. En «Quieren irse», las médicas van primero y TODAS las alertas de LUNA
+// después: son llamadas que se rescatan. Calidad queda solo para fallos nuestros.
 const SECCIONES={
   bienvenida:{def:'bienvenida', chips:[['bienvenida','Por llamar'],['bienv_hechas','Ya llamadas']]},
   fallo:{def:'fallo', chips:[['fallo','Por llamar'],['agendadas','📅 Agendadas para hoy'],['wacurso','⏳ WhatsApp en curso'],['porregistrar','✅ Por registrar'],['porvalidar','Pagos por validar'],['gestionadas','Contactadas'],['nolocal','No localizadas']]},
   // 19/11/2026 (Cristina): de 9 botones a 3 de TRABAJO + historial. «Quieren irse» junta médicas
   // (siempre primero, con su reloj), alertas de LUNA, derivadas y bajas pendientes; cada tarjeta
   // dice su motivo. Lo que no es trabajo del día va a «🗂 Historial» (con sus propios botones).
-  otros:{def:'irse', chips:[['irse','🚪 Quieren irse'],['calidad','🔎 Ya se fueron (calidad)'],['agendadas','📅 Recontactos de hoy'],['gestionadas','🗂 Historial']]},
+  compra:{def:'compra', chips:[['compra','Por llamar'],['compra_hechas','Ya llamadas']]},
+  otros:{def:'irse', chips:[['irse','🚪 Quieren irse'],['calidad','🔎 Fallo nuestro (calidad)'],['agendadas','📅 Recontactos de hoy'],['gestionadas','🗂 Historial']]},
 };
 let seccion = localStorage.getItem('domma_seccion') || '';
 // Botones del historial de «Bajas por cerrar»: solo se ven al entrar en él.
 const HISTORIAL=[['gestionadas','Contactadas'],['nolocal','No localizadas'],['pausasfut','Pausas con fecha'],['cancelada','Canceladas']];
 const esHistorial=f=>HISTORIAL.some(([k])=>k===f);
-// Orden de «Quieren irse»: 0 médicas (plazo prometido) · 1 no consigue darse de baja (fallo
-// nuestro) · 2 perfil ⭐ · 3 resto · 4 casi imposibles (ya mejor / no nota nada / salud).
+// 24/11/2026 · Decisión de Cristina tras el feedback de Carme: médicas · LUNA · ⭐ · resto · difíciles.
+// Dentro de LUNA, primero las que no pueden irse y los efectos secundarios; luego las más antiguas.
 function nivelIrse(c){
   if(c.medico) return 0;
-  if(c.tipo==='senal') return c.motivo==='no_puede_darse_de_baja' ? 1 : 3;
+  if(c.tipo==='senal') return 1;
   return c.rescate===0 ? 2 : c.rescate===2 ? 4 : 3;
+}
+function compararSenales(a,b){
+  const urgente=c=>['no_puede_darse_de_baja','efectos_secundarios'].includes(c.motivo)?0:1;
+  return urgente(a)-urgente(b) || String(a.ultima_senal||a.fecha||'9999').localeCompare(String(b.ultima_senal||b.fecha||'9999'));
 }
 function setSeccion(k){ if(!SECCIONES[k]) return; seccion=k; filtro=SECCIONES[k].def; localStorage.setItem('domma_seccion',k); render(); }
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -445,7 +454,7 @@ function botonesAsignacion(c,i){
   // (petición Cristina 23/09 — las derivadas también se las reparten entre ellas).
   // Sólo se excluyen las tarjetas de sólo consulta del registro del formulario y las
   // que no tienen contrato con el que identificar el caso.
-  if(c.registro || c.bienvenida || c.esBienvenida || c.calidad || c.esCalidad || !nid(c.contract_id)) return '';   // bienvenidas: lista compartida, sin reparto
+  if(c.tipo==='compra' || c.esCompra || c.registro || c.bienvenida || c.esBienvenida || c.calidad || c.esCalidad || !nid(c.contract_id)) return '';   // bienvenidas: lista compartida, sin reparto
   const dueno=duenoDe(c);
   const opts=EQUIPO.filter(p=>p.nombre!==dueno).map(p=>`<option value="${esc(p.nombre)}">↪ Pasar a ${esc(p.nombre)}</option>`).join('');
   const coger=dueno?'':`<button class="b b-coger" onclick="asignar(${i},'${esc(agActual())}')" title="Este caso pasa a ser tuyo">🙋 Coger</button>`;
@@ -527,9 +536,9 @@ function marcaRescate(s){
 }
 async function cargar(){
   const H={'Content-Type':'application/json','Authorization':'Bearer '+token};
-  let bajas={}, hoyFallos={}, gest={}, toq={}, sen={}, bie={}, cal={};
+  let bajas={}, hoyFallos={}, gest={}, toq={}, sen={}, bie={}, cal={}, com={};
   try{
-    const [rb,rf,rg,rt,rs,rw,rq]=await Promise.all([
+    const [rb,rf,rg,rt,rs,rw,rq,rc]=await Promise.all([
       fetch(API_BAJAS+'/api/dashboard',{method:'POST',headers:H,body:JSON.stringify({incluir_test:false})}).then(r=>r.json()),
       fetch(API_TODAY).then(r=>r.json()).catch(()=>({})),   // fallos ACTIVOS reales de Appstle (sin el bug de fechas de /failures-since)
       fetch(API_BAJAS+'/api/dashboard/gestiones',{method:'POST',headers:H,body:JSON.stringify({limit:500})}).then(r=>r.json()),
@@ -541,8 +550,9 @@ async function cargar(){
       fetch(API_BAJAS+'/api/dashboard/bienvenidas',{method:'POST',headers:H,body:'{}'}).then(r=>r.json()).catch(()=>({})),
       // 🔎 Calidad (19/11). Mismo `.catch`: sección nueva y secundaria, nunca tumba la estación.
       fetch(API_BAJAS+'/api/dashboard/calidad',{method:'POST',headers:H,body:'{}'}).then(r=>r.json()).catch(()=>({})),
+      fetch(API_BAJAS+'/api/dashboard/compra-unica',{method:'POST',headers:H,body:'{}'}).then(r=>r.json()).catch(()=>({})),
     ]);
-    bajas=rb||{}; hoyFallos=rf||{}; gest=rg||{}; toq=rt||{}; sen=rs||{}; bie=rw||{}; cal=rq||{};
+    bajas=rb||{}; hoyFallos=rf||{}; gest=rg||{}; toq=rt||{}; sen=rs||{}; bie=rw||{}; cal=rq||{}; com=rc||{};
     pintaFrescura('frescura', bajas._frescura);
   }catch(e){ document.getElementById('list').innerHTML='<div class="empty">No se pudo cargar. Recarga la página.</div>'; return; }
   if(bajas.error==='no_autorizado'){ logout(); return; }
@@ -681,7 +691,7 @@ async function cargar(){
         tipo:'senal', senal:true, motivo:s.motivo,
         nombre:s.nombre, email:s.email, phone:s.telefono,
         customer_id:s.customer_id||'', contract_id:s.contract_id,
-        fecha:String(s.ultima_senal||'').slice(0,10),
+        ultima_senal:s.ultima_senal, fecha:String(s.ultima_senal||'').slice(0,10),
         dias:diasDe(String(s.ultima_senal||'').slice(0,10)),
         estado_sub:s.estado_sub, proxima_renovacion:s.proxima_renovacion,
         // Lo que ve Carme para saber a qué llama. Sin esto la sección es una lista de nombres.
@@ -732,6 +742,23 @@ async function cargar(){
           +(q.intentos?' · 📵 no contestó':''),
     }));
   }
+  // 24/11/2026 · Cristina tras el feedback de Carme: otra llamada pendiente manda;
+  // no llamar dos veces a la misma mujer desde listas distintas.
+  {
+    const otras=[...LISTA,...SENALES,...BIENV,...CALID];
+    const ids=new Set(otras.map(c=>nid(c.customer_id)).filter(Boolean));
+    const emails=new Set(otras.map(c=>(c.email||'').trim().toLowerCase()).filter(Boolean));
+    const vistas=new Set();
+    COMPRA=((com&&com.casos)||[]).filter(c=>{
+      const id=nid(c.customer_id);
+      if(!id||vistas.has(id)||ids.has(id)||emails.has((c.email||'').trim().toLowerCase())) return false;
+      vistas.add(id); return true;
+    }).map(c=>({tipo:'compra', compra:true, customer_id:nid(c.customer_id), contract_id:'',
+      nombre:c.nombre, email:c.email, phone:c.telefono, fecha:String(c.entregado||c.fecha_pedido||'').slice(0,10),
+      pedido:c.pedido, fecha_pedido:c.fecha_pedido, entregado:c.entregado, dias:c.dias_entregado,
+      productos:c.productos||[], importe:c.importe, n_pedidos:c.n_pedidos, primera_compra:c.primera_compra,
+      intentos:c.intentos||0, why:'Compra sin suscripción · '+(c.pedido||'Pedido') }));
+  }
   motivador();
   render();
   enriquecerTelefonos();   // en segundo plano: rellena el móvil que falta (Appstle no lo trae) desde Shopify
@@ -768,7 +795,7 @@ async function enriquecerTelefonos(){
   // en lotes de 80 HASTA AGOTAR (antes solo se pedía el primer lote → ~20 tarjetas se
   // quedaban sin teléfono aunque Shopify sí lo tenía — bug reportado por Carme 07/08).
   const sinTel = c => !String(c.phone||'').replace(/\D/g,'') && c.email;
-  const objetivo = [...LISTA, ...REGISTRO, ...CALID];
+  const objetivo = [...LISTA, ...REGISTRO, ...CALID, ...COMPRA];
   const emails = [...new Set(objetivo.filter(sinTel).map(c=>c.email))];
   let cambios=false;
   for(let i=0; i<emails.length; i+=80){
@@ -860,6 +887,13 @@ function calidadCerrada(c){
   const prox=String(g.proxima_llamada||'').slice(0,10) || diaSiguienteHabil(dia);
   return prox>hoyISO();
 }
+// 24/11/2026 · Cristina tras el feedback de Carme: dos intentos como máximo, sin insistir.
+function compraCerrada(c){
+  const h=histDe(c).filter(g=>!g.es_test&&g.tipo_caso==='compra_unica');
+  return h.some(g=>['compra_unica_suscrita','compra_unica_interesada','compra_unica_no_quiere'].includes(g.resultado))
+    || h.filter(g=>g.resultado==='compra_unica_no_contesta').length>=2
+    || h.some(g=>String(g.created_at||'').slice(0,10)===hoyISO());
+}
 // Siguiente día laborable (lunes a viernes) a partir de un 'YYYY-MM-DD'. Para la 2ª llamada.
 function diaSiguienteHabil(iso){
   const d=new Date((iso||hoyISO())+'T12:00:00Z');
@@ -912,14 +946,14 @@ function gestionadasCards(soloContacto){
     if(soloContacto==='localizada' && noLoc) continue;
     // 'bienvenida' conserva su tipo: si no, al registrar desde «Ya llamadas» (o desde el buscador)
     // salían los resultados de retención y la gestión se guardaba como 'baja' (bug 18/11/2026).
-    const t=g.tipo_caso==='fallo_pago'?'fallo':(g.tipo_caso==='baja'?'baja':(g.tipo_caso==='bienvenida'?'bienvenida':(g.tipo_caso==='calidad'?'calidad':'derivada')));
+    const t=g.tipo_caso==='fallo_pago'?'fallo':(g.tipo_caso==='baja'?'baja':(g.tipo_caso==='bienvenida'?'bienvenida':(g.tipo_caso==='calidad'?'calidad':(g.tipo_caso==='compra_unica'?'compra':'derivada'))));
     const res=RES_LABEL[g.resultado]||g.resultado||'';
     // Si la fecha ya pasó no se dice «próx.»: se dice que venció. El texto de la tarjeta va
     // escapado (no admite HTML), así que el aviso tiene que estar en la palabra.
     const prox=g.proxima_llamada?(String(g.proxima_llamada).slice(0,10)<hoyISO()
       ? ` · ⚠️ venció el ${fechaCorta(g.proxima_llamada)}`
       : ` · 📅 próx. ${fechaCorta(g.proxima_llamada)}`):'';
-    out.push({tipo:t, gestionada:true, noLoc, esPagado:g.resultado==='pagado', esCobroHecho:COBRO_HECHO.has(g.resultado), esPausa:g.resultado==='pausa', esSegunda:g.resultado==='segunda_llamada', esCancelada:CANCELAR.has(g.resultado), esBienvenida:g.tipo_caso==='bienvenida', esCalidad:g.tipo_caso==='calidad', prox:g.proxima_llamada||'', gestId:g.id, nombre:g.nombre, email:g.email, phone:g.phone,
+    out.push({tipo:t, gestionada:true, noLoc, esPagado:g.resultado==='pagado', esCobroHecho:COBRO_HECHO.has(g.resultado), esPausa:g.resultado==='pausa', esSegunda:g.resultado==='segunda_llamada', esCancelada:CANCELAR.has(g.resultado), esBienvenida:g.tipo_caso==='bienvenida', esCalidad:g.tipo_caso==='calidad', esCompra:g.tipo_caso==='compra_unica', prox:g.proxima_llamada||'', gestId:g.id, nombre:g.nombre, email:g.email, phone:g.phone,
       customer_id:g.customer_id, contract_id:g.contract_id, estado_contrato:g.estado_contrato, contrato_activo:g.contrato_activo, fecha:(g.created_at||'').slice(0,10),
       why:`${noLoc?'No localizada':'Localizada'}${res?' · '+res:''}${g.agente?' · '+g.agente:''} · ${fechaCorta(g.created_at)}${prox}`});
   }
@@ -960,7 +994,7 @@ function render(){
   const contactadas = vd(dfil(gestionadasCards('localizada')).filter(c=>!esSeguim(c)));   // las de seguimiento van a Derivadas
   const nolocal     = vd(dfil(gestionadasCards('no_localizada')).filter(c=>!esSeguim(c)));
   const porValidar  = vd(dfil(gestionadasCards()).filter(c=>c.esCobroHecho));   // cobros hechos pendientes de validar
-  const pausas      = vd(dfil(gestionadasCards()).filter(c=>esSeguim(c)&&!c.esBienvenida));            // recontactos (fin de pausa / 2ª llamada) → Derivadas
+  const pausas      = vd(dfil(gestionadasCards()).filter(c=>esSeguim(c)&&!c.esBienvenida&&!c.esCompra));            // recontactos (fin de pausa / 2ª llamada) → Derivadas
   vivas = vd(vivas); waCurso = vd(waCurso); porRegistrar = vd(porRegistrar);
   // ── AGENDADAS: alguien dejó fecha de próxima llamada y ya toca ──────────────────────
   // Antes sólo asomaban dentro de «Derivadas», mezcladas con ~94 casos: una llamada que te
@@ -971,7 +1005,7 @@ function render(){
   const agendadas = vd(dfil(gestionadasCards()))
       // Las 2ªs llamadas de bienvenida NO entran aquí: «Agendadas» va por dueña y la bienvenida
       // es una lista compartida — vuelven a su propio cubo en su fecha (ver bienvenidaCerrada).
-      .filter(c=>c.prox && !c.esBienvenida && String(c.prox).slice(0,10)<=hoyISO() && !yaEnVivas.has(claveDe(c)) && !gestionadaHoy(c));
+      .filter(c=>c.prox && !c.esBienvenida&&!c.esCompra && String(c.prox).slice(0,10)<=hoyISO() && !yaEnVivas.has(claveDe(c)) && !gestionadaHoy(c));
   const vencidas  = agendadas.filter(c=>String(c.prox).slice(0,10)<hoyISO()).length;
   // Un seguimiento está en «Agendadas» (ya toca) O en «Derivadas» (toca más adelante), nunca
   // en los dos: si no, el mismo caso se cuenta dos veces y no sabes cuál es tu trabajo de hoy.
@@ -995,19 +1029,22 @@ function render(){
   // 👋 Bienvenidas: también SIN `vd()` (lista compartida, sin asignación) y fuera de «Todas»
   // y de la barra del día: son ~12 nuevas al día y no deben tapar las llamadas con plazo.
   const bienv = dfil(BIENV).filter(c=>!bienvenidaCerrada(c));
+  const compras = dfil(COMPRA).filter(c=>!compraCerrada(c));
+  const compraHechas = dfil(gestionadasCards()).filter(c=>c.esCompra);
   const calid = dfil(CALID).filter(c=>!calidadCerrada(c));   // 🔎 sin vd(): lista compartida
   // 🚪 Quieren irse = todo lo de «Bajas por cerrar» que sigue ACTIVO y pide una llamada hoy.
   // (`derivPend` ya incluye a las médicas: van una sola vez.)
   const irse = [...vivas.filter(x=>x.tipo==='baja'||x.tipo==='derivada'), ...senales];
   // ── Cada pestaña ve SU parte de los cubos mixtos (agendadas, contactadas, no localizadas) ──
   const esFalloC = c=>c.tipo==='fallo';
-  const deSec = l => seccion==='fallo' ? l.filter(esFalloC) : l.filter(c=>!esFalloC(c)&&!c.esBienvenida);
+  const deSec = l => seccion==='compra' ? [] : seccion==='fallo' ? l.filter(esFalloC) : l.filter(c=>!esFalloC(c)&&!c.esBienvenida&&!c.esCompra);
   const agS=deSec(agendadas), contS=deSec(contactadas), nolS=deSec(nolocal);
   const bienvHechas = dfil(gestionadasCards()).filter(c=>c.esBienvenida);
   const vivasFallo = vivas.filter(esFalloC);
-  const agFallo = agendadas.filter(esFalloC), agOtros = agendadas.filter(c=>!esFalloC(c)&&!c.esBienvenida);
+  const agFallo = agendadas.filter(esFalloC), agOtros = agendadas.filter(c=>!esFalloC(c)&&!c.esBienvenida&&!c.esCompra);
   const nSec = {
     bienvenida: bienv.length,
+    compra: compras.length,
     fallo: vivasFallo.length + agFallo.length + porRegistrar.length,
     // Lo que de verdad sigue pidiendo una llamada. Los recontactos FUTUROS de una pausa no
     // suman: no hay nada que hacer con ellos hoy (aparecen aquí el día que tocan).
@@ -1015,18 +1052,21 @@ function render(){
   };
   // Si alguien está en «Bajas por cerrar» y se vacía, vuelve sola a su trabajo.
   if(seccion==='otros' && !nSec.otros && !busca){ seccion='fallo'; filtro='fallo'; return render(); }
-  const counts={todas:vivas.length+agendadas.length, medicas:medicas.length, agendadas:agendadas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausasFuturas.length, fallo:vivasFallo.length, senal:senales.length, calidad:calid.length, irse:irse.length, pausasfut:pausasFuturas.length, bienvenida:bienv.length, bienv_hechas:bienvHechas.length, wacurso:waCurso.length, porregistrar:porRegistrar.length, gestionadas:contS.length, nolocal:nolS.length, porvalidar:porValidar.length, cancelada:cancel.length};
+  const counts={compra:compras.length, compra_hechas:compraHechas.length, todas:vivas.length+agendadas.length, medicas:medicas.length, agendadas:agendadas.length, baja:vivas.filter(x=>x.tipo==='baja').length, derivada:derivPend.length+pausasFuturas.length, fallo:vivasFallo.length, senal:senales.length, calidad:calid.length, irse:irse.length, pausasfut:pausasFuturas.length, bienvenida:bienv.length, bienv_hechas:bienvHechas.length, wacurso:waCurso.length, porregistrar:porRegistrar.length, gestionadas:contS.length, nolocal:nolS.length, porvalidar:porValidar.length, cancelada:cancel.length};
   counts.agendadas = agS.length;
   const defs=SECCIONES[seccion].chips;   // (las de «otros» incluyen ['medicas','🩺 Médicas'], con su reloj de 72 h)
   // Pestañas grandes. «Bajas por cerrar» sólo existe mientras quede algún caso vivo.
-  const SEC_TXT={bienvenida:['👋 Nuevas clientas','Llamada de bienvenida'], fallo:['💳 Fallos de pago','Rescatar el cobro'], otros:['📋 Bajas por cerrar','Pendientes de llamar (calidad y bajas)']};
-  document.getElementById('secciones').innerHTML=['bienvenida','fallo','otros']
+  const SEC_TXT={bienvenida:['👋 Nuevas clientas','Llamada de bienvenida'], fallo:['💳 Fallos de pago','Rescatar el cobro'], compra:['🛒 Compra única','Pasar a suscripción'], otros:['📋 Bajas por cerrar','Bajas y calidad por fallo nuestro']};
+  document.getElementById('secciones').innerHTML=['bienvenida','fallo','compra','otros']
     .filter(k=>k!=='otros'||nSec.otros||seccion==='otros')
     .map(k=>`<button class="sec${k==='otros'?' menor':''}${seccion===k?' on':''}" onclick="setSeccion('${k}')"><span><span class="st">${SEC_TXT[k][0]}</span><span class="ss">${SEC_TXT[k][1]}</span></span><span class="sn">${nSec[k]}</span></button>`).join('');
   // Cifras clave de la pestaña (lo primero que se mira: cuánto queda y qué urge).
   const hoyG = GALL.filter(g=>!g.es_test && String(g.created_at||'').slice(0,10)===hoyISO());
   const eur = n=>n.toLocaleString('es-ES',{maximumFractionDigits:0})+' €';
-  const K = seccion==='bienvenida' ? [
+  const K = seccion==='compra' ? [
+      ['Por llamar', compras.length, ''],
+      ['Habladas hoy', hoyG.filter(g=>g.tipo_caso==='compra_unica'&&g.contacto==='localizada').length, 'bien'],
+    ] : seccion==='bienvenida' ? [
       ['Por llamar hoy', bienv.length, ''],
       ['En 2ª llamada', bienv.filter(c=>c.intentos).length, ''],
       ['Habladas hoy', hoyG.filter(g=>g.tipo_caso==='bienvenida'&&g.resultado!=='bienvenida_no_contesta').length, 'bien'],
@@ -1040,12 +1080,12 @@ function render(){
     ] : [
       ['Quieren irse', irse.length, ''],
       ['de ellas, médicas', medicas.length, medVencidas?'alerta':''],
-      ['Ya se fueron (calidad)', calid.length, ''],
+      ['Fallo nuestro (calidad)', calid.length, ''],
       ['Recontactos de hoy', agOtros.length, ''],
     ];
   document.getElementById('kpis').innerHTML=K.map(([l,v,c])=>`<div class="kpi ${c}"><span>${l}</span><b>${v}</b></div>`).join('');
   // El motivador (retenidas, ventas cruzadas…) es de retención: en bienvenidas no dice nada.
-  document.getElementById('moti').style.display = seccion==='bienvenida' ? 'none' : '';
+  document.getElementById('moti').style.display = (seccion==='bienvenida'||seccion==='compra') ? 'none' : '';
   const enHist = seccion==='otros' && esHistorial(filtro);
   document.getElementById('filtros').innerHTML=defs.map(([k,l])=>{
       const on = filtro===k || (k==='gestionadas' && enHist);
@@ -1060,8 +1100,8 @@ function render(){
   // …y ahora es la de la PESTAÑA: si no, «quedan 40» encima de una lista de 8 no cuadra.
   const vivasSec = seccion==='fallo' ? vivasFallo : seccion==='otros' ? [...vivas.filter(c=>!esFalloC(c)), ...calid] : [];
   const porRegSec = seccion==='fallo' ? porRegistrar : [];
-  const pendientes = seccion==='bienvenida' ? bienv.length : vivasSec.length+agS.length+porRegSec.length;
-  const partes = seccion==='bienvenida'
+  const pendientes = seccion==='compra' ? compras.length : seccion==='bienvenida' ? bienv.length : vivasSec.length+agS.length+porRegSec.length;
+  const partes = seccion==='compra' ? [`${compras.length} por llamar`] : seccion==='bienvenida'
     ? [`${bienv.filter(c=>!c.intentos).length} nuevas`, bienv.some(c=>c.intentos)?`${bienv.filter(c=>c.intentos).length} en 2ª llamada`:''].filter(Boolean)
     : [`${vivasSec.length} nuevas`, agS.length?`${agS.length} agendadas`:'',
        porRegSec.length?`${porRegSec.length} por registrar`:''].filter(Boolean);
@@ -1072,7 +1112,7 @@ function render(){
   const avisoMedicas = medVencidas
     ? ` · <b style="color:var(--red)">🚨 ${medVencidas} médica${medVencidas===1?'':'s'} pasa${medVencidas===1?'':'n'} de 72 h</b>`
     : (medAviso ? ` · <b style="color:var(--amber)">🩺 ${medAviso} médica${medAviso===1?'':'s'} pasa${medAviso===1?'':'n'} de 48 h</b>` : '');
-  const gestHoySec = seccion==='bienvenida' ? new Set(hoyG.filter(g=>g.tipo_caso==='bienvenida').map(g=>nid(g.contract_id)||String(g.customer_id||''))).size
+  const gestHoySec = seccion==='compra' ? new Set(hoyG.filter(g=>g.tipo_caso==='compra_unica').map(g=>nid(g.customer_id))).size : seccion==='bienvenida' ? new Set(hoyG.filter(g=>g.tipo_caso==='bienvenida').map(g=>nid(g.contract_id)||String(g.customer_id||''))).size
     : LISTA.filter(c=>gestionadaHoy(c) && (seccion==='fallo'?esFalloC(c):!esFalloC(c))).length;
   const totalDia=gestHoySec+pendientes, pct=totalDia?Math.round(gestHoySec/totalDia*100):0;
   document.getElementById('progreso').innerHTML = totalDia
@@ -1101,12 +1141,14 @@ function render(){
   };
   if(busca){
     const seen=new Set(); VIS=[];
-    for(const c of [...LISTA, ...gestionadasCards(), ...REGISTRO]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||'').toLowerCase(); if(!k||seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
+    for(const c of [...LISTA, ...gestionadasCards(), ...REGISTRO, ...COMPRA]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||'').toLowerCase(); if(!k||seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
   } else if(filtro==='wacurso'){ VIS=waCurso; }
   else if(filtro==='porregistrar'){ VIS=porRegistrar; }
   else if(filtro==='medicas'){ VIS=medicas; }
   else if(filtro==='senal'){ VIS=senales; }
   else if(filtro==='calidad'){ VIS=calid; }
+  else if(filtro==='compra'){ VIS=compras; }
+  else if(filtro==='compra_hechas'){ VIS=compraHechas; }
   else if(filtro==='irse'){ VIS=irse; }
   else if(filtro==='pausasfut'){ VIS=pausasFuturas; }
   else if(filtro==='bienvenida'){ VIS=bienv; }
@@ -1131,7 +1173,7 @@ function render(){
   if(!busca && (filtro==='baja'||filtro==='derivada')) VIS = [0,1,2,undefined].flatMap(n=>VIS.filter(c=>c.rescate===n));
   if(!busca && filtro==='irse'){
     const med = VIS.filter(c=>c.medico).sort((a,b)=>(b.horas||0)-(a.horas||0));   // la más urgente, arriba
-    VIS = [...med, ...[1,2,3,4].flatMap(n=>VIS.filter(c=>!c.medico && nivelIrse(c)===n))];
+    VIS = [...med, ...VIS.filter(c=>!c.medico&&c.tipo==='senal').sort(compararSenales), ...[2,3,4].flatMap(n=>VIS.filter(c=>!c.medico && nivelIrse(c)===n))];
   }
   if(filtro==='calidad') VIS = [...VIS.filter(c=>c.por!=='perfil'), ...VIS.filter(c=>c.por==='perfil')];   // el fallo nuestro, antes
   if(filtro==='bienvenida'||filtro==='calidad') VIS = [...VIS.filter(c=>c.intentos), ...VIS.filter(c=>!c.intentos)];
@@ -1193,6 +1235,9 @@ function filtrarPorDueno(lista){
 }
 function pintarVerDe(){
   const sel=document.getElementById('verDeSel'); if(!sel) return;
+  // 24/11/2026 · Cristina tras el feedback de Carme: compra única es de todas.
+  sel.style.display=seccion==='compra'?'none':'';
+  sel.previousElementSibling.style.display=seccion==='compra'?'none':'';
   const yo=agActual();
   const opts=[['__mias__',`Mías (${yo})`],['','Todas'],
               ...EQUIPO.filter(p=>p.nombre!==yo).map(p=>[p.nombre,p.nombre]),
@@ -1214,7 +1259,7 @@ function contactosDe(c){
 }
 function puntosContactos(c){
   if(c.registro) return '';   // solo consulta: el caso ya está cerrado, no aplica la pauta
-  if(c.bienvenida || c.esBienvenida || c.calidad || c.esCalidad) return ''; // la pauta de 4 llamadas es de retención; aquí son 2 intentos y fuera
+  if(c.bienvenida || c.esBienvenida || c.calidad || c.esCalidad || c.tipo==='compra' || c.esCompra) return ''; // la pauta de 4 llamadas es de retención; aquí son 2 intentos y fuera
   const n=contactosDe(c), tope=n>=4;
   const dots=[0,1,2,3].map(k=>`<span class="dot${k<Math.min(n,4)?' on':''}"></span>`).join('');
   return `<span class="dots${tope?' max':''}" title="${n} llamada${n===1?'':'s'} registrada${n===1?'':'s'} con esta clienta${tope?' — pauta cumplida: decidir cierre':' — la pauta son 4'}">${dots}<b>${Math.min(n,4)} de 4</b></span>`;
@@ -1231,6 +1276,15 @@ function fichaBienvenida(c){
       ${tile('Próximo cobro', c.proxima_renovacion?`${fechaCorta(c.proxima_renovacion)}${dias!=null&&dias>=0?` · en ${dias} día${dias===1?'':'s'}`:''}`:'—')}
     </div>
     ${(c.luna||c.cita)?`<div class="fbadges">${c.luna?`<span class="chip amber">💬 Escribió a LUNA el ${fechaCorta(c.luna)}</span>`:''}${c.cita?`<span class="chip green">📅 Tiene cita con Marta el ${fechaCorta(c.cita)}</span>`:''}</div>`:''}`;
+}
+// 24/11/2026 · Cristina tras el feedback de Carme: contexto y guion antes de llamar.
+function fichaCompra(c){
+  const tile=(l,v)=>`<div class="ftile"><span>${l}</span><b>${v}</b></div>`;
+  return `<div class="ficha">
+    ${tile('Qué compró',esc((c.productos||[]).join(' + ')||'—'))}
+    ${tile('Llegó el',c.entregado?fechaCorta(c.entregado):'Sin fecha de entrega · pedido del '+fechaCorta(c.fecha_pedido))}
+    ${tile('Pedidos en DOMMA',c.primera_compra?'Primera compra':esc(String(c.n_pedidos||'—'))+' · ya había comprado')}
+    </div><div class="fbadges"><span class="chip amber">Llamada de seguimiento: pregúntale cómo le va con el producto. Si le va bien, cuéntale que con la suscripción le llega sola cada mes, paga menos que en compra suelta y puede pausar o cancelar cuando quiera. No insistas si no le interesa.</span></div>`;
 }
 // 🔎 Ficha de calidad: qué marcó al irse y el guion en una línea. Sin cifras de venta a propósito.
 function fichaCalidad(c){
@@ -1250,10 +1304,11 @@ function fichaCalidad(c){
 // Una etiqueta grande y de color en la esquina de la tarjeta, en las listas de bajas y calidad.
 // Mismo criterio que el orden de «Quieren irse» (`nivelIrse`) y que la ⭐ (`nivelRescate`).
 function prioridad(c){
-  if(c.gestionada||c.registro||c.bienvenida||c.esBienvenida||c.tipo==='fallo') return '';
+  if(c.tipo==='compra'||c.esCompra||c.gestionada||c.registro||c.bienvenida||c.esBienvenida||c.tipo==='fallo') return '';
   const p=(cls,txt,tit)=>`<span class="chip prio ${cls}" title="${tit}">${txt}</span>`;
   if(c.medico) return p('red','🔴 Urgente · médica','Le prometimos llamarla en menos de 72 h y su plan sigue activo');
   if(c.tipo==='senal' && c.motivo==='no_puede_darse_de_baja') return p('red','🔴 Urgente · no puede darse de baja','Fallo nuestro: lleva días intentando irse');
+  if(c.tipo==='senal') return p('red','🔴 Alerta de LUNA · llamar hoy','La clienta le dijo a LUNA que se quiere ir. Es la llamada que más se rescata');
   if(c.tipo==='calidad') return c.por==='perfil' ? p('green','⭐ Puede volver','Clienta nueva o con varios productos: es el perfil que más se rescata')
                                                   : p('amber','🟠 Fallo nuestro · disculpa','Se fue por un error nuestro: pide disculpas, no ofrezcas nada');
   if(c.rescate===0) return p('green','⭐ Fácil de rescatar','Clienta nueva o con varios productos: es el perfil que más se rescata');
@@ -1277,6 +1332,7 @@ function tarjeta(c,i){
     // 🔔 La atascada va en rojo: no es «riesgo de baja», es una mujer a la que no dejamos irse.
     : c.tipo==='senal'?`<span class="chip ${c.motivo==='no_puede_darse_de_baja'?'red':'amber'}">🔔 Alerta de baja</span>`
     : c.tipo==='bienvenida'?'<span class="chip green">👋 Bienvenida</span>'
+    : c.tipo==='compra'?'<span class="chip amber">🛒 Compra única</span>'
     : c.tipo==='calidad'?'<span class="chip amber">🔎 Calidad</span>'
     : c.tipo==='fallo'?'<span class="chip red">Fallo de pago</span>':c.tipo==='derivada'?'<span class="chip amber">Derivada</span>':'<span class="chip amber">Baja</span>';
   const nombre = c.nombre? (c.contract_id?`<a href="#" onclick="verSub('${esc(c.customer_id)}','${esc(c.contract_id)}');return false">${esc(c.nombre)}</a>`:esc(c.nombre)) : (c.email?esc(c.email):'Sin nombre');
@@ -1285,10 +1341,11 @@ function tarjeta(c,i){
   return `<div class="card" data-state="${(c.medico&&c.horas>=MEDICO_LIMITE_H)?'red':(c.medico&&c.horas>=MEDICO_AVISO_H)?'amber':(c.esCancelada||c.salida==='cancelada')?'red':(c.resuelto&&c.salida!=='pagada')?'amber':((c.registro&&(c.directa||c.estado==='pausa'))||c.resuelto||c.esPagado||(c.gestionada&&!c.noLoc&&!c.esCobroHecho))?'green':'amber'}" id="c${i}">
     <div class="stripe"></div>
     <div class="body">
-      <div class="ctop"><div><div class="cname">${nombre}</div>${avisoContrato(c)}<div class="cwhy">${esc(c.why)}${esc(relojMedico(c))}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro&&!c.bienvenida)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div><div class="ctr">${prioridad(c)}${puntosContactos(c)}${chip}</div></div>
+      <div class="ctop"><div><div class="cname">${nombre}</div>${avisoContrato(c)}<div class="cwhy">${esc(c.why)}${esc(relojMedico(c))}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro&&!c.bienvenida&&c.tipo!=='compra')?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div><div class="ctr">${prioridad(c)}${puntosContactos(c)}${chip}</div></div>
       ${c.lectura?`<div class="lectura">💬 ${esc(c.lectura)}</div>`:''}
       ${c.bienvenida?fichaBienvenida(c):''}
       ${c.calidad?fichaCalidad(c):''}
+      ${c.compra?fichaCompra(c):''}
       <div class="cmeta-row"><span class="cmeta">${meta}</span>${insigniaDueno(c)}${nHist?`<a class="histlink" href="#" data-n="${nHist}" onclick="toggleHist(${i},this);return false">Ver historial · ${nHist}</a>`:''}</div>
       <div class="hist" id="hist${i}" hidden>${histInner(c,i)}</div>
       <div class="actions">
@@ -1334,7 +1391,10 @@ function paso2(i,contacto,btn,pre){
   // No localizada es IGUAL en todos los flujos: Intento 1/2 (negativo) + Pausa/Cancelación
   // siempre disponibles (los intentos solo se registran para el conteo, no gatean nada).
   let codigos;
-  if(caso.tipo==='bienvenida'){
+  if(caso.tipo==='compra'){
+    codigos = contacto==='no_localizada' ? ['compra_unica_no_contesta']
+      : ['compra_unica_suscrita','compra_unica_interesada','compra_unica_no_quiere'];
+  } else if(caso.tipo==='bienvenida'){
     // Menos es más: hablaste con ella (y si en la llamada pide irse, se cancela aquí mismo) o no contestó.
     codigos = contacto==='no_localizada' ? ['bienvenida_no_contesta']
       : ['bienvenida_bien','bienvenida_dudas','bienvenida_no_sabia','bienvenida_salvada','cancelacion'];
@@ -1361,7 +1421,7 @@ function paso2(i,contacto,btn,pre){
   document.getElementById('res'+i).innerHTML=
     `<div class="dgrid">${botones.map(([r,l,cls])=>`<button class="d ${cls}${pre&&pre.resultado===r?' sel':''}" onclick="seleccionar(${i},'${contacto}','${r}',this)">${l}</button>`).join('')}</div>
      <div class="prox-row"><label class="prox-lbl">${((caso.tipo==='bienvenida'||caso.tipo==='calidad')&&contacto==='no_localizada')?'📅 2ª llamada':'📅 Próxima llamada <span>(opcional)</span>'}</label><input type="date" id="prox${i}" class="proxin" value="${pre&&pre.prox?esc(String(pre.prox).slice(0,10)):''}"></div>
-     <textarea class="nota" id="nota${i}" rows="2" placeholder="${(caso.tipo==='calidad'&&contacto==='localizada')?'Obligatorio: qué le pasó, con sus palabras':'Nota (opcional): qué dijo, próximo paso…'}">${pre&&pre.nota?esc(pre.nota):''}</textarea>
+     <textarea class="nota" id="nota${i}" rows="2" placeholder="${((caso.tipo==='calidad'||caso.tipo==='compra')&&contacto==='localizada')?'Obligatorio: qué le pasó, con sus palabras':'Nota (opcional): qué dijo, próximo paso…'}">${pre&&pre.nota?esc(pre.nota):''}</textarea>
      <div class="dispo-foot">
        <button class="dfbtn dguardar" id="gbtn${i}" onclick="guardar(${i})" ${pre&&pre.resultado?'':'disabled'}>✓ Guardar</button>
      </div>
@@ -1435,6 +1495,7 @@ async function guardar(i){
   const nota=(document.getElementById('nota'+i).value||'').trim();
   // «Agendar 2ª llamada» sin fecha no es agendar: pide la fecha antes de guardar.
   // 🔎 Calidad: la llamada existe para saber QUÉ PASÓ. Sin nota no sirve de nada.
+  if(caso && caso.tipo==='compra' && contacto==='localizada' && nota.length<5){ if(msg){ msg.textContent='Apunta cómo le va y qué habéis acordado.'; msg.style.color='var(--red)'; } return; }
   if(caso && caso.tipo==='calidad' && contacto==='localizada' && resultado!=='calidad_no_quiere' && nota.length<5){ if(msg){ msg.textContent='Apunta qué le pasó, con sus palabras: es lo que necesitamos saber.'; msg.style.color='var(--red)'; } return; }
   if(resultado==='segunda_llamada' && !prox){ if(msg){ msg.textContent='Pon la fecha de la 2ª llamada (📅 Próxima llamada).'; msg.style.color='var(--red)'; } return; }
   // «Pausa» sin fecha de recontacto = aparcamiento que se acumula. La pausa lleva SIEMPRE
@@ -1474,7 +1535,7 @@ async function guardar(i){
       return;
     }
     // ── REGISTRAR una gestión nueva ──
-    const body={tipo_caso:caso.tipo==='fallo'?'fallo_pago':(caso.tipo==='bienvenida'?'bienvenida':(caso.tipo==='calidad'?'calidad':'baja')), customer_id:destino.customer_id, contract_id:destino.contract_id, nombre:caso.nombre||'', email:caso.email||'', phone:caso.phone||'', contacto, resultado, agente:agActual(), nota, proxima_llamada:prox, solo_registro:soloRegistro};
+    const body={tipo_caso:caso.tipo==='fallo'?'fallo_pago':(caso.tipo==='bienvenida'?'bienvenida':(caso.tipo==='calidad'?'calidad':(caso.tipo==='compra'?'compra_unica':'baja'))), customer_id:destino.customer_id, contract_id:destino.contract_id, nombre:caso.nombre||'', email:caso.email||'', phone:caso.phone||'', contacto, resultado, agente:agActual(), nota, proxima_llamada:prox, solo_registro:soloRegistro};
     const r=await fetch(API_BAJAS+'/api/dashboard/gestion',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
     const d=await r.json().catch(()=>null);
     if(sesionCaducada(r,d)){ avisarSesion(msg, gb); return; }

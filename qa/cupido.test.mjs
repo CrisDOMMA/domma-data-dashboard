@@ -65,7 +65,7 @@ const PIEZAS = [
   extraer('function histDe'), extraer('function gestionadaHoy'),
   extraer('function casoCerrado'), extraer('function enEspera'),
   extraer('function yaRegistrada'), linea('const SALVA='), extraer('function yaSalvada'),
-  extraer('function gestionadasCards'),
+  extraer('function gestionadasCards'), extraer('function nivelIrse'), extraer('function compararSenales'), extraer('function prioridad'), extraer('function compraCerrada'), extraer('function fichaCompra'),
   linea('const BIENV_MAX_INTENTOS='), extraer('function diaSiguienteHabil'), extraer('function bienvenidaCerrada'), extraer('function calidadCerrada'), linea('const MOTIVO_DIFICIL='), extraer('function nivelRescate'), extraer('function marcaRescate'),
   linea('const soloDig='), linea('const sinPre ='), extraer('const matchB='),
 ].filter(Boolean);
@@ -79,7 +79,7 @@ const cargar = new Function('estado', `
   const localStorage = { getItem: () => null, setItem() {} };   // arranque limpio
   let busca = '';
   ${PIEZAS.join('\n')}
-  return { CATALOGO, TERMINAL, CIERRA, ESPERA, COBRO_HECHO, EQUIPO,
+  return { nivelIrse, compararSenales, prioridad, compraCerrada, fichaCompra, CATALOGO, TERMINAL, CIERRA, ESPERA, COBRO_HECHO, EQUIPO,
            gestionadaHoy, casoCerrado, enEspera, yaRegistrada, yaSalvada, gestionadasCards, bienvenidaCerrada, calidadCerrada, nivelRescate, marcaRescate, diaSiguienteHabil,
            botonesAsignacion, duenoDe, sinDueno, esMio, agActual, filtrarPorDueno,
            verDePorDefecto: () => verDe,
@@ -98,7 +98,8 @@ const bloque = n => console.log(`\n${n}`);
 function conGestiones(gestiones, fseen) {
   const g = gestiones.map(x => ({ contract_id: '1', es_test: 0, contacto: 'localizada', ...x }))
                      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-  API.set({ GEST: { byC: { '1': g }, byCust: {} }, GALL: g, FSEEN: fseen || {} });
+  const byCust={}; for(const x of g) if(x.customer_id) (byCust[String(x.customer_id)]??=[]).push(x);
+  API.set({ GEST: { byC: { '1': g }, byCust }, GALL: g, FSEEN: fseen || {} });
 }
 const CASO = { contract_id: '1', first_seen: d(9), fecha: d(9) };
 /** ¿Sale hoy en «por llamar»? (mismo filtro que render()) */
@@ -456,7 +457,7 @@ bloque('BIENVENIDAS — quién sale del cubo y qué NO puede romper');
     (() => { const i = SRC.indexOf("if(caso.tipo==='bienvenida'){"), j = SRC.indexOf("} else if(contacto==='no_localizada'){", i);
              const b = SRC.slice(i, j); return i > 0 && j > i && !/'intento_[12]'|'retenida'/.test(b) && /'bienvenida_no_contesta'/.test(b) && /'cancelacion'/.test(b); })());
   t('se registra con su propio tipo de caso',
-    /caso\.tipo==='bienvenida'\?'bienvenida':\(caso\.tipo==='calidad'\?'calidad':'baja'\)/.test(SRC));
+    /caso\.tipo==='bienvenida'\?'bienvenida':\(caso\.tipo==='calidad'\?'calidad':\(caso\.tipo==='compra'\?'compra_unica':'baja'\)\)/.test(SRC));
   t('la sección se carga con `.catch`: si falla, la estación sigue en pie',
     /\/api\/dashboard\/bienvenidas'[^\n]*\.catch\(\(\)=>\(\{\}\)\)/.test(SRC));
   t('las bienvenidas no entran en LISTA (no hinchan «Todas» ni la barra del día)',
@@ -504,7 +505,7 @@ bloque('BIENVENIDAS — quién sale del cubo y qué NO puede romper');
 
   const W = fs.readFileSync(path.join(RAIZ, '..', 'flujo-bajas', 'worker', 'src', 'index.js'), 'utf8');
   t('worker: `bienvenida` es un tipo de caso propio (ni baja ni fallo de pago)',
-    /b\.tipo_caso === "bienvenida" \? "bienvenida" : \(b\.tipo_caso === "calidad" \? "calidad" : "baja"\)/.test(W));
+    /b\.tipo_caso === "bienvenida" \? "bienvenida" : \(b\.tipo_caso === "calidad" \? "calidad" : \(b\.tipo_caso === "compra_unica" \? "compra_unica" : "baja"\)\)/.test(W));
   t('worker: el email de 72 h sigue atado SOLO a fallo_pago',
     /tipo === "fallo_pago" && resultado === "intento_2"/.test(W));
   t('worker: la entrega sale de `deliveredAt`, no de «enviado»',
@@ -536,7 +537,7 @@ bloque('BIENVENIDAS — quién sale del cubo y qué NO puede romper');
 bloque('PESTAÑAS — nuevas clientas y fallos de pago; las bajas no se pierden');
 {
   const S = (SRC.match(/const SECCIONES=\{[\s\S]*?\n\};/) || [''])[0];
-  t('hay tres secciones: bienvenida, fallo y otros', /bienvenida:\{/.test(S) && /fallo:\{/.test(S) && /otros:\{/.test(S));
+  t('hay cuatro secciones: bienvenida, fallo, compra y otros', /bienvenida:\{/.test(S) && /fallo:\{/.test(S) && /otros:\{/.test(S) && /compra:\{/.test(S));
   t('las cancelaciones NO están en las dos pestañas de trabajo',
     (() => { const f = (S.match(/fallo:\{[^\n]*/) || [''])[0], w = (S.match(/bienvenida:\{[^\n]*/) || [''])[0];
              return !/'baja'|'derivada'|'cancelada'|'senal'|'medicas'/.test(f + w); })());
@@ -548,7 +549,7 @@ bloque('PESTAÑAS — nuevas clientas y fallos de pago; las bajas no se pierden'
   t('la prioridad se ve en la tarjeta (etiqueta grande), no solo en el texto pequeño',
     /<div class="ctr">\$\{prioridad\(c\)\}/.test(SRC) && /function prioridad\(c\)\{[\s\S]{0,400}c\.medico\) return p\('red'/.test(SRC));
   t('en «Quieren irse» las médicas van SIEMPRE primero (plazo de 72 h)',
-    /const med = VIS\.filter\(c=>c\.medico\)[^\n]*\n\s*VIS = \[\.\.\.med, \.\.\.\[1,2,3,4\]/.test(SRC));
+    /const med = VIS\.filter\(c=>c\.medico\)[^\n]*\n\s*VIS = \[\.\.\.med, \.\.\.VIS\.filter/.test(SRC));
   t('«Bajas por cerrar» sólo se pinta si queda algún caso vivo',
     /filter\(k=>k!=='otros'\|\|nSec\.otros\|\|seccion==='otros'\)/.test(SRC));
   t('las médicas cuentan para que la pestaña no desaparezca con una dentro',
@@ -556,9 +557,54 @@ bloque('PESTAÑAS — nuevas clientas y fallos de pago; las bajas no se pierden'
   t('Carme entra a bienvenidas y el resto a fallos de pago',
     /me\.email==='ayuda@wearedomma\.com' \? 'bienvenida' : 'fallo'/.test(SRC));
   t('la barra del día es la de la pestaña, no la de toda la estación',
-    /const pendientes = seccion==='bienvenida' \? bienv\.length : vivasSec\.length\+agS\.length\+porRegSec\.length/.test(SRC));
+    /const pendientes = seccion==='compra' \? compras\.length : seccion==='bienvenida' \? bienv\.length : vivasSec\.length\+agS\.length\+porRegSec\.length/.test(SRC));
   t('el buscador sigue mirando TODO (no hereda la pestaña)',
-    /for\(const c of \[\.\.\.LISTA, \.\.\.gestionadasCards\(\), \.\.\.REGISTRO\]\)/.test(SRC));
+    /for\(const c of \[\.\.\.LISTA, \.\.\.gestionadasCards\(\), \.\.\.REGISTRO, \.\.\.COMPRA\]\)/.test(SRC));
+}
+
+// 24/11/2026 · Decisión de Cristina tras el feedback de Carme: tres cambios, fuente real.
+bloque('LUNA, CALIDAD Y COMPRA ÚNICA');
+{
+  t('LUNA: todas las alertas van tras médicas y antes de ⭐',
+    ['no_puede_darse_de_baja','efectos_secundarios','no_le_funciona','otra'].every(m=>API.nivelIrse({tipo:'senal',motivo:m})===1)
+    && API.nivelIrse({medico:true,tipo:'senal'})===0 && API.nivelIrse({rescate:0})===2
+    && API.nivelIrse({rescate:1})===3 && API.nivelIrse({rescate:2})===4);
+  const alertas=[{motivo:'otra',fecha:'2026-11-15'}, {motivo:'otra',ultima_senal:'2026-11-10'},
+    {motivo:'efectos_secundarios',fecha:'2026-11-20'}, {motivo:'no_puede_darse_de_baja',fecha:'2026-11-21'}];
+  t('LUNA: bloqueo y efectos primero, el resto de más antigua a más nueva',
+    alertas.sort(API.compararSenales).map(c=>c.ultima_senal||c.fecha).join() === '2026-11-20,2026-11-21,2026-11-10,2026-11-15');
+  t('LUNA: chip rojo con guion claro', API.prioridad({tipo:'senal',motivo:'otra'}).includes('🔴 Alerta de LUNA · llamar hoy')
+    && API.prioridad({tipo:'senal'}).includes('La clienta le dijo a LUNA que se quiere ir. Es la llamada que más se rescata'));
+  t('LUNA: conserva el chip de no poder darse de baja', API.prioridad({tipo:'senal',motivo:'no_puede_darse_de_baja'}).includes('🔴 Urgente · no puede darse de baja'));
+  t('calidad: chip y subtítulo dicen fallo nuestro', SRC.includes('🔎 Fallo nuestro (calidad)') && SRC.includes('Bajas y calidad por fallo nuestro'));
+  t('compra: sección entre fallos y bajas, con sus dos listas', SRC.includes("['bienvenida','fallo','compra','otros']")
+    && SRC.includes("compra:{def:'compra', chips:[['compra','Por llamar'],['compra_hechas','Ya llamadas']]}")
+    && SRC.includes("compra:['🛒 Compra única','Pasar a suscripción']"));
+  const codes=['compra_unica_suscrita','compra_unica_interesada','compra_unica_no_quiere'];
+  t('compra: tres resultados finales y sin acciones sobre la suscripción', codes.every(k=>API.TERMINAL.has(k)&&!API.CIERRA.has(k)&&!API.ESPERA.has(k)&&!API.CATALOGO[k].cancela));
+  t('compra: no contesta no es terminal', API.CATALOGO.compra_unica_no_contesta.tone==='amber'&&!API.TERMINAL.has('compra_unica_no_contesta'));
+  t('compra: suscrita celebra y las etiquetas son claras', API.CATALOGO.compra_unica_suscrita.win==='🛒 Suscrita'
+    && API.CATALOGO.compra_unica_interesada.b==='Le interesa: enviar enlace' && API.CATALOGO.compra_unica_no_quiere.tone==='gray');
+  t('compra: el endpoint tiene catch para no romper la estación', /compra-unica'[^\n]*\.catch\(\(\)=>\(\{\}\)\)/.test(SRC));
+  t('compra: solo sus resultados, sin cancelación ni pausa', (()=>{
+    const bloque=SRC.slice(SRC.indexOf("if(caso.tipo==='compra'){"),SRC.indexOf("} else if(caso.tipo==='bienvenida'){"));
+    return [...codes,'compra_unica_no_contesta'].every(k=>bloque.includes(k))&&!/cancelacion|pausa|intento_2/.test(bloque);
+  })());
+  t('compra: guardar envía compra_unica', SRC.includes("caso.tipo==='compra'?'compra_unica':'baja'"));
+  t('compra: nota obligatoria si hablaron', SRC.includes("caso.tipo==='compra' && contacto==='localizada' && nota.length<5"));
+  conGestiones([{tipo_caso:'compra_unica',customer_id:'9',contract_id:'',resultado:'compra_unica_interesada',created_at:d(1)}]);
+  t('compra: el historial conserva tipo y marca', API.gestionadasCards()[0].tipo==='compra'&&API.gestionadasCards()[0].esCompra);
+  t('compra: sin asignación ni prioridad incluso desde historial', API.botonesAsignacion({tipo:'compra',contract_id:'1'},0)===''
+    && API.prioridad({tipo:'compra'})==='' && API.prioridad({esCompra:true})==='');
+  t('compra: hablaron → fuera', API.compraCerrada({customer_id:'9'}));
+  conGestiones([{tipo_caso:'compra_unica',customer_id:'9',contract_id:'',resultado:'compra_unica_no_contesta',created_at:d(1)}]);
+  t('compra: un intento de ayer vuelve', !API.compraCerrada({customer_id:'9'}));
+  conGestiones([1,2].map(k=>({tipo_caso:'compra_unica',customer_id:'9',contract_id:'',resultado:'compra_unica_no_contesta',created_at:d(k)})));
+  t('compra: dos intentos salen de la lista', API.compraCerrada({customer_id:'9'}));
+  t('compra: ficha cuenta producto, entrega, primera compra y guion', (()=>{
+    const ficha=API.fichaCompra({productos:['Deseo <x>'],entregado:'2026-11-10',primera_compra:true});
+    return ficha.includes('Deseo &lt;x&gt;')&&ficha.includes('Primera compra')&&ficha.includes('Llamada de seguimiento: pregúntale')&&ficha.includes('No insistas si no le interesa.');
+  })());
 }
 
 // ── 8. Humo contra producción (opcional) ──────────────────────────────
@@ -606,9 +652,9 @@ if (PROD) {
   t('Olga: aviso visible en tarjeta y panel',SRC.includes('${avisoContrato(c)}')&&extraer('function reveal(').includes('${avisoContrato(VIS[i])}'));
   t('contrato vigente mantiene su destino',destinoGestion({...caso,estado_contrato:'active'}).contract_id===caso.contract_id);
   const guardarReal=extraer('async function guardar(');
-  async function guardarCaso(c){
+  async function guardarCaso(c, resultado='cancelacion', nota=''){
     let body, confirms=[];
-    const nodes={d0:{dataset:{contacto:'localizada',sel:'cancelacion'}},msg0:{style:{}},nota0:{value:''},prox0:{value:''}};
+    const nodes={d0:{dataset:{contacto:'localizada',sel:resultado}},msg0:{style:{}},nota0:{value:nota},prox0:{value:''}};
     const document={getElementById:id=>nodes[id]||null,querySelectorAll:()=>[]};
     // La respuesta termina por sesión caducada justo después de capturar el POST.
     const fn=new Function('VIS','document','destinoGestion','fetch','confirm',`
@@ -622,6 +668,11 @@ if (PROD) {
   const viva=await guardarCaso(caso);
   t('Olga: POST usa contract_id y customer_id activos',viva.body.contract_id===activo.contract_id&&viva.body.customer_id===activo.customer_id&&!viva.body.solo_registro);
   t('Olga: cancelar la activa sigue pidiendo confirmación',viva.confirms.length===1&&viva.confirms[0].includes('CANCELA AHORA'));
+  const compra=await guardarCaso({tipo:'compra',customer_id:'9',contract_id:''},'compra_unica_interesada','Le va bien, enviar enlace');
+  t('compra: POST real guarda tipo, clienta y contrato vacío',compra.body.tipo_caso==='compra_unica'&&compra.body.customer_id==='9'&&compra.body.contract_id==='');
+  t('compra: registrar no pide confirmar acciones en Appstle',compra.confirms.length===0);
+  const sinNota=await guardarCaso({tipo:'compra',customer_id:'9'},'compra_unica_interesada');
+  t('compra: guardar real impide POST sin nota',sinNota.body===undefined);
   const sinActiva=await guardarCaso({...caso,contrato_activo:null});
   t('cancelada sin activa: POST solo_registro',sinActiva.body.solo_registro===true&&sinActiva.body.contract_id===caso.contract_id);
   t('cancelada sin activa: no pide confirmar cancelación',sinActiva.confirms.length===0);
