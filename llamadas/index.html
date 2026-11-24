@@ -1055,7 +1055,7 @@ function render(){
   const vivasFallo = vivas.filter(esFalloC);
   const agFallo = agendadas.filter(esFalloC), agOtros = agendadas.filter(c=>!esFalloC(c)&&!c.esBienvenida&&!c.esCompra);
   const nSec = {
-    coach: COACH.filter(c=>!coachCerrada(c) && diaCoach(c.inicio)<=diaCoach(new Date().toISOString())).length,   // hoy + pasadas sin registrar; las futuras no cuentan
+    coach: COACH.filter(coachPendiente).length,   // hoy + pasadas sin registrar desde el arranque; las futuras no cuentan
     bienvenida: bienv.length,
     compra: compras.length,
     fallo: vivasFallo.length + agFallo.length + porRegistrar.length,
@@ -1216,6 +1216,7 @@ function render(){
     : filtro==='irse' ? (VIS.length ? `${VIS.length} quieren irse y siguen activas${medicas.length?` — primero ${medicas.length} médica${medicas.length===1?'':'s'} (plazo de 72 h)`:''}` : 'nadie pendiente 👌')
     : filtro==='pausasfut' ? `${VIS.length} pausa${VIS.length===1?'':'s'} con fecha más adelante — salen en «Recontactos de hoy» el día que toquen`
     : filtro==='calidad' ? (VIS.length ? `${VIS.length} llamada${VIS.length===1?'':'s'} de calidad — bajas ya hechas: pregunta qué pasó${VIS.some(c=>c.por==='perfil')?` · ${VIS.filter(c=>c.por==='perfil').length} con ⭐ (podrían volver)`:''}` : 'ninguna llamada de calidad pendiente 👌')
+    : filtro==='coach' ? (()=>{ const n=COACH.filter(coachPendiente).length; return n ? `${n} sesi${n===1?'ón':'ones'} COACH por registrar` : 'ninguna sesión COACH por registrar 👌'; })()
     : filtro==='bienv_hechas' ? `${VIS.length} bienvenida${VIS.length===1?'':'s'} ya llamada${VIS.length===1?'':'s'}`
     : filtro==='bienvenida' ? (VIS.length
         ? `${VIS.length} bienvenida${VIS.length===1?'':'s'} por llamar${VIS.filter(c=>c.intentos).length?` · ${VIS.filter(c=>c.intentos).length} en 2ª llamada`:''}`
@@ -1248,11 +1249,14 @@ function render(){
 
 function diaCoach(inicio){ return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(inicio)); }
 function horaCoach(inicio){ return new Date(inicio).toLocaleString('es-ES',{timeZone:'Europe/Madrid',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+' · Madrid'; }
+// Arranque de la Agenda COACH en CUPIDO: las sesiones anteriores ya se hicieron sin registro y no son pendientes.
+const COACH_DESDE='2026-11-24';
+function coachPendiente(c){ const d=diaCoach(c.inicio); return d>=COACH_DESDE && d<=diaCoach(new Date().toISOString()) && !coachCerrada(c); }
 function coachCerrada(c){ return histDe(c).some(g=>!g.es_test&&['coach_realizada','coach_cancela','coach_reactiva','coach_seguimiento'].includes(g.resultado)); }
 function pintarCoach(){
   const hoy=diaCoach(new Date().toISOString());
   const citas=[...COACH].sort((a,b)=>a.inicio.localeCompare(b.inicio));
-  const grupos=[citas.filter(c=>diaCoach(c.inicio)===hoy),citas.filter(c=>diaCoach(c.inicio)<hoy&&!coachCerrada(c)),citas.filter(c=>diaCoach(c.inicio)>hoy)];
+  const grupos=[citas.filter(c=>diaCoach(c.inicio)===hoy),citas.filter(c=>diaCoach(c.inicio)<hoy&&coachPendiente(c)),citas.filter(c=>diaCoach(c.inicio)>hoy)];
   VIS=grupos.flat(); let i=0;
   const bloque=(titulo,lista)=>`<h3>${titulo} · ${lista.length}</h3>`+(lista.map(c=>tarjeta({...c,why:horaCoach(c.inicio)+(coachCerrada(c)?' · Registrada':c.ultima_gestion?' · '+(RES_LABEL[c.ultima_gestion.resultado]||c.ultima_gestion.resultado):'')},i++)).join('')||'<div class="empty">Sin citas</div>');
   document.getElementById('list').innerHTML=(COACH_ERROR?`<div class="empty">${esc(COACH_ERROR)}</div>`:'')+bloque('Hoy',grupos[0])+bloque('Pendientes de registrar',grupos[1])+`<details><summary>Próximos 7 días · ${grupos[2].length}</summary>${bloque('Próximos 7 días',grupos[2])}</details>`;
