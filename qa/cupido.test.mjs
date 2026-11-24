@@ -267,7 +267,7 @@ t('no inventa coincidencias con un número corto (2 dígitos no son un teléfono
 t('sigue sin encontrar a quien no es', !API.busca('mercedes', CLI));
 
 // La regresión de fondo: el corpus NO puede salir de los cubos filtrados por dueña/fecha.
-const bloqueBusca = (SRC.match(/if\(busca\)\{[\s\S]{0,600}?\n\s*\}\s*else if/) || [''])[0];
+const bloqueBusca = (SRC.match(/if\(busca\)\{[\s\S]{0,1600}?\n\s*\}\s*else if/) || [''])[0];
 t('el corpus de búsqueda sale de LISTA + gestionadasCards() + REGISTRO, sin filtrar',
   /\.\.\.LISTA/.test(bloqueBusca) && /gestionadasCards\(\)/.test(bloqueBusca) && /\.\.\.REGISTRO/.test(bloqueBusca));
 t('la búsqueda NO hereda «La lista de: …» ni el filtro de fecha',
@@ -559,7 +559,11 @@ bloque('PESTAÑAS — nuevas clientas y fallos de pago; las bajas no se pierden'
   t('la barra del día es la de la pestaña, no la de toda la estación',
     /const pendientes = seccion==='compra' \? compras\.length : seccion==='bienvenida' \? bienv\.length : vivasSec\.length\+agS\.length\+porRegSec\.length/.test(SRC));
   t('el buscador sigue mirando TODO (no hereda la pestaña)',
-    /for\(const c of \[\.\.\.LISTA, \.\.\.gestionadasCards\(\), \.\.\.REGISTRO, \.\.\.COMPRA\]\)/.test(SRC));
+    /const vivasB=\[\.\.\.LISTA, \.\.\.BIENV\.filter\(c=>!bienvenidaCerrada\(c\)\), \.\.\.CALID, \.\.\.COMPRA\]/.test(SRC)
+    && /for\(const c of \[\.\.\.vivasB, \.\.\.gestionadasCards\(\), \.\.\.REGISTRO\]\)/.test(SRC));
+  // 24/11/2026 · caso Olga: buscando a una clienta nueva salía solo su historial de fallo.
+  t('el buscador incluye bienvenidas y calidad', /\.\.\.BIENV\.filter/.test(SRC) && /\.\.\.CALID, \.\.\.COMPRA\]/.test(SRC));
+  t('si la clienta tiene tarjeta viva, su historial no sale en la búsqueda', /if\(c\.gestionada && quien\(c\)\.some\(x=>conViva\.has\(x\)\)\) continue;/.test(SRC));
 }
 
 // 24/11/2026 · Decisión de Cristina tras el feedback de Carme: tres cambios, fuente real.

@@ -1141,7 +1141,17 @@ function render(){
   };
   if(busca){
     const seen=new Set(); VIS=[];
-    for(const c of [...LISTA, ...gestionadasCards(), ...REGISTRO, ...COMPRA]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||'').toLowerCase(); if(!k||seen.has(k)) continue; seen.add(k); if(matchB(c)) VIS.push(c); }
+    // 24/11/2026 (Carme, caso Olga): el buscador no miraba bienvenidas ni calidad. Buscando a
+    // una clienta nueva salía solo su tarjeta vieja del historial (fallo de pago) y al registrar
+    // ofrecía cerrar la suscripción en vez de la bienvenida. Ahora primero las tarjetas en curso y,
+    // si la clienta tiene una, se esconde su historial (mismo customer_id, email o teléfono).
+    const vivasB=[...LISTA, ...BIENV.filter(c=>!bienvenidaCerrada(c)), ...CALID, ...COMPRA];   // sin filtro de fecha: buscar mira todo
+    const tel9=v=>String(v||'').replace(/\D/g,'').slice(-9);
+    const quien=c=>[String(c.customer_id||''), (c.email||'').toLowerCase(), tel9(c.phone||c.telefono)].filter(Boolean);
+    const conViva=new Set(vivasB.filter(matchB).flatMap(quien));
+    for(const c of [...vivasB, ...gestionadasCards(), ...REGISTRO]){ const k=nid(c.contract_id)||String(c.customer_id||'')||(c.email||'').toLowerCase(); if(!k||seen.has(k)) continue; seen.add(k);
+      if(c.gestionada && quien(c).some(x=>conViva.has(x))) continue;
+      if(matchB(c)) VIS.push(c); }
   } else if(filtro==='wacurso'){ VIS=waCurso; }
   else if(filtro==='porregistrar'){ VIS=porRegistrar; }
   else if(filtro==='medicas'){ VIS=medicas; }
