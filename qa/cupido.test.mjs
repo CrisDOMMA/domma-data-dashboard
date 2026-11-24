@@ -594,6 +594,40 @@ if (PROD) {
     !html.includes('domma_agente'));
 }
 
+// 24/11/2026 · caso Olga: se evalúan los helpers y el guardado reales, sin red.
+{
+  const {destinoGestion, avisoContrato}=new Function(`${linea('const esc=')}\n${extraer('function destinoGestion(')}\n${extraer('function avisoContrato(')}\nreturn {destinoGestion,avisoContrato};`)();
+  const activo={contract_id:'146043732347',customer_id:'24938926932347',productos:['Deseo','<Equilibrio>']};
+  const caso={contract_id:'143861154171',customer_id:null,estado_contrato:'cancelled',contrato_activo:activo,tipo:'baja'};
+  API.set({GALL:[{...caso,contacto:'localizada',resultado:'retenida',tipo_caso:'baja'}]});
+  const card=API.gestionadasCards()[0];
+  t('Olga: tarjeta conserva estado y contrato activo',card.estado_contrato==='cancelled'&&card.contrato_activo===activo);
+  t('Olga: aviso escapa productos y los une',avisoContrato(caso).includes('Deseo + &lt;Equilibrio&gt;'));
+  t('Olga: aviso visible en tarjeta y panel',SRC.includes('${avisoContrato(c)}')&&extraer('function reveal(').includes('${avisoContrato(VIS[i])}'));
+  t('contrato vigente mantiene su destino',destinoGestion({...caso,estado_contrato:'active'}).contract_id===caso.contract_id);
+  const guardarReal=extraer('async function guardar(');
+  async function guardarCaso(c){
+    let body, confirms=[];
+    const nodes={d0:{dataset:{contacto:'localizada',sel:'cancelacion'}},msg0:{style:{}},nota0:{value:''},prox0:{value:''}};
+    const document={getElementById:id=>nodes[id]||null,querySelectorAll:()=>[]};
+    // La respuesta termina por sesión caducada justo después de capturar el POST.
+    const fn=new Function('VIS','document','destinoGestion','fetch','confirm',`
+      const CANCELA_APPSTLE=new Set(['cancelacion']); const RES_LABEL={};
+      const API_BAJAS='offline', token='', agActual=()=> 'QA';
+      const sesionCaducada=()=>true, avisarSesion=()=>{};
+      ${guardarReal}; return guardar(0);`);
+    await fn([c],document,destinoGestion,async(url,opts)=>{body=JSON.parse(opts.body);return {json:async()=>({ok:true})};},msg=>{confirms.push(msg);return true;});
+    return {body,confirms};
+  }
+  const viva=await guardarCaso(caso);
+  t('Olga: POST usa contract_id y customer_id activos',viva.body.contract_id===activo.contract_id&&viva.body.customer_id===activo.customer_id&&!viva.body.solo_registro);
+  t('Olga: cancelar la activa sigue pidiendo confirmación',viva.confirms.length===1&&viva.confirms[0].includes('CANCELA AHORA'));
+  const sinActiva=await guardarCaso({...caso,contrato_activo:null});
+  t('cancelada sin activa: POST solo_registro',sinActiva.body.solo_registro===true&&sinActiva.body.contract_id===caso.contract_id);
+  t('cancelada sin activa: no pide confirmar cancelación',sinActiva.confirms.length===0);
+  t('cancelada sin activa: aviso explica solo registro',avisoContrato({...caso,contrato_activo:null}).includes('solo se apunta la llamada, no se toca Appstle'));
+}
+
 // ── Resultado ─────────────────────────────────────────────────────────
 console.log(`\n${ok} OK · ${ko} KO${PROD ? '' : '   (añade --prod para el humo contra producción)'}`);
 process.exit(ko ? 1 : 0);

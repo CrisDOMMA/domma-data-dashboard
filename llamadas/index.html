@@ -920,10 +920,26 @@ function gestionadasCards(soloContacto){
       ? ` · ⚠️ venció el ${fechaCorta(g.proxima_llamada)}`
       : ` · 📅 próx. ${fechaCorta(g.proxima_llamada)}`):'';
     out.push({tipo:t, gestionada:true, noLoc, esPagado:g.resultado==='pagado', esCobroHecho:COBRO_HECHO.has(g.resultado), esPausa:g.resultado==='pausa', esSegunda:g.resultado==='segunda_llamada', esCancelada:CANCELAR.has(g.resultado), esBienvenida:g.tipo_caso==='bienvenida', esCalidad:g.tipo_caso==='calidad', prox:g.proxima_llamada||'', gestId:g.id, nombre:g.nombre, email:g.email, phone:g.phone,
-      customer_id:g.customer_id, contract_id:g.contract_id, fecha:(g.created_at||'').slice(0,10),
+      customer_id:g.customer_id, contract_id:g.contract_id, estado_contrato:g.estado_contrato, contrato_activo:g.contrato_activo, fecha:(g.created_at||'').slice(0,10),
       why:`${noLoc?'No localizada':'Localizada'}${res?' · '+res:''}${g.agente?' · '+g.agente:''} · ${fechaCorta(g.created_at)}${prox}`});
   }
   return out;
+}
+
+// 24/11/2026 · caso Olga, suscripción duplicada: registrar en la viva o sólo dejar constancia.
+function destinoGestion(caso){
+  const cancelada=caso.estado_contrato==='cancelled';
+  const activo=cancelada?caso.contrato_activo:null;
+  return {customer_id:(activo||caso).customer_id||'', contract_id:(activo||caso).contract_id||'',
+    solo_registro:!!caso.registro || (cancelada&&!activo)};
+}
+function avisoContrato(caso){
+  if(caso.estado_contrato!=='cancelled') return '';
+  const activo=caso.contrato_activo;
+  const productos=activo&&Array.isArray(activo.productos)?activo.productos.join(' + '):'';
+  return `<div class="cwhy">${esc(activo
+    ? '⚠️ Esta suscripción está cancelada. La llamada se apuntará en su suscripción activa'+(productos?' ('+productos+')':'')+'.'
+    : '⚠️ Esta suscripción ya está cancelada: solo se apunta la llamada, no se toca Appstle.')}</div>`;
 }
 
 let VIS=[];   // lista exacta que se está pintando (índice de las tarjetas → esta lista)
@@ -1269,7 +1285,7 @@ function tarjeta(c,i){
   return `<div class="card" data-state="${(c.medico&&c.horas>=MEDICO_LIMITE_H)?'red':(c.medico&&c.horas>=MEDICO_AVISO_H)?'amber':(c.esCancelada||c.salida==='cancelada')?'red':(c.resuelto&&c.salida!=='pagada')?'amber':((c.registro&&(c.directa||c.estado==='pausa'))||c.resuelto||c.esPagado||(c.gestionada&&!c.noLoc&&!c.esCobroHecho))?'green':'amber'}" id="c${i}">
     <div class="stripe"></div>
     <div class="body">
-      <div class="ctop"><div><div class="cname">${nombre}</div><div class="cwhy">${esc(c.why)}${esc(relojMedico(c))}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro&&!c.bienvenida)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div><div class="ctr">${prioridad(c)}${puntosContactos(c)}${chip}</div></div>
+      <div class="ctop"><div><div class="cname">${nombre}</div>${avisoContrato(c)}<div class="cwhy">${esc(c.why)}${esc(relojMedico(c))}${(c.registro&&c.fecha)?` · <b class="antig">📅 ${fechaCorta(c.fecha)}</b>`:''}${(diasEspera(c)>0&&!c.gestionada&&!c.registro&&!c.bienvenida)?` · <b class="antig">⏳ ${diasEspera(c)} día${diasEspera(c)===1?'':'s'} esperando</b>`:''}${c.alerta?' · <b style="color:var(--red)">pasa de 72h</b>':''}</div></div><div class="ctr">${prioridad(c)}${puntosContactos(c)}${chip}</div></div>
       ${c.lectura?`<div class="lectura">💬 ${esc(c.lectura)}</div>`:''}
       ${c.bienvenida?fichaBienvenida(c):''}
       ${c.calidad?fichaCalidad(c):''}
@@ -1299,6 +1315,7 @@ function reveal(i){
     ? `<div class="dispo-q" style="font-weight:400;opacity:.75;font-size:13px">Caso ya cerrado: esto deja constancia de tu llamada. No cambia nada en Appstle.</div>` : '';
   d.innerHTML=`<div class="dispo-head"><span class="dispo-title">Registrar la llamada</span><button class="dispo-close" onclick="cerrar(${i})" title="Cerrar">✕</button></div>
     ${avisoCerrado}
+    ${avisoContrato(VIS[i])}
     <div class="dispo-q">¿Has podido hablar con ella?</div>
     <div class="seg"><button class="segb" onclick="paso2(${i},'localizada',this)">Sí, localizada</button><button class="segb" onclick="paso2(${i},'no_localizada',this)">No localizada</button></div>
     <div id="res${i}"></div>`;
@@ -1426,7 +1443,8 @@ async function guardar(i){
   if(resultado==='pausa' && prox<=hoyISO()){ if(msg){ msg.textContent='La fecha de fin de pausa debe ser futura.'; msg.style.color='var(--red)'; } return; }
   // Caso ya cerrado (tarjeta de consulta): se registra, no se ejecuta. Los avisos de abajo
   // hablan de acciones reales en Appstle, así que aquí serían mentira y darían miedo de balde.
-  const soloRegistro = !!(caso && caso.registro);
+  const destino = destinoGestion(caso);
+  const soloRegistro = destino.solo_registro;
   // La pausa EJECUTA en Appstle (mueve el próximo cobro a la fecha) → confirmación explícita.
   if(resultado==='pausa' && !editId && !soloRegistro){
     const quienP=(caso&&caso.nombre)?caso.nombre:'esta clienta';
@@ -1456,7 +1474,7 @@ async function guardar(i){
       return;
     }
     // ── REGISTRAR una gestión nueva ──
-    const body={tipo_caso:caso.tipo==='fallo'?'fallo_pago':(caso.tipo==='bienvenida'?'bienvenida':(caso.tipo==='calidad'?'calidad':'baja')), customer_id:caso.customer_id||'', contract_id:caso.contract_id||'', nombre:caso.nombre||'', email:caso.email||'', phone:caso.phone||'', contacto, resultado, agente:agActual(), nota, proxima_llamada:prox, solo_registro:soloRegistro};
+    const body={tipo_caso:caso.tipo==='fallo'?'fallo_pago':(caso.tipo==='bienvenida'?'bienvenida':(caso.tipo==='calidad'?'calidad':'baja')), customer_id:destino.customer_id, contract_id:destino.contract_id, nombre:caso.nombre||'', email:caso.email||'', phone:caso.phone||'', contacto, resultado, agente:agActual(), nota, proxima_llamada:prox, solo_registro:soloRegistro};
     const r=await fetch(API_BAJAS+'/api/dashboard/gestion',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
     const d=await r.json().catch(()=>null);
     if(sesionCaducada(r,d)){ avisarSesion(msg, gb); return; }
