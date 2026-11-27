@@ -820,7 +820,14 @@ async function enriquecerTelefonos(){
   if(cambios) renderSeguro();   // UN solo redibujado al final, y solo si no molesta
 }
 
-function histDe(caso){ if(caso.tipo==='coach') return GALL.filter(g=>g.tipo_caso==='coach'&&g.coach_uid===caso.coach_uid); const c=nid(caso.contract_id); const cu=String(caso.customer_id||''); return (c&&GEST.byC[c])||(cu&&GEST.byCust[cu])||[]; }
+function histDe(caso){
+  if(caso.tipo==='coach') return GALL.filter(g=>g.tipo_caso==='coach'&&g.coach_uid===caso.coach_uid);
+  const c=nid(caso.contract_id), cu=String(caso.customer_id||'');
+  if(c||cu) return (c&&GEST.byC[c])||(cu&&GEST.byCust[cu])||[];
+  // 27/11/2026 — Sin identificadores, recuperar llamadas por móvil conservando el orden DESC de GALL.
+  const tel=String(caso.phone||'').replace(/\D/g,'').slice(-9);
+  return tel.length===9 ? GALL.filter(g=>g.tipo_caso!=='coach' && String(g.phone||'').replace(/\D/g,'').slice(-9)===tel) : [];
+}
 // Resultados que "cierran" el caso por hoy (derivado del catálogo). Los no terminales
 // (volver a llamar / no contesta, legacy) mantienen la clienta en la lista para reintentarla.
 // Los intentos negativos SÍ cierran el día (suelen ser días distintos): la clienta reaparece
@@ -842,9 +849,10 @@ function gestionadaHoy(caso){ return histDe(caso).some(g=>String(g.created_at||'
 // empezó ESTE episodio de fallo (`first_seen` de la worklist, o la fecha del caso), para que
 // un ajuste de hace meses no tape un impago nuevo de la misma clienta.
 function casoCerrado(caso){
-  if(!CIERRA.size) return false;
   const desde=String(caso.first_seen||caso.fecha||'').slice(0,10);
-  return histDe(caso).some(g=>CIERRA.has(g.resultado) && (!desde || String(g.created_at||'').slice(0,10)>=desde));
+  // 27/11/2026 — Una baja registrada cierra este episodio aunque la caché del contrato siga activa.
+  const cancela=['baja','derivada','senal'].includes(caso.tipo);
+  return histDe(caso).some(g=>(CIERRA.has(g.resultado) || (cancela && CANCELAR.has(g.resultado))) && (!desde || String(g.created_at||'').slice(0,10)>=desde));
 }
 // En espera de la validación de Cristina: fuera de «por llamar», pero el caso sigue ABIERTO
 // (cuenta en «Pagos por validar» hasta que ella confirme → `pagado`, o lo deshaga).

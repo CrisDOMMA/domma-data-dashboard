@@ -80,7 +80,7 @@ const cargar = new Function('estado', `
   let busca = '';
   ${PIEZAS.join('\n')}
   return { nivelIrse, compararSenales, prioridad, compraCerrada, fichaCompra, CATALOGO, TERMINAL, CIERRA, ESPERA, COBRO_HECHO, EQUIPO,
-           gestionadaHoy, casoCerrado, enEspera, yaRegistrada, yaSalvada, gestionadasCards, bienvenidaCerrada, calidadCerrada, nivelRescate, marcaRescate, diaSiguienteHabil,
+           histDe, gestionadaHoy, casoCerrado, enEspera, yaRegistrada, yaSalvada, gestionadasCards, bienvenidaCerrada, calidadCerrada, nivelRescate, marcaRescate, diaSiguienteHabil,
            botonesAsignacion, duenoDe, sinDueno, esMio, agActual, filtrarPorDueno,
            verDePorDefecto: () => verDe,
            conVerDe(v){ verDe = v; },
@@ -104,6 +104,33 @@ function conGestiones(gestiones, fseen) {
 const CASO = { contract_id: '1', first_seen: d(9), fecha: d(9) };
 /** ¿Sale hoy en «por llamar»? (mismo filtro que render()) */
 const porLlamar = c => !API.gestionadaHoy(c) && !API.yaRegistrada(c) && !API.casoCerrado(c) && !API.enEspera(c) && !API.yaSalvada(c);
+
+// 27/11/2026 — Regresión de llamadas sin IDs y cancelaciones del episodio actual.
+bloque('CIERRE — teléfono sin IDs y cancelación registrada');
+const senalTelefono={tipo:'senal',phone:'+34 643 289 866',fecha:d(9)};
+const llamadasTelefono=[
+  {phone:'34643289866',resultado:'retenida',created_at:d(1)},
+  {phone:'643 289 866',resultado:'intento_1',created_at:d(2)},
+  {phone:'34643289866',tipo_caso:'coach',resultado:'coach_realizada',created_at:d(3)},
+  {phone:'34643289867',resultado:'cancelacion',created_at:d(4)}
+];
+API.set({GALL:llamadasTelefono});
+t('histDe encuentra los últimos 9 dígitos y conserva DESC', API.histDe(senalTelefono).map(g=>g.resultado).join(',')==='retenida,intento_1');
+t('histDe excluye coaching', !API.histDe(senalTelefono).some(g=>g.tipo_caso==='coach'));
+t('histDe excluye otro teléfono', !API.histDe(senalTelefono).some(g=>g.phone==='34643289867'));
+t('histDe no usa teléfono si hay contrato', API.histDe({...senalTelefono,contract_id:'99'}).length===0);
+t('histDe no usa teléfono si hay clienta', API.histDe({...senalTelefono,customer_id:'99'}).length===0);
+t('histDe nunca cruza menos de 9 dígitos', API.histDe({phone:'289866'}).length===0);
+t('señal sin IDs con última gestión retenida queda salvada', API.yaSalvada(senalTelefono));
+conGestiones([{resultado:'cancelacion',created_at:d(1)}]);
+for(const tipo of ['derivada','baja','senal']) {
+  t(`${tipo}: cancelación posterior cierra`, API.casoCerrado({contract_id:'1',tipo,fecha:d(2)}));
+  t(`${tipo}: cancelación del mismo día cierra`, API.casoCerrado({contract_id:'1',tipo,fecha:d(1)}));
+  t(`${tipo}: cancelación anterior no cierra`, !API.casoCerrado({contract_id:'1',tipo,fecha:d(0)}));
+}
+for(const tipo of ['fallo','bienvenida','calidad','compra','coach'])
+  t(`${tipo}: solo cancelación sigue sin cerrar`, !API.casoCerrado({contract_id:'1',tipo,fecha:d(2)}));
+API.set({});
 
 // ── 1. El catálogo declara lo que creemos ─────────────────────────────
 bloque('CATÁLOGO — quién cierra, quién espera, quién vuelve');
