@@ -346,6 +346,8 @@ const CATALOGO={
   calidad_vuelve:         {l:'Calidad · quiere volver',             b:'💚 Quiere volver',              tone:'green', term:1, win:'💚 Vuelve'},
   calidad_no_quiere:      {l:'Calidad · no quiere hablar',          b:'🙅 No quiere hablar',           tone:'amber', term:1},
   calidad_no_contesta:    {l:'Calidad · no contesta',               b:'📵 No contesta',                tone:'amber', term:1},
+  // 27/11/2026 (Carme): revisó el caso sin llamar y no fue fallo nuestro → cierra, sin 2ª llamada.
+  calidad_revisado:       {l:'Calidad · revisado, no es fallo nuestro', b:'🗂 Revisado · no es fallo nuestro', tone:'amber', term:1},
   // legacy (historial de antes del catálogo único — sin botón):
   cancelar:               {l:'Cancelar',                    tone:'red',   term:1, legacy:1},
   cancelado:              {l:'Cancelado',                   tone:'red',   term:1, legacy:1},
@@ -878,7 +880,10 @@ function yaRegistrada(caso){
 const SALVA=new Set(['retenida','pausa','cambio_producto','cambio_fecha','venta_cruzada','upsell']);
 function yaSalvada(caso){
   const desde=String(caso.first_seen||caso.fecha||'').slice(0,10);
-  const h=histDe(caso).filter(g=>!g.es_test&&(!desde||String(g.created_at||'').slice(0,10)>=desde));
+  // 27/11/2026 (Carme, María Isabel): en bajas/derivadas/alertas, una llamada de fallo de pago,
+  // bienvenida, calidad, compra o COACH posterior no deshace la retención.
+  const OTRO=new Set(['fallo_pago','bienvenida','calidad','compra_unica','coach']);
+  const h=histDe(caso).filter(g=>!g.es_test&&(!desde||String(g.created_at||'').slice(0,10)>=desde)&&(caso.tipo==='fallo'||!OTRO.has(g.tipo_caso)));
   return !!h.length && SALVA.has(h[0].resultado);   // GALL viene DESC → h[0] es la última
 }
 // 👋 Una bienvenida sale del cubo cuando alguien la ha llamado desde su alta: hablaron (o
@@ -1458,8 +1463,8 @@ function paso2(i,contacto,btn,pre){
     if(contacto==='no_localizada' && !editId && !caso.intentos && !caso.gestionada) pre={...(pre||{}), prox:diaSiguienteHabil(hoyISO())};
   } else if(caso.tipo==='calidad'){
     // 🔎 Lo que pasó, en un clic; el detalle va en la nota (obligatoria si hablasteis).
-    codigos = contacto==='no_localizada' ? ['calidad_no_contesta']
-      : ['calidad_envio','calidad_cobro','calidad_suscripcion','calidad_otro','calidad_vuelve','calidad_no_quiere'];
+    codigos = contacto==='no_localizada' ? ['calidad_no_contesta','calidad_revisado']
+      : ['calidad_envio','calidad_cobro','calidad_suscripcion','calidad_otro','calidad_vuelve','calidad_no_quiere','calidad_revisado'];
     if(contacto==='no_localizada' && !editId && !caso.intentos && !caso.gestionada) pre={...(pre||{}), prox:diaSiguienteHabil(hoyISO())};
   } else if(contacto==='no_localizada'){
     codigos = caso.tipo==='fallo'

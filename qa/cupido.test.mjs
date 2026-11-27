@@ -122,6 +122,15 @@ t('histDe no usa teléfono si hay contrato', API.histDe({...senalTelefono,contra
 t('histDe no usa teléfono si hay clienta', API.histDe({...senalTelefono,customer_id:'99'}).length===0);
 t('histDe nunca cruza menos de 9 dígitos', API.histDe({phone:'289866'}).length===0);
 t('señal sin IDs con última gestión retenida queda salvada', API.yaSalvada(senalTelefono));
+// 27/11/2026 (Carme, María Isabel): una llamada posterior de fallo de pago no deshace la retención.
+{
+  const D={tipo:'derivada',contract_id:'1',fecha:d(9)};
+  conGestiones([{tipo_caso:'fallo_pago',resultado:'pendiente_cobro',created_at:d(0)+' 12:00',contract_id:'1'},{tipo_caso:'baja',resultado:'retenida',created_at:d(1)+' 12:00',contract_id:'1'}]);
+  t('derivada retenida sigue salvada tras una llamada de fallo de pago', API.yaSalvada(D));
+  t('…y una tarjeta de fallo sí mira su propia llamada', !API.yaSalvada({...D,tipo:'fallo'}));
+  conGestiones([{tipo_caso:'baja',resultado:'intento_1',created_at:d(0)+' 12:00',contract_id:'1'},{tipo_caso:'baja',resultado:'retenida',created_at:d(1)+' 12:00',contract_id:'1'}]);
+  t('derivada: un intento de baja posterior sí la devuelve', !API.yaSalvada(D));
+}
 conGestiones([{resultado:'cancelacion',created_at:d(1)}]);
 for(const tipo of ['derivada','baja','senal']) {
   t(`${tipo}: cancelación posterior cierra`, API.casoCerrado({contract_id:'1',tipo,fecha:d(2)}));
@@ -515,8 +524,12 @@ bloque('BIENVENIDAS — quién sale del cubo y qué NO puede romper');
     t('calidad: dos sin respuesta → no se insiste', API.calidadCerrada(Q));
     conGestiones([{ tipo_caso: 'baja', resultado: 'retenida', created_at: d(1) + ' 10:00', contract_id: '1' }]);
     t('calidad: una gestión de OTRO tipo no la cierra', !API.calidadCerrada(Q));
+    // 27/11/2026 (Carme): revisado sin llamar → cierra, sin 2ª llamada.
+    conGestiones([{ tipo_caso: 'calidad', resultado: 'calidad_revisado', created_at: d(1) + ' 10:00', contract_id: '1' }]);
+    t('calidad: «Revisado · no es fallo nuestro» la cierra', API.calidadCerrada(Q));
+    t('calidad: «Revisado» se ofrece también sin localizarla', /contacto==='no_localizada' \? \['calidad_no_contesta','calidad_revisado'\]/.test(SRC));
     const CQ = Object.keys(API.CATALOGO).filter(k => k.startsWith('calidad_'));
-    t('calidad: 7 códigos, ninguno cancela, cierra ni espera', CQ.length === 7 && CQ.every(k => !API.CATALOGO[k].cancela && !API.CIERRA.has(k) && !API.ESPERA.has(k) && API.TERMINAL.has(k) && k.length <= 40));
+    t('calidad: 8 códigos, ninguno cancela, cierra ni espera', CQ.length === 8 && CQ.every(k => !API.CATALOGO[k].cancela && !API.CIERRA.has(k) && !API.ESPERA.has(k) && API.TERMINAL.has(k) && k.length <= 40));
     t('calidad: el registro no ofrece Cancelación ni Pausa (ya está de baja)',
       (() => { const i = SRC.indexOf("} else if(caso.tipo==='calidad'){"), j = SRC.indexOf("} else if(contacto==='no_localizada'){", i);
                const b = SRC.slice(i, j); return i > 0 && j > i && !/'cancelacion'|'pausa'|'compra_unica/.test(b) && /'calidad_no_contesta'/.test(b); })());
